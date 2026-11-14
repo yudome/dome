@@ -320,7 +320,7 @@ pub fn virtualMachines(io: Io, args: []const []const u8) !void {
 		std.process.exit(2);
 	}
 
-	const method = args[2];
+	const method = if (std.mem.eql(u8, args[2], "scenario")) "run_scenario" else args[2];
 	const rest = args[3..];
 
 	if (std.mem.eql(u8, method, "view")) {

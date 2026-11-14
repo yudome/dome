@@ -859,7 +859,7 @@ pub const Vms = struct {
 		const command = std.fmt.allocPrint(allocator, "sudo -n timedatectl set-ntp false >/dev/null 2>&1; " ++
 			"export XDG_RUNTIME_DIR=/run/user/1000; " ++
 			"export WAYLAND_DISPLAY=$(basename $(ls /run/user/1000/wayland-* 2>/dev/null | grep -v '\\.lock$' | head -1)); " ++
-			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls /run/user/1000/hypr | head -1); " ++
+			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr | head -1); " ++
 			"hyprctl dispatch 'function() hl.monitor({{output=\"Virtual-1\",mode=\"{d}x{d}@279.96\",position=\"auto\",scale=\"{s}\"}}) end'", .{ width, height, scale }) catch return;
 
 		_ = self.guestExec(cid, &.{ "sh", "-lc", command }, allocator) catch return;
@@ -1138,7 +1138,7 @@ pub const Vms = struct {
 		const command =
 			"export XDG_RUNTIME_DIR=/run/user/1000; " ++
 			"export WAYLAND_DISPLAY=$(basename $(ls /run/user/1000/wayland-* 2>/dev/null | grep -v '\\.lock$' | head -1)); " ++
-			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls /run/user/1000/hypr | head -1); " ++
+			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr | head -1); " ++
 			"grim -s $(python3 -c 'import json,subprocess;print(json.loads(subprocess.check_output([\"hyprctl\",\"monitors\",\"-j\"]))[0][\"scale\"])') /tmp/yudae-shot.png >/dev/null 2>&1; base64 -w0 /tmp/yudae-shot.png";
 
 		var attempts: usize = 0;
@@ -1199,7 +1199,7 @@ pub const Vms = struct {
 		const command =
 			"export XDG_RUNTIME_DIR=/run/user/1000; " ++
 			"export WAYLAND_DISPLAY=$(basename $(ls /run/user/1000/wayland-* 2>/dev/null | grep -v '\\.lock$' | head -1)); " ++
-			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls /run/user/1000/hypr | head -1); " ++
+			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr | head -1); " ++
 			"grim -t jpeg -q 80 /tmp/yudae-thumb.jpg >/dev/null 2>&1; base64 -w0 /tmp/yudae-thumb.jpg";
 
 		var text: []const u8 = "";
@@ -1363,7 +1363,7 @@ pub const Vms = struct {
 		const command =
 			"export XDG_RUNTIME_DIR=/run/user/1000; " ++
 			"export WAYLAND_DISPLAY=$(basename $(ls /run/user/1000/wayland-* 2>/dev/null | grep -v '\\.lock$' | head -1)); " ++
-			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls /run/user/1000/hypr | head -1); " ++
+			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr | head -1); " ++
 			"hyprctl -j clients";
 
 		const clients = self.guestExec(cid, &.{ "sh", "-lc", command }, allocator) catch null;
@@ -1710,7 +1710,7 @@ pub const Vms = struct {
 
 		const command = try std.fmt.allocPrint(allocator, "export XDG_RUNTIME_DIR=/run/user/1000; " ++
 			"export WAYLAND_DISPLAY=$(basename $(ls /run/user/1000/wayland-* 2>/dev/null | grep -v '\\.lock$' | head -1)); " ++
-			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls /run/user/1000/hypr | head -1); " ++
+			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr | head -1); " ++
 			"hyprctl dispatch 'hl.dsp.global(\"quickshell:{s}\")'", .{glyph});
 
 		const result = try self.guestExec(cid, &.{ "sh", "-lc", command }, allocator);
