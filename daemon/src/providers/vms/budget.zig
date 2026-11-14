@@ -31,6 +31,6 @@ pub fn detect(io: Io, allocator: Allocator) Budget {
 
 	return .{
 		.mem_mb = @max(total_mb / 2, 1024),
-		.cores = @max(@as(u32, @intCast(cpus)) / 4, 1),
+		.cores = @max(@as(u32, @intCast(cpus)), 1),
 	};
 }
