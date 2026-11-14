@@ -71,8 +71,9 @@ One adapter per kind in yudaemond. Plugins never touch the loader.
 - `provides` has the `.so` or `.bin`. `hypr.lua` contains config only.
 - yudaemond writes `$XDG_STATE_HOME/yudae/loaded.lua`; `hypr/hyprland.lua` `dofile`s it after the normal config. The generated file loads each current binary, sets `YUDAE_PLUGIN` (`id`, `dir`, `out`, `options`) and inlines the plugin's `hypr.lua`.
 - At daemon start the loader reads `pkg-config --modversion hyprland`. The stamp holds that version and a hash of every source file. A changed version or source rebuilds; `loaded.lua` never compiles.
-- A stale plugin is skipped at login, rebuilt by the daemon and loaded live with `hyprctl plugin load`.
-- A running Hyprland older than the headers refusing the `.so` is non-fatal; it loads after the next login.
+- After every reload the daemon writes `$XDG_STATE_HOME/yudae/plugins.ready` with the version it built for. `hypr/hyprland.lua` loads `loaded.lua` only when that equals `hl.version()`, so a list built for another Hyprland is skipped instead of popping a failed-load notification.
+- `yudae-plugins.path` watches `/usr/share/pkgconfig/hyprland.pc`. A package update rebuilds the plugins during the running session, so the next login loads them directly; the daemon only live-loads when `hyprctl version` matches the headers it built against.
+- After a live load the daemon reloads the Hyprland config once so the plugin's `hypr.lua` options apply.
 - A failed build skips only that plugin, posts a notification with the compiler output, and keeps the desktop running.
 
 ### theme

@@ -26,6 +26,10 @@ pub const Paths = struct {
 		return std.fmt.allocPrint(allocator, "{s}/loaded.lua", .{self.state});
 	}
 
+	pub fn ready(self: Paths, allocator: Allocator) ![]u8 {
+		return std.fmt.allocPrint(allocator, "{s}/plugins.ready", .{self.state});
+	}
+
 	pub fn theme(self: Paths, allocator: Allocator) ![]u8 {
 		return std.fmt.allocPrint(allocator, "{s}/theme.toml", .{self.state});
 	}
@@ -184,7 +188,7 @@ pub const Plugins = struct {
 
 	pub fn reload(self: *Plugins) void {
 		self.mutex.lockUncancelable(self.io);
-		self.reloadLocked();
+		self.reloadLockedMode(true);
 		self.mutex.unlock(self.io);
 
 		self.hub.publish();
@@ -315,6 +319,10 @@ pub const Plugins = struct {
 	}
 
 	fn reloadLocked(self: *Plugins) void {
+		self.reloadLockedMode(false);
+	}
+
+	fn reloadLockedMode(self: *Plugins, require_env: bool) void {
 		_ = self.scratch.reset(.retain_capacity);
 
 		const arena = self.scratch.allocator();
@@ -322,12 +330,19 @@ pub const Plugins = struct {
 		self.rows = &.{};
 		self.themes = &.{};
 
+		const live = self.reloadPluginsLocked(arena, require_env);
+
+		self.writeReadyOwned(arena);
+		if (live > 0) self.reloadHyprland();
+	}
+
+	fn reloadPluginsLocked(self: *Plugins, arena: Allocator, require_env: bool) usize {
 		const load = self.readList(arena) catch |err| {
 			self.error_text = std.fmt.allocPrint(arena, "plugins.toml: {s}", .{@errorName(err)}) catch "plugins.toml is invalid";
 			self.hyprland = self.hyprlandVersion(arena);
 			self.writeLoadedOwned(arena, &.{});
 			self.writeThemeOwned(arena, &.{});
-			return;
+			return 0;
 		};
 
 		if (load.error_text.len > 0) {
@@ -336,7 +351,7 @@ pub const Plugins = struct {
 			self.writeLoadedOwned(arena, &.{});
 			self.writeThemeOwned(arena, &.{});
 			if (self.notes) |notes| notes.post("yudae", "plugins.toml is invalid", self.error_text, 8000);
-			return;
+			return 0;
 		}
 
 		self.hyprland = self.hyprlandVersion(arena);
@@ -423,9 +438,11 @@ pub const Plugins = struct {
 
 		self.writeLoadedOwned(arena, loaded.items);
 		self.writeThemeOwned(arena, themes.items);
-		if (self.live) self.liveLoad(loaded.items);
 		self.rows = rows.items;
 		self.themes = self.scanThemes(arena, load.ids);
+
+		if (!self.live) return 0;
+		return self.liveLoad(loaded.items, require_env);
 	}
 
 	fn kindOf(self: *Plugins, arena: Allocator, id: []const u8) ?Kind {
@@ -894,6 +911,11 @@ pub const Plugins = struct {
 		return hash.finalResult();
 	}
 
+	fn writeReadyOwned(self: *Plugins, arena: Allocator) void {
+		const path = self.paths.ready(arena) catch return;
+		proc.writeFileAtomic(self.io, self.allocator, path, self.hyprland) catch {};
+	}
+
 	fn writeLoadedOwned(self: *Plugins, arena: Allocator, loaded: []const Loaded) void {
 		const path = self.paths.loaded(arena) catch return;
 		std.Io.Dir.cwd().createDirPath(self.io, self.paths.state) catch {};
@@ -938,20 +960,34 @@ pub const Plugins = struct {
 		proc.writeFileAtomic(self.io, self.allocator, path, out.written()) catch {};
 	}
 
-	fn liveLoad(self: *Plugins, loaded: []const Loaded) void {
-		if (loaded.len == 0) return;
+	fn liveLoad(self: *Plugins, loaded: []const Loaded, require_env: bool) usize {
+		if (loaded.len == 0) return 0;
 
-		const signature = hypr.findSignature(self.io, self.allocator) catch return;
+		const signature = hypr.findSignature(self.io, self.allocator) catch return 0;
 		defer self.allocator.free(signature);
+
+		if (require_env) {
+			const current = proc.env(self.io, self.allocator, "HYPRLAND_INSTANCE_SIGNATURE") orelse return 0;
+			if (!std.mem.eql(u8, current, signature)) return 0;
+		}
 
 		var map = std.process.Environ.Map.init(self.allocator);
 		defer map.deinit();
-		self.putEnviron(&map) catch return;
-		map.put("HYPRLAND_INSTANCE_SIGNATURE", signature) catch return;
+		self.putEnviron(&map) catch return 0;
+		map.put("HYPRLAND_INSTANCE_SIGNATURE", signature) catch return 0;
 
-		const list = exec.runEnv(self.io, self.allocator, &.{ "hyprctl", "plugin", "list" }, &map) catch return;
+		const list = exec.runEnv(self.io, self.allocator, &.{ "hyprctl", "plugin", "list" }, &map) catch return 0;
 		defer list.deinit(self.allocator);
-		if (list.code != 0) return;
+		if (list.code != 0) return 0;
+
+		const running = exec.runEnv(self.io, self.allocator, &.{ "hyprctl", "version" }, &map) catch return 0;
+		defer running.deinit(self.allocator);
+		if (running.code != 0) return 0;
+
+		const version = runningVersion(running.out) orelse return 0;
+		if (!std.mem.eql(u8, version, self.hyprland)) return 0;
+
+		var count: usize = 0;
 
 		for (loaded) |entry| {
 			if (std.mem.indexOf(u8, list.out, entry.manifest.id) != null) continue;
@@ -964,10 +1000,26 @@ pub const Plugins = struct {
 					self.allocator.free(binary);
 					continue;
 				};
+				if (result.code == 0) count += 1;
 				result.deinit(self.allocator);
 				self.allocator.free(binary);
 			}
 		}
+
+		return count;
+	}
+
+	fn reloadHyprland(self: *Plugins) void {
+		const signature = hypr.findSignature(self.io, self.allocator) catch return;
+		defer self.allocator.free(signature);
+
+		var map = std.process.Environ.Map.init(self.allocator);
+		defer map.deinit();
+		self.putEnviron(&map) catch return;
+		map.put("HYPRLAND_INSTANCE_SIGNATURE", signature) catch return;
+
+		const result = exec.runEnv(self.io, self.allocator, &.{ "hyprctl", "reload" }, &map) catch return;
+		result.deinit(self.allocator);
 	}
 
 	fn editListLocked(self: *Plugins, id: []const u8, add: bool) !void {
@@ -1445,6 +1497,17 @@ fn writeTomlValue(writer: *Writer, value: configmod.Value) !void {
 	}
 }
 
+fn runningVersion(out: []const u8) ?[]const u8 {
+	const text = std.mem.trim(u8, out, " \t\r\n");
+	if (!std.mem.startsWith(u8, text, "Hyprland ")) return null;
+
+	const rest = text["Hyprland ".len..];
+	const end = std.mem.indexOfAny(u8, rest, " \t\r\n") orelse rest.len;
+	if (end == 0) return null;
+
+	return rest[0..end];
+}
+
 fn writeJsonString(writer: *Writer, text: []const u8) !void {
 	try std.json.Stringify.encodeJsonString(text, .{}, writer);
 }
@@ -1511,6 +1574,13 @@ fn parseLoad(arena: Allocator, path: []const u8) !configmod.Config {
 	const body = try proc.readFile(std.testing.io, std.testing.allocator, path);
 	defer std.testing.allocator.free(body);
 	return configmod.Config.parse(arena, body);
+}
+
+test "a hyprctl version line yields the running version" {
+	const line = "Hyprland 0.57.2 built from branch v0.57.2 at commit abc clean\nDate: Mon Nov 9\n";
+	try std.testing.expectEqualStrings("0.57.2", runningVersion(line).?);
+	try std.testing.expect(runningVersion("no version here") == null);
+	try std.testing.expect(runningVersion("Hyprland ") == null);
 }
 
 test "an absent load list means no plugins" {
@@ -1797,5 +1867,9 @@ test "a real hypr template builds and writes loaded.lua" {
 	defer std.testing.allocator.free(body);
 	try std.testing.expect(std.mem.indexOf(u8, body, "template-hypr.so") != null);
 	try std.testing.expect(std.mem.indexOf(u8, body, "options = { [\"enabled\"] = false }") != null);
+
+	const ready = try proc.readFile(std.testing.io, std.testing.allocator, try paths.ready(a));
+	defer std.testing.allocator.free(ready);
+	try std.testing.expectEqualStrings(loader.hyprland, ready);
 }
 
