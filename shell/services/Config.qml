@@ -144,6 +144,10 @@ QtObject {
 	readonly property var iconWifi4: settings.iconWifi4 !== undefined ? settings.iconWifi4 : "\udb82\udd28"
 	readonly property var iconWifiOff: settings.iconWifiOff !== undefined ? settings.iconWifiOff : "\udb82\udd2d"
 	readonly property var iconEthernet: settings.iconEthernet !== undefined ? settings.iconEthernet : "\udb80\ude00"
+	readonly property var iconEye: settings.iconEye !== undefined ? settings.iconEye : "\uf06e"
+	readonly property var iconEyeOff: settings.iconEyeOff !== undefined ? settings.iconEyeOff : "\uf070"
+	readonly property var iconPowerOff: settings.iconPowerOff !== undefined ? settings.iconPowerOff : "\uf011"
+	readonly property var iconReboot: settings.iconReboot !== undefined ? settings.iconReboot : "\uead2"
 	readonly property var iconLock: settings.iconLock !== undefined ? settings.iconLock : "\uf023"
 
 	// cpu and process list
@@ -343,37 +347,29 @@ QtObject {
 	// lock screen
 	readonly property var lockAfterMinutes: settings.lockAfterMinutes !== undefined ? settings.lockAfterMinutes : 10
 	readonly property var lockSleepAfterMinutes: settings.lockSleepAfterMinutes !== undefined ? settings.lockSleepAfterMinutes : 30
-	readonly property var lockScrim: settings.lockScrim !== undefined ? settings.lockScrim : 0.52
-	readonly property var lockInset: settings.lockInset !== undefined ? settings.lockInset : 96
-	readonly property var lockClockFormat: settings.lockClockFormat !== undefined ? settings.lockClockFormat : "HH:mm"
-	readonly property var lockDateFormat: settings.lockDateFormat !== undefined ? settings.lockDateFormat : "dddd d MMMM"
-	readonly property var lockDateSize: settings.lockDateSize !== undefined ? settings.lockDateSize : 20
-	readonly property var lockCardPadding: settings.lockCardPadding !== undefined ? settings.lockCardPadding : 12
-	readonly property var lockIconSize: settings.lockIconSize !== undefined ? settings.lockIconSize : 22
-	readonly property var lockIcon: settings.lockIcon !== undefined ? settings.lockIcon : "\uf023"
-	readonly property var lockOpenIcon: settings.lockOpenIcon !== undefined ? settings.lockOpenIcon : "\uf09c"
-	readonly property var lockRevealIcon: settings.lockRevealIcon !== undefined ? settings.lockRevealIcon : "\uf06e"
-	readonly property var lockHideIcon: settings.lockHideIcon !== undefined ? settings.lockHideIcon : "\uf070"
-	readonly property var lockPowerIcon: settings.lockPowerIcon !== undefined ? settings.lockPowerIcon : "\uf011"
-	readonly property var lockPowerSize: settings.lockPowerSize !== undefined ? settings.lockPowerSize : 18
-	readonly property var lockNoteSize: settings.lockNoteSize !== undefined ? settings.lockNoteSize : 12
-	readonly property var lockFieldMin: settings.lockFieldMin !== undefined ? settings.lockFieldMin : 5
-	readonly property var lockBoxes: settings.lockBoxes !== undefined ? settings.lockBoxes : 10
-	readonly property var lockBoxWidth: settings.lockBoxWidth !== undefined ? settings.lockBoxWidth : 44
-	readonly property var lockBoxHeight: settings.lockBoxHeight !== undefined ? settings.lockBoxHeight : 44
-	readonly property var lockBoxGap: settings.lockBoxGap !== undefined ? settings.lockBoxGap : 6
-	readonly property var lockGlyphSize: settings.lockGlyphSize !== undefined ? settings.lockGlyphSize : 19
+	readonly property var lockFontSize: settings.lockFontSize !== undefined ? settings.lockFontSize : 15
+	readonly property var lockClockFormat: settings.lockClockFormat !== undefined ? settings.lockClockFormat : "h:mm AP"
+	readonly property var lockDigits: settings.lockDigits !== undefined ? settings.lockDigits : [
+		["0", "###", "# #", "# #", "# #", "###"],
+		["1", "  #", "  #", "  #", "  #", "  #"],
+		["2", "###", "  #", "###", "#  ", "###"],
+		["3", "###", "  #", "###", "  #", "###"],
+		["4", "# #", "# #", "###", "  #", "  #"],
+		["5", "###", "#  ", "###", "  #", "###"],
+		["6", "###", "#  ", "###", "# #", "###"],
+		["7", "###", "  #", "  #", "  #", "  #"],
+		["8", "###", "# #", "###", "# #", "###"],
+		["9", "###", "# #", "###", "  #", "###"],
+		[":", " ", "#", " ", "#", " "],
+		[" ", " ", " ", " ", " ", " "],
+		["A", "###", "# #", "###", "# #", "# #"],
+		["P", "###", "# #", "###", "#  ", "#  "],
+		["M", "#   #", "## ##", "# # #", "#   #", "#   #"]
+	]
 	readonly property var lockCooldownMs: settings.lockCooldownMs !== undefined ? settings.lockCooldownMs : 3000
 	readonly property var lockPamService: settings.lockPamService !== undefined ? settings.lockPamService : "quickshell"
 	readonly property var lockWrongText: settings.lockWrongText !== undefined ? settings.lockWrongText : "Wrong password"
 	readonly property var lockPamError: settings.lockPamError !== undefined ? settings.lockPamError : "Authentication unavailable"
-	readonly property var greeterUnavailableText: settings.greeterUnavailableText !== undefined ? settings.greeterUnavailableText : "greeter is not running"
-	readonly property var lockGlyphPool: settings.lockGlyphPool !== undefined ? settings.lockGlyphPool : [
-		"\uf023", "\uf084", "\uf2f6", "\uf21b", "\uf06e",
-		"\uf1c0", "\uebc8", "\uf126", "\uf1bb", "\uf1b3",
-		"\uf0e7", "\uf0c2", "\uf2c2", "\uf2db", "\uf233",
-		"\uf188", "\uf06d", "\uf013", "\uf049", "\uf1eb"
-	]
 
 	// calendar, meters and the life dial
 	readonly property var calendarCellWidth: settings.calendarCellWidth !== undefined ? settings.calendarCellWidth : 60
@@ -650,7 +646,11 @@ QtObject {
 		display: root.iconDisplay,
 		disk: root.iconDisk,
 		ethernet: root.iconEthernet,
+		eye: root.iconEye,
+		eyeOff: root.iconEyeOff,
 		lock: root.iconLock,
+		powerOff: root.iconPowerOff,
+		reboot: root.iconReboot,
 		wifi1: root.iconWifi1,
 		wifi2: root.iconWifi2,
 		wifi3: root.iconWifi3,

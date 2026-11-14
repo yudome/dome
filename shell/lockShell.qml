@@ -6,7 +6,6 @@ import Quickshell.Wayland
 import qs
 import qs.services
 import "features/lock"
-import "features/launcher"
 
 ShellRoot {
 	id: lockRoot
@@ -14,48 +13,41 @@ ShellRoot {
 	readonly property bool preview: Quickshell.env("QS_LOCK_PREVIEW") === "1"
 	readonly property string pidFile: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/qs-lock.pid"
 
-
-	function grab() {
-		for (let i = 0; i < locks.instances.length; i++)
-			locks.instances[i].grab();
-	}
+	property int focusIndex: 0
+	property bool reveal: false
 
 	Session {
 		id: auth
 
 		preview: lockRoot.preview
 
+		onModeChanged: if (auth.mode !== "locked")
+			lockRoot.reveal = false
+
 		onUnlocked: {
+			lock.locked = false;
 			Quickshell.execDetached(["rm", "-f", lockRoot.pidFile]);
 			Qt.quit();
 		}
 	}
 
-	Variants {
-		id: locks
+	WlSessionLock {
+		id: lock
 
-		model: Quickshell.screens
+		locked: true
 
 		Stage {
 			source: auth
-			wallpaper: Yudae.wallpaper.active || ""
+			focusIndex: lockRoot.focusIndex
+			reveal: lockRoot.reveal
 
-			onPowerRequested: powerMenu.open()
-		}
-	}
+			onFocusPicked: function (index) {
+				lockRoot.focusIndex = index;
+			}
 
-	PowerMenu {
-		id: powerMenu
-
-		alwaysMapped: false
-	}
-
-	Connections {
-		target: powerMenu
-
-		function onShownChanged() {
-			if (!powerMenu.shown)
-				Qt.callLater(lockRoot.grab);
+			onRevealPicked: function (shown) {
+				lockRoot.reveal = shown;
+			}
 		}
 	}
 
@@ -70,9 +62,8 @@ ShellRoot {
 	IpcHandler {
 		target: "lock"
 
-
 		function power() {
-			powerMenu.open();
+			lockRoot.focusIndex = 2;
 		}
 	}
 }

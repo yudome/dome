@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -5,84 +6,122 @@ import qs
 import qs.services
 import qs.ui
 
-PanelWindow {
+WlSessionLockSurface {
 	id: root
 
-	required property var modelData
 	property var source
-	property string wallpaper: ""
-	property string account: ""
-	property bool power: true
-	property var actions: []
-	property bool menuOpen: false
-	property int menuIndex: 0
+	property int focusIndex: 0
 	property bool reveal: false
-	property real scrim: Config.lockScrim
 
-	signal powerRequested()
-	signal actionPicked(var action)
+	signal focusPicked(int index)
+	signal revealPicked(bool shown)
 
 	readonly property string mode: root.source ? root.source.mode : "locked"
 	readonly property string message: root.source ? root.source.message : ""
-	readonly property bool open: root.mode === "open"
+	readonly property int filled: root.source ? root.source.filled : 0
 
-	readonly property real inset: Math.min(Config.lockInset, Math.round(root.width * 0.1))
-	readonly property real edge: Math.max(24, Math.round(root.height * 0.03))
-	readonly property real headTop: root.edge
-	readonly property real clockSize: Math.round(Math.min(root.width * 0.082, root.height * 0.15))
+	readonly property var actions: [
+		{ glyph: Config.iconPowerOff, command: ["systemctl", "poweroff"] },
+		{ glyph: Config.iconReboot, command: ["systemctl", "reboot"] }
+	]
 
-	property real intro: 0
-	property real cardIntro: 0
-	property real veil: 1
-	property real screenFade: 1
+	readonly property int boxWidth: Math.max(14, (root.clockRows[0] || "").length)
+	readonly property int fieldWidth: root.boxWidth - 8
+	readonly property int fontPixels: Math.round(Config.lockFontSize * 4 / 3)
+	readonly property real cellWidth: Math.max(1, cell.averageCharacterWidth)
+	readonly property real cellHeight: Math.max(1, Math.ceil(cell.height))
+	readonly property int cols: Math.floor(root.width / root.cellWidth)
+	readonly property int rows: Math.floor(root.height / root.cellHeight)
+	readonly property int top: Math.max(0, Math.floor((root.rows - 11) / 2))
+	readonly property int boxCol: root.centerCol(root.boxWidth)
+	readonly property var clockRows: root.blockRows(Qt.formatTime(stamp.date, Config.lockClockFormat))
+	readonly property int powerCol: root.centerCol(5)
+	readonly property int powerRow: Math.max(0, root.rows - 2)
+	readonly property string field: {
+		const text = root.reveal && root.source ? root.source.password : "●".repeat(root.filled);
 
-	screen: root.modelData
-
-	anchors.top: true
-	anchors.left: true
-	anchors.bottom: true
-	anchors.right: true
-
-	implicitWidth: root.screen ? root.screen.width : 1
-	implicitHeight: root.screen ? root.screen.height : 1
-
-	exclusiveZone: -1
-	color: "transparent"
-
-	WlrLayershell.layer: WlrLayer.Overlay
-	WlrLayershell.namespace: "lock"
-	WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-	WlrLayershell.focusable: true
-
-	visible: true
-
-	Component.onCompleted: Qt.callLater(root.grab)
-
-	function grab() {
-		surface.forceActiveFocus();
+		return text.slice(Math.max(0, text.length - root.fieldWidth));
 	}
 
-	SequentialAnimation {
-		running: true
+	color: Config.surface
 
-		NumberAnimation { target: root; property: "intro"; from: 0; to: 1; duration: 420; easing.type: Easing.OutCubic }
+	function blockRows(text) {
+		const lines = ["", "", "", "", ""];
+		let first = true;
+
+		for (let i = 0; i < text.length; i++) {
+			const glyph = Config.lockDigits.find(entry => entry[0] === text[i]);
+
+			if (!glyph)
+				continue;
+
+			for (let r = 0; r < 5; r++)
+				lines[r] += (first ? "" : "  ") + glyph[r + 1].replace(/#/g, "██").replace(/ /g, "  ");
+
+			first = false;
+		}
+
+		return lines;
 	}
 
-	SequentialAnimation {
-		running: true
-
-		PauseAnimation { duration: 120 }
-		NumberAnimation { target: root; property: "cardIntro"; from: 0; to: 1; duration: 380; easing.type: Easing.OutCubic }
+	function centerCol(length) {
+		return Math.floor((root.cols - length) / 2);
 	}
 
-	SequentialAnimation {
-		id: leave
+	function activate(index) {
+		if (index === 1)
+			root.revealPicked(!root.reveal);
+		else if (index >= 2)
+			Quickshell.execDetached(root.actions[index - 2].command);
+	}
 
-		running: root.open
+	FontMetrics {
+		id: cell
 
-		PauseAnimation { duration: 550 }
-		NumberAnimation { target: root; property: "veil"; to: 0; duration: 320; easing.type: Easing.OutCubic }
-		NumberAnimation { target: root; property: "screenFade"; to: 0; duration: 320; easing.type: Easing.OutCubic }
+		font.family: Config.fontFamily
+		font.pixelSize: root.fontPixels
+	}
+
+	SystemClock {
+		id: stamp
+
+		precision: Config.lockClockFormat.indexOf("s") >= 0 ? SystemClock.Seconds : SystemClock.Minutes
+	}
+
+	component Cell: Rectangle {
+		id: slot
+
+		property int col
+		property int row
+		property int span: 1
+		property string glyph
+		property int slotIndex
+		property color ink: Config.foreground
+
+		property bool lit: root.focusIndex === slot.slotIndex || hit.containsMouse
+
+		x: slot.col * root.cellWidth
+		y: slot.row * root.cellHeight
+		width: slot.span * root.cellWidth
+		height: root.cellHeight
+		color: slot.lit ? Config.foreground : Config.surface
+
+		Glyph {
+			anchors.centerIn: parent
+			width: root.cellWidth
+			height: root.cellHeight
+			size: root.fontPixels
+			glyph: slot.glyph
+			color: slot.lit ? Config.surface : slot.ink
+		}
+
+		MouseArea {
+			id: hit
+
+			anchors.fill: parent
+			hoverEnabled: true
+			onClicked: root.activate(slot.slotIndex)
+		}
 	}
 
 	Item {
@@ -90,312 +129,105 @@ PanelWindow {
 
 		anchors.fill: parent
 		focus: true
-		opacity: root.screenFade
 
-		Rectangle {
+		Component.onCompleted: surface.forceActiveFocus()
+
+		MouseArea {
 			anchors.fill: parent
-			color: Config.surface
+			onPressed: surface.forceActiveFocus()
 		}
 
-		Item {
-			id: backdrop
+		Repeater {
+			model: 5
 
-			anchors.fill: parent
+			Repeater {
+				id: line
+
+				required property int index
+
+				readonly property string bits: root.clockRows[line.index] || ""
+				readonly property int start: root.centerCol(line.bits.length)
+
+				model: line.bits.length
+
+				Rectangle {
+					required property int index
+
+					visible: line.bits[index] === "█"
+					x: (line.start + index) * root.cellWidth
+					y: (root.top + line.index) * root.cellHeight
+					width: Math.ceil(root.cellWidth)
+					height: root.cellHeight
+					color: Config.foreground
+				}
+			}
+		}
+
+		Rectangle {
+			x: (root.boxCol + 0.5) * root.cellWidth
+			y: (root.top + 6.5) * root.cellHeight
+			width: (root.boxWidth - 1) * root.cellWidth
+			height: 2 * root.cellHeight
+			radius: root.cellWidth / 2
+			color: "transparent"
+			border.width: 1
+			border.color: root.mode === "wrong" ? Config.red : Config.foreground
+		}
+
+		Cell {
+			col: root.boxCol + 2
+			row: root.top + 7
+			slotIndex: 0
+			glyph: Config.iconLock
+			ink: root.mode === "checking" ? Config.dim : Config.foreground
+			lit: false
+		}
+
+		Text {
+			x: (root.boxCol + 4) * root.cellWidth
+			y: (root.top + 7) * root.cellHeight
+			width: root.fieldWidth * root.cellWidth
+			height: root.cellHeight
+			verticalAlignment: Text.AlignVCenter
 			clip: true
-
-			Image {
-				id: art
-
-				anchors.fill: parent
-				source: root.wallpaper === "" ? "" : "file://" + root.wallpaper
-				fillMode: Image.PreserveAspectCrop
-				asynchronous: true
-				cache: true
-				opacity: art.status === Image.Ready ? 1 : 0
-				scale: 1
-
-				Behavior on opacity {
-					NumberAnimation { duration: Config.wallpaperTransitionMs; easing.type: Easing.OutCubic }
-				}
-			}
+			font: cell.font
+			color: root.mode === "checking" ? Config.dim : Config.foreground
+			text: root.field
 		}
 
-		Rectangle {
-			id: scrim
-
-			anchors.fill: parent
-			color: Config.surface
-			opacity: root.scrim * root.veil
-		}
-
-
-		MouseArea {
-			anchors.fill: parent
-			onPressed: root.grab()
-		}
-
-		Column {
-			id: heading
-
-			x: (root.width - heading.width) / 2
-			y: root.headTop + (1 - root.intro) * 16
-			width: clock.implicitWidth
-			opacity: root.intro * root.veil
-			spacing: 5
-
-			Text {
-				id: clock
-
-				width: heading.width
-				horizontalAlignment: Text.AlignHCenter
-				font.family: Config.fontFamily
-				font.pixelSize: root.clockSize
-				font.weight: Font.Medium
-				font.letterSpacing: -root.clockSize * 0.032
-				color: Config.foreground
-				text: Qt.formatDateTime(stamp.date, Config.lockClockFormat)
-			}
-
-			Text {
-				width: heading.width
-				horizontalAlignment: Text.AlignHCenter
-				font.family: Config.fontFamily
-				font.pixelSize: Config.lockDateSize
-				color: Config.foreground
-				opacity: 0.72
-				text: Qt.formatDateTime(stamp.date, Config.lockDateFormat)
-			}
-
-			SystemClock {
-				id: stamp
-
-				precision: SystemClock.Minutes
-			}
-		}
-
-		HyprBorder {
-			id: card
-
-			x: (root.width - card.width) / 2
-			y: root.height - root.edge - card.height + (1 - root.cardIntro) * 14
-			width: row.implicitWidth + card.inset * 2
-			height: row.implicitHeight + card.inset * 2
-			padding: Config.lockCardPadding
-			backgroundColor: Config.surfaceTranslucent
-			opacity: root.cardIntro * root.veil
-
-			Behavior on width {
-				NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
-			}
-
-			Row {
-				id: row
-
-				spacing: Config.lockBoxGap
-
-				Item {
-					width: Config.lockBoxWidth
-					height: Config.lockBoxHeight
-
-					Text {
-						id: mark
-
-						anchors.centerIn: parent
-						font.family: Config.fontFamily
-						font.pixelSize: Config.lockIconSize
-						color: root.mode === "wrong" ? Config.red : Config.foreground
-						opacity: root.mode === "checking" ? 0.4 : 1
-						text: root.open ? Config.lockOpenIcon : Config.lockIcon
-
-						Behavior on opacity {
-							NumberAnimation { duration: 140 }
-						}
-
-						Behavior on color {
-							ColorAnimation { duration: 200 }
-						}
-					}
-				}
-
-				GlyphStrip {
-					id: strip
-
-					count: Math.min(Config.lockBoxes, Math.max(Config.lockFieldMin, filled))
-					filled: root.source ? root.source.filled : 0
-					revealed: root.reveal
-					text: root.source ? root.source.password : ""
-					pool: Config.lockGlyphPool
-					glyphs: true
-				}
-
-				Item {
-					width: Config.lockBoxWidth
-					height: Config.lockBoxHeight
-
-					Text {
-						anchors.centerIn: parent
-						font.family: Config.fontFamily
-						font.pixelSize: Config.lockIconSize
-						color: Config.foreground
-						opacity: revealHit.containsMouse ? 1 : 0.55
-						text: root.reveal ? Config.lockHideIcon : Config.lockRevealIcon
-
-						Behavior on opacity {
-							NumberAnimation { duration: 120 }
-						}
-					}
-
-					MouseArea {
-						id: revealHit
-
-						anchors.fill: parent
-						hoverEnabled: true
-						onClicked: root.reveal = !root.reveal
-					}
-				}
-			}
+		Cell {
+			col: root.boxCol + root.boxWidth - 4
+			row: root.top + 7
+			span: 3
+			slotIndex: 1
+			glyph: root.reveal ? Config.iconEyeOff : Config.iconEye
 		}
 
 		Text {
-			id: account
+			readonly property string line: root.message.slice(0, root.cols)
 
-			visible: root.account !== ""
-			x: (root.width - account.implicitWidth) / 2
-			y: card.y - account.height - 14
-			font.family: Config.fontFamily
-			font.pixelSize: Config.lockDateSize
-			color: Config.foreground
-			opacity: 0.72 * root.cardIntro * root.veil
-			text: root.account
-		}
-
-		Text {
-			id: note
-
-			x: (root.width - note.implicitWidth) / 2
-			y: (root.account !== "" ? account.y : card.y) - note.height - 10
-			font.family: Config.fontFamily
-			font.pixelSize: Config.lockNoteSize
+			x: root.centerCol(line.length) * root.cellWidth
+			y: (root.top + 10) * root.cellHeight
+			width: line.length * root.cellWidth
+			height: root.cellHeight
+			verticalAlignment: Text.AlignVCenter
+			elide: Text.ElideRight
+			font: cell.font
 			color: Config.red
-			opacity: root.message === "" ? 0 : 1
-			text: root.message
-
-			Behavior on opacity {
-				NumberAnimation { duration: 160 }
-			}
+			text: line
 		}
 
-		Rectangle {
-			id: powerButton
+		Repeater {
+			model: root.actions.length
 
-			visible: root.power
-			x: root.inset
-			y: card.y + (card.height - powerButton.height) / 2
-			width: 40
-			height: 40
-			radius: Config.rowRadius
-			color: powerHit.containsMouse ? Config.launcherHighlight : Config.surfaceTranslucent
-			opacity: root.intro * root.veil
+			Cell {
+				required property int index
 
-			Text {
-				anchors.centerIn: parent
-				font.family: Config.fontFamily
-				font.pixelSize: Config.lockPowerSize
-				color: Config.foreground
-				opacity: powerHit.containsMouse ? 1 : 0.62
-				text: Config.lockPowerIcon
-
-				Behavior on opacity {
-					NumberAnimation { duration: 120 }
-				}
-			}
-
-			MouseArea {
-				id: powerHit
-
-				anchors.fill: parent
-				hoverEnabled: true
-				onClicked: {
-					if (root.actions.length > 0) {
-						root.menuIndex = 0;
-						root.menuOpen = !root.menuOpen;
-					} else {
-						root.powerRequested();
-					}
-				}
-			}
-		}
-
-		MouseArea {
-			anchors.fill: parent
-			visible: root.menuOpen
-			onClicked: root.menuOpen = false
-		}
-
-		HyprBorder {
-			id: powerMenu
-
-			visible: root.menuOpen
-			x: powerButton.x
-			y: powerButton.y - height - 10
-			width: actionColumn.implicitWidth + powerMenu.inset * 2
-			height: actionColumn.implicitHeight + powerMenu.inset * 2
-			padding: 6
-			backgroundColor: Config.surfaceTranslucent
-
-			Column {
-				id: actionColumn
-
-				spacing: 0
-
-				Repeater {
-					model: root.actions
-
-					delegate: Rectangle {
-						id: actionRow
-
-						required property var modelData
-						required property int index
-
-						width: actionLabel.implicitWidth + 58
-						height: 34
-						radius: Config.rowRadius
-						color: actionHit.containsMouse || (root.menuOpen && root.menuIndex === actionRow.index) ? Config.launcherHighlight : "transparent"
-
-						Text {
-							anchors.left: parent.left
-							anchors.leftMargin: 12
-							anchors.verticalCenter: parent.verticalCenter
-							font.family: Config.fontFamily
-							font.pixelSize: 16
-							color: Config.foreground
-							text: actionRow.modelData.glyph || ""
-						}
-
-						Text {
-							id: actionLabel
-
-							anchors.left: parent.left
-							anchors.leftMargin: 40
-							anchors.verticalCenter: parent.verticalCenter
-							font.family: Config.fontFamily
-							font.pixelSize: Config.lockPowerSize
-							color: Config.foreground
-							text: actionRow.modelData.name || ""
-						}
-
-						MouseArea {
-							id: actionHit
-
-							anchors.fill: parent
-							hoverEnabled: true
-							onClicked: {
-								root.menuOpen = false;
-								root.actionPicked(actionRow.modelData);
-							}
-						}
-					}
-				}
+				col: root.powerCol + index * 4 - 1
+				row: root.powerRow
+				span: 3
+				slotIndex: index + 2
+				glyph: root.actions[index].glyph
 			}
 		}
 
@@ -403,54 +235,39 @@ PanelWindow {
 			if (root.source === null)
 				return;
 
-			if (root.menuOpen) {
-				if (event.key === Qt.Key_Escape) {
-					root.menuOpen = false;
-					event.accepted = true;
-					return;
-				}
+			if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+				root.focusPicked((root.focusIndex + (event.key === Qt.Key_Backtab ? 3 : 1)) % 4);
+				event.accepted = true;
+				return;
+			}
 
-				if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-					const action = root.actions[root.menuIndex];
-
-					root.menuOpen = false;
-
-					if (action)
-						root.actionPicked(action);
-
-					event.accepted = true;
-					return;
-				}
-
-				const direction = Input.direction(event);
-
-				if (direction !== "") {
-					const delta = direction === "up" || direction === "left" ? -1 : 1;
-					const count = root.actions.length;
-
-					root.menuIndex = (root.menuIndex + delta + count) % count;
-					event.accepted = true;
-					return;
-				}
-
+			if (root.focusIndex > 0 && (event.key === Qt.Key_Left || event.key === Qt.Key_Right)) {
+				root.focusPicked(Math.max(1, Math.min(3, root.focusIndex + (event.key === Qt.Key_Left ? -1 : 1))));
 				event.accepted = true;
 				return;
 			}
 
 			if (event.key === Qt.Key_Escape) {
-				root.source.dismiss();
-				event.accepted = true;
-				return;
-			}
-
-			if (event.key === Qt.Key_Backspace) {
-				root.source.back();
+				if (root.focusIndex > 0)
+					root.focusPicked(0);
+				else
+					root.source.dismiss();
 				event.accepted = true;
 				return;
 			}
 
 			if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-				root.source.submit();
+				if (root.focusIndex > 0)
+					root.activate(root.focusIndex);
+				else
+					root.source.submit();
+				event.accepted = true;
+				return;
+			}
+
+			if (event.key === Qt.Key_Backspace) {
+				root.focusPicked(0);
+				root.source.back();
 				event.accepted = true;
 				return;
 			}
@@ -459,17 +276,10 @@ PanelWindow {
 				return;
 
 			if (event.text.length > 0 && event.text.charCodeAt(0) >= 0x20) {
+				root.focusPicked(0);
 				root.source.type(event.text);
 				event.accepted = true;
 			}
 		}
-	}
-
-	onModeChanged: {
-		if (root.mode === "wrong")
-			strip.reject();
-
-		if (root.mode !== "locked")
-			root.reveal = false;
 	}
 }
