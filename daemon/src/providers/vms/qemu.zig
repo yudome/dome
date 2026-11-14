@@ -23,12 +23,7 @@ pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
 	const vfs = try std.fs.path.join(allocator, &.{ config.dir, "virtiofsd.sock" });
 	const wall = try std.fs.path.join(allocator, &.{ config.dir, "wallpaper.sock" });
 
-	const binary = blk: {
-		if (std.c.getenv("YUDAE_QEMU")) |value| break :blk std.mem.span(value);
-		const home = if (std.c.getenv("HOME")) |value| std.mem.span(value) else break :blk "qemu-system-x86_64";
-		const path = std.fmt.allocPrint(allocator, "{s}/qemu-linux/install/bin/qemu-system-x86_64", .{home}) catch break :blk "qemu-system-x86_64";
-		break :blk path;
-	};
+	const binary = if (std.c.getenv("YUDAE_QEMU")) |value| std.mem.span(value) else "qemu-system-x86_64";
 	try list.append(allocator, binary);
 	try addPair(allocator, &list, "-name", try std.fmt.allocPrint(allocator, "yudae-{s}", .{config.name}));
 	try addPair(allocator, &list, "-machine", "q35,accel=kvm");
