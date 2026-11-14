@@ -1,0 +1,256 @@
+{
+  "context": {
+    "cores": 2,
+    "mem": 2048,
+    "gl": true
+  },
+  "steps": [
+    {
+      "do": "wait",
+      "until": "guest",
+      "timeout": 60000
+    },
+    {
+      "do": "exec",
+      "cmd": "sudo pacman -S --noconfirm --needed greetd cage >/dev/null && echo gabriel:vmpass | sudo chpasswd && sudo ~/dotfiles/shell/scripts/greeter-install gabriel && sudo loginctl enable-linger gabriel && sudo systemctl disable --now yudae-desktop && rm -rf /run/user/1000/hypr/* && sudo systemctl start greetd",
+      "code": 0
+    },
+    {
+      "do": "wait",
+      "until": "exec:pgrep -x greeter >/dev/null",
+      "timeout": 30000
+    },
+    {
+      "do": "sleep",
+      "ms": 1500
+    },
+    {
+      "do": "exec",
+      "cmd": "g=$(id -u greeter); d=$(sudo ls /run/user/$g | grep -m1 '^wayland-[0-9]$'); sudo -u greeter env XDG_RUNTIME_DIR=/run/user/$g WAYLAND_DISPLAY=$d grim /tmp/shot.png && sudo chmod 644 /tmp/shot.png",
+      "code": 0
+    },
+    {
+      "do": "pull",
+      "path": "/tmp/shot.png",
+      "to": "/home/gabriel/dotfiles/vm/runs/shots/greeter-lock/01-greeter.png"
+    },
+    {
+      "do": "type",
+      "text": "nope"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "ret"
+      ]
+    },
+    {
+      "do": "sleep",
+      "ms": 4000
+    },
+    {
+      "do": "exec",
+      "cmd": "g=$(id -u greeter); d=$(sudo ls /run/user/$g | grep -m1 '^wayland-[0-9]$'); sudo -u greeter env XDG_RUNTIME_DIR=/run/user/$g WAYLAND_DISPLAY=$d grim /tmp/shot.png && sudo chmod 644 /tmp/shot.png",
+      "code": 0
+    },
+    {
+      "do": "pull",
+      "path": "/tmp/shot.png",
+      "to": "/home/gabriel/dotfiles/vm/runs/shots/greeter-lock/02-greeter-wrong.png"
+    },
+    {
+      "do": "sleep",
+      "ms": 3000
+    },
+    {
+      "do": "type",
+      "text": "vmpass"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "ret"
+      ]
+    },
+    {
+      "do": "wait",
+      "until": "exec:pgrep -x quickshell >/dev/null",
+      "timeout": 60000
+    },
+    {
+      "do": "exec",
+      "cmd": "loginctl list-sessions --no-legend | grep -q gabriel && ! pgrep -x greeter",
+      "code": 0
+    },
+    {
+      "do": "sleep",
+      "ms": 3000
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "meta_l",
+        "l"
+      ]
+    },
+    {
+      "do": "wait",
+      "until": "exec:pgrep -f 'quickshell -p .*lockShel[l]' >/dev/null",
+      "timeout": 20000
+    },
+    {
+      "do": "sleep",
+      "ms": 1500
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "type",
+      "text": "wrongpw"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "ret"
+      ]
+    },
+    {
+      "do": "sleep",
+      "ms": 3500
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "exec",
+      "cmd": "pgrep -f 'quickshell -p .*lockShel[l]' >/dev/null",
+      "code": 0
+    },
+    {
+      "do": "sleep",
+      "ms": 3000
+    },
+    {
+      "do": "type",
+      "text": "vmpass"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "ret"
+      ]
+    },
+    {
+      "do": "wait",
+      "until": "exec:! pgrep -f 'quickshell -p .*lockShel[l]' >/dev/null",
+      "timeout": 20000
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "meta_l",
+        "l"
+      ]
+    },
+    {
+      "do": "wait",
+      "until": "exec:pgrep -f 'quickshell -p .*lockShel[l]' >/dev/null",
+      "timeout": 20000
+    },
+    {
+      "do": "sleep",
+      "ms": 1000
+    },
+    {
+      "do": "key",
+      "keys": [
+        "tab"
+      ]
+    },
+    {
+      "do": "key",
+      "keys": [
+        "tab"
+      ]
+    },
+    {
+      "do": "sleep",
+      "ms": 500
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "ret"
+      ]
+    },
+    {
+      "do": "sleep",
+      "ms": 15000
+    },
+    {
+      "do": "start"
+    },
+    {
+      "do": "wait",
+      "until": "guest",
+      "timeout": 60000
+    },
+    {
+      "do": "exec",
+      "cmd": "journalctl -b -1 --no-pager | grep -q 'System is powering down'",
+      "code": 0
+    },
+    {
+      "do": "wait",
+      "until": "exec:pgrep -x greeter >/dev/null",
+      "timeout": 30000
+    },
+    {
+      "do": "sleep",
+      "ms": 1500
+    },
+    {
+      "do": "exec",
+      "cmd": "g=$(id -u greeter); d=$(sudo ls /run/user/$g | grep -m1 '^wayland-[0-9]$'); sudo -u greeter env XDG_RUNTIME_DIR=/run/user/$g WAYLAND_DISPLAY=$d grim /tmp/shot.png && sudo chmod 644 /tmp/shot.png",
+      "code": 0
+    },
+    {
+      "do": "pull",
+      "path": "/tmp/shot.png",
+      "to": "/home/gabriel/dotfiles/vm/runs/shots/greeter-lock/09-greeter-after-poweroff.png"
+    },
+    {
+      "do": "click",
+      "x": 787,
+      "y": 819
+    },
+    {
+      "do": "sleep",
+      "ms": 15000
+    },
+    {
+      "do": "start"
+    },
+    {
+      "do": "wait",
+      "until": "guest",
+      "timeout": 60000
+    },
+    {
+      "do": "exec",
+      "cmd": "journalctl -b -1 --no-pager | grep -q 'System is rebooting'",
+      "code": 0
+    }
+  ],
+  "proof": "boot to the greeter, wrong password, log in, lock, wrong password, unlock, shut down from the lock, reboot from the greeter"
+}
