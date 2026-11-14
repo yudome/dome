@@ -21,15 +21,6 @@ if [ -f /etc/security/faillock.conf.bak ]; then
 	cp -a /etc/security/faillock.conf.bak /etc/security/faillock.conf
 fi
 
-rm -f /etc/sudoers.d/greeter-power
 rm -f /etc/polkit-1/rules.d/49-quickshell-greeter.rules
-rm -f /etc/sudoers.d/greeter-logout
-rm -f /usr/local/bin/qs-logout
-rm -f /etc/greetd/start-greeter
-rm -f /etc/greetd/hyprland.lua
-rm -rf /var/lib/quickshell/greeter
-rm -f /etc/tmpfiles.d/greetd-greeter.conf
-rm -rf /etc/greetd/quickshell
-rmdir /run/greeter 2>/dev/null || true
 
 echo "greetd disabled, sddm enabled. reboot to return to sddm."

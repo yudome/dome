@@ -6,7 +6,6 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 1
 fi
 
-src=$(cd "$(dirname "$0")/.." && pwd)
 target=${1:-$(getent passwd | awk -F: '$3 >= 1000 && $3 < 65534 { print $1; exit }')}
 
 if [ -z "$target" ]; then
@@ -15,52 +14,35 @@ if [ -z "$target" ]; then
 fi
 
 home=$(getent passwd "$target" | cut -d: -f6)
-wall=""
+repo="$home/dotfiles"
+bin="$repo/greeter/bin/greeter"
+config="$repo/shell/config.toml"
 
-if [ -r "$home/dotfiles/shell/cache/settings.lua" ]; then
-	wall=$(sed -n 's/^[[:space:]]*wallpaper[[:space:]]*=[[:space:]]*"\(.*\)",\{0,1\}[[:space:]]*$/\1/p' "$home/dotfiles/shell/cache/settings.lua" | head -1)
-fi
-
-install -d -m 755 /etc/greetd
-chmod 755 /etc/greetd
-rm -rf /etc/greetd/quickshell
-rm -f /etc/greetd/hyprland.lua /etc/greetd/start-greeter
-
-chmod o+x "$home"
-
-if ! runuser -u greeter -- test -r "$home/dotfiles/shell/greeterShell.qml"; then
-	echo "greeter cannot read the shell in $home/dotfiles/shell" >&2
+if [ ! -x "$bin" ]; then
+	echo "missing $bin: run xmake greeter as $target first" >&2
 	exit 1
 fi
 
-install -d -m 755 /var/lib/quickshell
-install -d -o root -g "$target" -m 775 /var/lib/quickshell/greeter
+chmod o+x "$home"
 
-wallpaper=""
-
-if [ -n "$wall" ] && [ -r "$wall" ]; then
-	install -m 644 "$wall" /var/lib/quickshell/greeter/wallpaper
-	wallpaper="/var/lib/quickshell/greeter/wallpaper"
+if ! runuser -u greeter -- test -x "$bin" || ! runuser -u greeter -- test -r "$config"; then
+	echo "greeter cannot read $bin or $config" >&2
+	exit 1
 fi
 
+setting() {
+	sed -n "s/^$1[[:space:]]*=[[:space:]]*\"\{0,1\}\([^\"#]*[^\"#[:space:]]\)\"\{0,1\}.*/\1/p" "$config" | head -1
+}
 
-printf 'd /run/greeter 0700 greeter greeter -\n' > /etc/tmpfiles.d/greetd-greeter.conf
-systemd-tmpfiles --create /etc/tmpfiles.d/greetd-greeter.conf
+font="$(setting fontFamily):size=$(setting lockFontSize)"
 
-install -d -o greeter -g greeter -m 700 /var/lib/greetd
-install -d -o greeter -g greeter -m 700 /var/lib/greetd/cache
-install -d -o greeter -g greeter -m 700 /var/lib/greetd/state
+rm -rf /etc/greetd/quickshell /var/lib/quickshell/greeter
+rmdir /var/lib/quickshell 2>/dev/null || true
+rm -f /etc/greetd/hyprland.lua /etc/greetd/start-greeter
+rm -f /etc/sudoers.d/greeter-power /etc/sudoers.d/greeter-logout /usr/local/bin/qs-logout
+rm -f /etc/tmpfiles.d/greetd-greeter.conf
 
 usermod -aG video,render,input greeter
-
-power_tmp=$(mktemp)
-printf 'greeter ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /usr/bin/systemctl reboot, /usr/bin/systemctl suspend\n' >"$power_tmp"
-visudo -cf "$power_tmp" >/dev/null
-install -m 440 "$power_tmp" /etc/sudoers.d/greeter-power
-rm -f "$power_tmp"
-
-rm -f /usr/local/bin/qs-logout
-rm -f /etc/sudoers.d/greeter-logout
 
 install -d -m 755 /etc/polkit-1/rules.d
 
@@ -70,6 +52,14 @@ polkit.addRule(function (action, subject) {
 		subject.user == "$target" &&
 		action.lookup("unit") == "greetd.service" &&
 		action.lookup("verb") == "start") {
+		return polkit.Result.YES;
+	}
+
+	if (subject.user == "greeter" &&
+		(action.id == "org.freedesktop.login1.power-off" ||
+		 action.id == "org.freedesktop.login1.power-off-multiple-sessions" ||
+		 action.id == "org.freedesktop.login1.reboot" ||
+		 action.id == "org.freedesktop.login1.reboot-multiple-sessions")) {
 		return polkit.Result.YES;
 	}
 });
@@ -84,6 +74,7 @@ deny = 3
 unlock_time = 3
 FAILLOCK
 
+install -d -m 755 /etc/greetd
 [ -f /etc/greetd/config.toml.bak ] || cp -a /etc/greetd/config.toml /etc/greetd/config.toml.bak
 
 cat > /etc/greetd/config.toml <<CFG
@@ -91,7 +82,7 @@ cat > /etc/greetd/config.toml <<CFG
 vt = 1
 
 [default_session]
-command = "$home/dotfiles/shell/greeter/start-greeter"
+command = "cage -d -s -- foot -o 'font=$font' -o pad=0x0 -o tweak.font-monospace-warn=no $bin $target $config"
 user = "greeter"
 CFG
 
@@ -101,7 +92,6 @@ systemctl disable sddm >/dev/null 2>&1 || true
 systemctl enable greetd >/dev/null
 
 echo "greeter installed for $target"
-echo "wallpaper: ${wallpaper:-none}"
-echo "sddm is disabled for the next boot, greetd is enabled."
+echo "font: $font"
 echo "your current session is untouched; reboot to test."
 echo "rollback: sudo $(dirname "$0")/greeter-uninstall"
