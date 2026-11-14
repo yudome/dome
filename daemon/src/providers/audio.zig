@@ -249,16 +249,14 @@ pub const Audio = struct {
 	}
 
 	fn follow(self: *Audio) void {
-		const child = exec.spawn(self.io, .{
+		var child = exec.spawn(self.io, .{
 			.argv = &.{ "stdbuf", "-oL", "pactl", "subscribe" },
 			.stdin = .ignore,
 			.stdout = .pipe,
 			.stderr = .ignore,
 		}) catch return;
 
-		defer if (child.id) |id| {
-			_ = std.posix.kill(id, std.posix.SIG.KILL) catch {};
-		};
+		defer child.kill(self.io);
 
 		const fd = child.stdout.?.handle;
 

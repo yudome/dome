@@ -65,16 +65,14 @@ pub const Watch = struct {
 	fn follow(self: *Watch) void {
 		self.reap();
 
-		const child = exec.spawn(self.io, .{
+		var child = exec.spawn(self.io, .{
 			.argv = &.{ "wl-paste", "--watch", "sh", "-c", "cliphist store && echo" },
 			.stdin = .ignore,
 			.stdout = .pipe,
 			.stderr = .ignore,
 		}) catch return;
 
-		defer if (child.id) |id| {
-			_ = std.posix.kill(id, std.posix.SIG.KILL) catch {};
-		};
+		defer child.kill(self.io);
 
 		if (child.id) |id| {
 			var arena = std.heap.ArenaAllocator.init(self.allocator);

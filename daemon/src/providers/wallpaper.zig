@@ -16,8 +16,6 @@ const max_depth = 2;
 const extensions = [_][]const u8{ ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif" };
 
 const cache_root = ".cache/quickshell/wallpaper";
-const greeter_dir = "/var/lib/quickshell/greeter";
-const greeter_wallpaper = "/var/lib/quickshell/greeter/wallpaper";
 const thumb_bin = "/usr/bin/vipsthumbnail";
 const thumb_px = 480;
 const preview_px = 1280;
@@ -226,7 +224,6 @@ pub const Wallpaper = struct {
 		if (stat) |info| self.seen_at = info.mtime;
 		self.mutex.unlock(self.io);
 
-		self.mirror(active);
 		self.hub.publish();
 		self.prune(cache);
 		self.ensureWorker();
@@ -310,6 +307,8 @@ pub const Wallpaper = struct {
 	}
 
 	fn renderLoop(self: *Wallpaper) void {
+		var stalled = false;
+
 		while (true) {
 			var work: std.ArrayListUnmanaged(Work) = .empty;
 
@@ -331,7 +330,8 @@ pub const Wallpaper = struct {
 				break;
 			}
 
-			for (work.items) |item| self.renderOne(item);
+			var progressed = false;
+			for (work.items) |item| progressed = self.renderOne(item) or progressed;
 
 			for (work.items) |item| {
 				self.allocator.free(item.key);
@@ -340,10 +340,15 @@ pub const Wallpaper = struct {
 				self.allocator.free(item.preview);
 			}
 			work.deinit(self.allocator);
+
+			if (!progressed) {
+				stalled = true;
+				break;
+			}
 		}
 
 		self.working.store(false, .release);
-		if (self.missing()) self.ensureWorker();
+		if (!stalled and self.missing()) self.ensureWorker();
 	}
 
 	fn missing(self: *Wallpaper) bool {
@@ -357,11 +362,11 @@ pub const Wallpaper = struct {
 		return false;
 	}
 
-	fn renderOne(self: *Wallpaper, item: Work) void {
+	fn renderOne(self: *Wallpaper, item: Work) bool {
 		const thumb = self.convert(item.path, item.thumb, thumb_px);
 		const preview = self.convert(item.path, item.preview, preview_px);
 
-		if (!thumb and !preview) return;
+		if (!thumb and !preview) return false;
 
 		self.mutex.lockUncancelable(self.io);
 		for (self.entries.items) |*entry| {
@@ -373,6 +378,7 @@ pub const Wallpaper = struct {
 		self.mutex.unlock(self.io);
 
 		self.hub.publish();
+		return true;
 	}
 
 	fn convert(self: *Wallpaper, src: []const u8, dest: []const u8, px: u32) bool {
@@ -463,19 +469,7 @@ pub const Wallpaper = struct {
 		} else |_| {}
 		self.mutex.unlock(self.io);
 
-		self.mirror(path);
 		self.hub.publish();
-	}
-
-	fn mirror(self: *Wallpaper, path: []const u8) void {
-		if (path.len == 0) return;
-		if (!std.fs.path.isAbsolute(path)) return;
-		if (!proc.exists(self.io, greeter_dir)) return;
-
-		std.Io.Dir.copyFileAbsolute(path, greeter_wallpaper, self.io, .{
-			.permissions = @enumFromInt(0o644),
-			.replace = true,
-		}) catch {};
 	}
 
 	fn setStr(self: *Wallpaper, slot: *[]u8, text: []const u8) void {
