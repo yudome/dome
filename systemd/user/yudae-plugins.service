@@ -1,0 +1,7 @@
+[Unit]
+Description=Rebuild plugins for new Hyprland headers
+After=yudaemond.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/dotfiles/scripts/yudae plugin reload

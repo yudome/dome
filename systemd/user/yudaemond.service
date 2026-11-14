@@ -2,6 +2,7 @@
 Description=yudaemond shell backend
 Documentation=file:%h/dotfiles/daemon
 After=default.target
+Wants=yudae-plugins.path
 
 [Service]
 Type=simple

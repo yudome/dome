@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch the Hyprland headers
+PartOf=yudaemond.service
+
+[Path]
+PathChanged=/usr/share/pkgconfig/hyprland.pc
+Unit=yudae-plugins.service
+
+[Install]
+WantedBy=default.target

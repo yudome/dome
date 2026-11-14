@@ -37,6 +37,8 @@ task_link() {
 
 	link_one "$ROOT/hypr" "$HOME_DIR/.config/hypr" || ok=1
 	link_one "$ROOT/systemd/user/yudaemond.service" "$HOME_DIR/.config/systemd/user/yudaemond.service" || ok=1
+	link_one "$ROOT/systemd/user/yudae-plugins.service" "$HOME_DIR/.config/systemd/user/yudae-plugins.service" || ok=1
+	link_one "$ROOT/systemd/user/yudae-plugins.path" "$HOME_DIR/.config/systemd/user/yudae-plugins.path" || ok=1
 	link_one "$ROOT/scripts/yudae" "$HOME_DIR/.local/bin/yudae" || ok=1
 	link_one "$ROOT/scripts/xmake" "$HOME_DIR/.local/bin/xmake" || ok=1
 
