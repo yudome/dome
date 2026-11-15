@@ -109,9 +109,15 @@ bar and wallpaper then stay black even though Hyprland and the guest GPU work.
 
 ## Audio
 
-Both backends attach an emulated Intel HDA card (`ich9-intel-hda` plus
-`hda-duplex`) backed by QEMU's `-audiodev none,id=snd0`. The guest gets a normal
-sound card and runs PipeWire, `pipewire-pulse` and WirePlumber (enabled for the
-user; sockets start with the session), so the shell volume control and test
-playback work. The backend discards every sample: QEMU never opens the host's
-PipeWire/PulseAudio, so no VM audio reaches the desktop.
+Both backends attach an output-only Intel HDA card (`ich9-intel-hda` plus
+`hda-output`). The Conduit QEMU fork is built with `--enable-pa
+--audio-drv-list=pa`; when `pactl` and the `pa` backend are present, QEMU runs
+with `-audiodev pa,id=snd0` and `PULSE_SINK=yudae-vm`.
+
+`yudae-vm` is a private null sink: at boot every VM stream lands there, so a VM
+that is not being viewed is silent. `yudae vm view` loads a `module-loopback`
+from `yudae-vm.monitor` to the current default sink; `release`, a normal window
+close, or a stopped VM unloads it. A watchdog unloads it if the VM app window
+disappears (crashed or killed) after a 20 s grace, and clears the selection.
+If `pactl` or QEMU's `pa` backend is missing, the VM boots with `-audiodev none`
+and stays silent. The guest never captures the host microphone (`hda-output`).

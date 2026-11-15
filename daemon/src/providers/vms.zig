@@ -9,6 +9,7 @@ const qmp = @import("vms/qmp.zig");
 const vsock = @import("vms/vsock.zig");
 const qemu = @import("vms/qemu.zig");
 const nvidia = @import("vms/nvidia.zig");
+const audio = @import("vms/audio.zig");
 const images = @import("vms/images.zig");
 const budget = @import("vms/budget.zig");
 const tiers = @import("vms/tiers.zig");
@@ -100,6 +101,8 @@ pub const Vms = struct {
 	op: std.Io.Mutex = .init,
 	list: std.ArrayList(*Vm) = .empty,
 	selected: []u8 = &.{},
+	audio_on: bool = false,
+	audio_since_ms: i64 = 0,
 	opencode: ?*opencode.Opencode = null,
 	limit: budget.Budget,
 
@@ -113,9 +116,12 @@ pub const Vms = struct {
 		};
 
 		self.recover();
+		_ = audio.passthrough(io, allocator, false);
 
 		const thread = try std.Thread.spawn(.{}, governorLoop, .{self});
 		thread.detach();
+		const watch = try std.Thread.spawn(.{}, audioWatch, .{self});
+		watch.detach();
 
 		return self;
 	}
@@ -319,6 +325,32 @@ pub const Vms = struct {
 		while (true) {
 			sleep.ms(5000);
 			self.govern();
+		}
+	}
+
+	fn audioWatch(self: *Vms) void {
+		while (true) {
+			sleep.ms(2000);
+			self.mutex.lockUncancelable(self.io);
+			const tracking = self.audio_on;
+			const since = self.audio_since_ms;
+			self.mutex.unlock(self.io);
+			if (!tracking) continue;
+			if (fmt.nowMs(self.io) - since < 20000) continue;
+
+			const listing = exec.run(self.io, self.allocator, &.{ "hyprctl", "clients", "-j" }) catch continue;
+			defer listing.deinit(self.allocator);
+			if (std.mem.indexOf(u8, listing.out, "com.yudae.vms") != null) continue;
+
+			self.mutex.lockUncancelable(self.io);
+			self.audio_on = false;
+			self.audio_since_ms = 0;
+			self.allocator.free(self.selected);
+			self.selected = self.allocator.dupe(u8, "") catch &.{};
+			self.mutex.unlock(self.io);
+			_ = audio.passthrough(self.io, self.allocator, false);
+			self.audio_on = false;
+			self.hub.publish();
 		}
 	}
 
@@ -633,8 +665,10 @@ pub const Vms = struct {
 		defer if (wall_dir.len > 0) self.allocator.free(wall_dir);
 		const share_wall = try self.startWall(vm, wall_dir);
 
+		const host_audio = audio.ensureSink(self.io, self.allocator);
 		const argv = try nvidia.args(self.allocator, .{
 			.wallpaper = share_wall,
+			.host_audio = host_audio,
 			.name = vm.name,
 			.dir = vm.dir,
 			.disk = vm.disk,
@@ -647,7 +681,7 @@ pub const Vms = struct {
 		});
 		const qmp_path = try std.fs.path.join(self.allocator, &.{ vm.dir, "qmp.sock" });
 		std.Io.Dir.cwd().deleteFile(self.io, qmp_path) catch {};
-		const child = exec.spawn(self.io, .{ .argv = argv, .stdin = .ignore, .stdout = .ignore, .stderr = .inherit }) catch return error.QemuSpawnFailed;
+		const child = exec.spawn(self.io, .{ .argv = try qemuEnv(self.allocator, argv, host_audio), .stdin = .ignore, .stdout = .ignore, .stderr = .inherit }) catch return error.QemuSpawnFailed;
 		vm.pid = child.id orelse 0;
 		vm.qemu_child = child;
 
@@ -743,7 +777,9 @@ pub const Vms = struct {
 		defer if (wall_dir.len > 0) self.allocator.free(wall_dir);
 		const share_wall = try self.startWall(vm, wall_dir);
 
+		const host_audio = audio.ensureSink(self.io, self.allocator);
 		const argv = try qemu.args(self.allocator, .{
+			.host_audio = host_audio,
 			.name = vm.name,
 			.dir = vm.dir,
 			.disk = vm.disk,
@@ -759,7 +795,7 @@ pub const Vms = struct {
 		std.Io.Dir.cwd().deleteFile(self.io, qmp_path) catch {};
 
 		const child = exec.spawn(self.io, .{
-			.argv = argv,
+			.argv = try qemuEnv(self.allocator, argv, host_audio),
 			.stdin = .ignore,
 			.stdout = .ignore,
 			.stderr = .inherit,
@@ -946,6 +982,8 @@ pub const Vms = struct {
 	}
 
 	fn haltVm(self: *Vms, vm: *Vm) void {
+		_ = audio.passthrough(self.io, self.allocator, false);
+		self.audio_on = false;
 		if (vm.qmp) |client| {
 			_ = client.execute(null, "quit", null) catch {};
 			client.close();
@@ -1736,10 +1774,14 @@ pub const Vms = struct {
 		if (off) _ = try self.startVm(args, allocator);
 
 		if (vm.nvidia) {
+			self.audio_on = audio.passthrough(self.io, self.allocator, true);
+			self.audio_since_ms = fmt.nowMs(self.io);
 			self.hub.publish();
 			return std.fmt.allocPrint(allocator, "{{\"name\":\"{s}\",\"controller\":\"human\",\"backend\":\"nvidia\"}}", .{vm.name});
 		}
 
+		self.audio_on = audio.passthrough(self.io, self.allocator, true);
+		self.audio_since_ms = fmt.nowMs(self.io);
 		self.stopPump(vm);
 		self.setGuestMode(cid, 2560, 1440, "1.6667");
 
@@ -1869,6 +1911,8 @@ pub const Vms = struct {
 		if (vm.nvidia) {
 			self.allocator.free(self.selected);
 			self.selected = try self.allocator.dupe(u8, "");
+			_ = audio.passthrough(self.io, self.allocator, false);
+			self.audio_on = false;
 			self.mutex.unlock(self.io);
 			self.hub.publish();
 			return std.fmt.allocPrint(allocator, "{{\"name\":\"{s}\",\"controller\":\"agent\",\"backend\":\"nvidia\"}}", .{vm.name});
@@ -1884,6 +1928,8 @@ pub const Vms = struct {
 
 		self.allocator.free(self.selected);
 		self.selected = try self.allocator.dupe(u8, "");
+		_ = audio.passthrough(self.io, self.allocator, false);
+		self.audio_on = false;
 		self.mutex.unlock(self.io);
 
 		self.captureThumb(vm);
@@ -2319,6 +2365,15 @@ fn waitFile(io: Io, path: []const u8, timeout_ms: i64) !bool {
 	}
 
 	return false;
+}
+
+fn qemuEnv(allocator: Allocator, argv: []const []const u8, host_audio: bool) ![]const []const u8 {
+	if (!host_audio) return argv;
+	const out = try allocator.alloc([]const u8, argv.len + 2);
+	out[0] = "/usr/bin/env";
+	out[1] = "PULSE_SINK=yudae-vm";
+	@memcpy(out[2..], argv);
+	return out;
 }
 
 fn kill(pid: i32) void {
