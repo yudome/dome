@@ -25,7 +25,8 @@ WlSessionLockSurface {
 		{ glyph: Config.iconReboot, command: ["systemctl", "reboot"] }
 	]
 
-	readonly property int boxWidth: Math.max(14, (root.clockRows[0] || "").length)
+	readonly property int boxWidth: Math.min(Math.max(14, root.filled + 8), root.cols - 2)
+	property bool blink: true
 	readonly property int fieldWidth: root.boxWidth - 8
 	readonly property int fontPixels: Math.round(Config.lockFontSize * 4 / 3)
 	readonly property real cellWidth: Math.max(1, cell.averageCharacterWidth)
@@ -80,6 +81,13 @@ WlSessionLockSurface {
 
 		font.family: Config.fontFamily
 		font.pixelSize: root.fontPixels
+	}
+
+	Timer {
+		interval: 530
+		running: true
+		repeat: true
+		onTriggered: root.blink = !root.blink
 	}
 
 	SystemClock {
@@ -168,7 +176,7 @@ WlSessionLockSurface {
 			y: (root.top + 6.5) * root.cellHeight
 			width: (root.boxWidth - 1) * root.cellWidth
 			height: 2 * root.cellHeight
-			radius: root.cellWidth / 2
+			radius: 0
 			color: "transparent"
 			border.width: 1
 			border.color: root.mode === "wrong" ? Config.red : Config.foreground
@@ -186,14 +194,22 @@ WlSessionLockSurface {
 		Text {
 			x: (root.boxCol + 4) * root.cellWidth
 			y: (root.top + 7) * root.cellHeight
-			width: root.fieldWidth * root.cellWidth
+			width: (root.fieldWidth + 1) * root.cellWidth
 			height: root.cellHeight
-			horizontalAlignment: Text.AlignHCenter
 			verticalAlignment: Text.AlignVCenter
 			clip: true
 			font: cell.font
 			color: root.mode === "checking" ? Config.dim : Config.foreground
 			text: root.field
+		}
+
+		Rectangle {
+			visible: root.focusIndex === 0 && root.blink
+			x: (root.boxCol + 4 + root.field.length) * root.cellWidth
+			y: (root.top + 7) * root.cellHeight
+			width: Math.ceil(root.cellWidth)
+			height: root.cellHeight
+			color: Config.foreground
 		}
 
 		Cell {
