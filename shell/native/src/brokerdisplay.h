@@ -25,6 +25,7 @@ public:
 	void sendAbs(int x, int y);
 	void sendWheel(int vertical, int horizontal);
 	void sendFocus(bool focused);
+	void setWindowActive(bool active);
 	void sendPointer(bool inside);
 	QmpDisplay::Frame takeFrame();
 

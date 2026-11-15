@@ -476,6 +476,7 @@ bool VmDisplay::insideImage(const QPointF &pos) const {
 
 void VmDisplay::updateBrokerFocus() {
 	if (m_broker.isEmpty() || !d->broker) return;
+	d->broker->setWindowActive(window() && window()->isActive());
 	const bool focused = window() && window()->isActive() && hasActiveFocus();
 	if (focused == d->brokerFocused) return;
 	d->brokerFocused = focused;

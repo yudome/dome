@@ -1,6 +1,8 @@
 #include "brokerdisplay.h"
 
+#include <QClipboard>
 #include <QDebug>
+#include <QGuiApplication>
 #include <QSocketNotifier>
 
 #include <poll.h>
@@ -18,6 +20,7 @@ namespace {
 
 constexpr uint16_t CMD_ATTACH = 1;
 constexpr uint16_t CMD_COMMIT = 2;
+constexpr uint16_t CMD_CLIPBOARD = 4;
 constexpr uint16_t CMD_QUERY_FORMAT = 6;
 
 constexpr uint16_t EV_HELLO = 1;
@@ -30,6 +33,7 @@ constexpr uint16_t EV_WHEEL = 9;
 constexpr uint16_t EV_GRAB = 10;
 constexpr uint16_t EV_FOCUS = 11;
 constexpr uint16_t EV_POINTER = 12;
+constexpr uint16_t EV_CLIPBOARD = 15;
 constexpr uint16_t EV_FORMAT = 16;
 
 constexpr uint32_t CAP_KEYBOARD = 1u << 0;
@@ -37,6 +41,14 @@ constexpr uint32_t CAP_ABS_POINTER = 1u << 1;
 constexpr uint32_t CAP_FOCUS_EVENTS = 1u << 5;
 constexpr uint32_t CAP_DMABUF = 1u << 7;
 constexpr uint32_t CAP_MODIFIERS = 1u << 8;
+constexpr uint32_t CAP_CLIP_LARGE = 1u << 12;
+
+constexpr uint8_t CLIP_LAST = 0x20;
+constexpr uint8_t CLIP_MASK = 0x1f;
+constexpr size_t CLIP_PKT_BYTES = 15;
+constexpr size_t CLIP_CMD_BYTES = 27;
+constexpr int CLIP_MAX = 1 << 20;
+constexpr int CLIP_SEND_MAX = 256 << 10;
 
 constexpr uint16_t F_FOCUSED = 1u << 1;
 
@@ -65,6 +77,15 @@ struct Pkt {
 	uint32_t w1;
 } __attribute__((packed));
 
+struct ClipPkt {
+	uint16_t type;
+	uint16_t flags;
+	uint32_t seq;
+	uint8_t info;
+	uint8_t data[CLIP_PKT_BYTES];
+} __attribute__((packed));
+
+static_assert(sizeof(ClipPkt) == 24, "clipboard packet is 24 bytes");
 static_assert(sizeof(Cmd) == 40, "broker command is 40 bytes");
 static_assert(sizeof(Pkt) == 24, "broker packet is 24 bytes");
 
@@ -108,10 +129,14 @@ struct BrokerDisplay::Impl {
 	bool running = false;
 	bool focused = false;
 	bool pointer = false;
+	bool windowActive = false;
 	int width = 0;
 	int height = 0;
 	int refresh = 0;
 	uint32_t seq = 0;
+	QByteArray clipIn;
+	QByteArray clipLast;
+	uint32_t clipChunk = 0;
 	std::mutex mutex;
 	QmpDisplay::Frame pending;
 	int attachedFd = -1;
@@ -138,12 +163,56 @@ struct BrokerDisplay::Impl {
 	}
 
 	void handshake() {
-		const uint32_t caps = CAP_KEYBOARD | CAP_ABS_POINTER | CAP_FOCUS_EVENTS | CAP_DMABUF | CAP_MODIFIERS;
+		const uint32_t caps = CAP_KEYBOARD | CAP_ABS_POINTER | CAP_FOCUS_EVENTS | CAP_DMABUF | CAP_MODIFIERS | CAP_CLIP_LARGE;
 		packet(EV_HELLO, 0, 0, PROTO_VERSION, caps);
 		packet(EV_SURFACE, width, height, uint32_t(refresh), 0);
 		packet(EV_FOCUS, focused ? 1 : 0);
 		packet(EV_GRAB, 0);
 		packet(EV_FRAME);
+	}
+
+	void sendClipboard(const QByteArray &text) {
+		if (clientFd < 0 || text.isEmpty() || text.size() > CLIP_SEND_MAX || text == clipLast) return;
+		clipLast = text;
+		for (qsizetype at = 0; at < text.size(); at += qsizetype(CLIP_PKT_BYTES)) {
+			const size_t n = size_t(qMin<qsizetype>(qsizetype(CLIP_PKT_BYTES), text.size() - at));
+			ClipPkt p{};
+			p.type = EV_CLIPBOARD;
+			p.flags = focused ? F_FOCUSED : 0;
+			p.seq = seq++;
+			p.info = uint8_t(n) | (at + qsizetype(n) >= text.size() ? CLIP_LAST : 0);
+			memcpy(p.data, text.constData() + at, n);
+			if (!writeAll(clientFd, &p, sizeof(p))) {
+				qWarning() << "broker clipboard send failed" << strerror(errno);
+				return;
+			}
+		}
+	}
+
+	void receiveClipboard(const Cmd &cmd) {
+		uint8_t raw[sizeof(Cmd)];
+		memcpy(raw, &cmd, sizeof(raw));
+		const uint32_t chunk = cmd.width;
+		const uint8_t info = raw[12];
+		const size_t n = info & CLIP_MASK;
+		if (n > CLIP_CMD_BYTES) return;
+		if (chunk == 0) clipIn.clear();
+		else if (chunk != clipChunk + 1) {
+			clipIn.clear();
+			clipChunk = 0;
+			return;
+		}
+		clipChunk = chunk;
+		if (clipIn.size() + qsizetype(n) > CLIP_MAX) {
+			clipIn.clear();
+			return;
+		}
+		clipIn.append(reinterpret_cast<const char *>(raw + 13), qsizetype(n));
+		if (!(info & CLIP_LAST)) return;
+		const QByteArray text = clipIn;
+		clipIn.clear();
+		clipLast = text;
+		if (QClipboard *board = QGuiApplication::clipboard()) board->setText(QString::fromUtf8(text));
 	}
 
 	void closeAttached() {
@@ -159,6 +228,9 @@ struct BrokerDisplay::Impl {
 		}
 		if (clientFd >= 0) ::close(clientFd);
 		clientFd = -1;
+		clipIn.clear();
+		clipLast.clear();
+		clipChunk = 0;
 		rxlen = 0;
 		if (rxfd >= 0) ::close(rxfd);
 		rxfd = -1;
@@ -196,6 +268,7 @@ struct BrokerDisplay::Impl {
 		clientNotifier = new QSocketNotifier(clientFd, QSocketNotifier::Read, q);
 		QObject::connect(clientNotifier, &QSocketNotifier::activated, q, [this]() { readCommands(); });
 		handshake();
+		if (focused || windowActive) pushClipboard();
 		qInfo() << "broker client attached" << path;
 	}
 
@@ -234,6 +307,9 @@ struct BrokerDisplay::Impl {
 			}
 			attachedFd = -1;
 			emit q->frameReady();
+			return;
+		case CMD_CLIPBOARD:
+			receiveClipboard(cmd);
 			return;
 		case CMD_QUERY_FORMAT: {
 			const uint32_t fourcc = cmd.fourcc;
@@ -295,6 +371,11 @@ struct BrokerDisplay::Impl {
 		}
 	}
 
+	void pushClipboard() {
+		QClipboard *board = QGuiApplication::clipboard();
+		if (board) sendClipboard(board->text().toUtf8());
+	}
+
 	QmpDisplay::Frame takeFrame() {
 		std::lock_guard<std::mutex> lock(mutex);
 		QmpDisplay::Frame frame = pending;
@@ -305,6 +386,11 @@ struct BrokerDisplay::Impl {
 
 BrokerDisplay::BrokerDisplay(QObject *parent) : QObject(parent), d(new Impl) {
 	d->q = this;
+	if (QClipboard *board = QGuiApplication::clipboard()) {
+		connect(board, &QClipboard::dataChanged, this, [this]() {
+			if (d->focused || d->windowActive) d->pushClipboard();
+		});
+	}
 }
 
 BrokerDisplay::~BrokerDisplay() {
@@ -404,6 +490,12 @@ void BrokerDisplay::sendFocus(bool focused) {
 	if (d->focused == focused) return;
 	d->focused = focused;
 	d->packet(EV_FOCUS, focused ? 1 : 0);
+	if (focused) d->pushClipboard();
+}
+
+void BrokerDisplay::setWindowActive(bool active) {
+	d->windowActive = active;
+	if (active) d->pushClipboard();
 }
 
 void BrokerDisplay::sendPointer(bool inside) {
