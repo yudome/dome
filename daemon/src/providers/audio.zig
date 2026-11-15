@@ -676,7 +676,7 @@ pub const Audio = struct {
 
 			if (node.is_stream and running and input) recording = true;
 
-			if (visible) {
+			if (visible and !std.mem.startsWith(u8, node.name, "yudae-")) {
 				try streams.append(arena, node.id);
 				try order.append(arena, node.id);
 			}
@@ -731,6 +731,7 @@ fn deviceList(arena: Allocator, nodes: []const Node, sink: bool, active: i64) ![
 
 	for (nodes) |node| {
 		if (node.is_stream or node.is_sink != sink) continue;
+		if (std.mem.startsWith(u8, node.name, "yudae-")) continue;
 
 		try list.append(arena, .{
 			.id = node.id,
