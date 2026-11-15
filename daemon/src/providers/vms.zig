@@ -620,7 +620,11 @@ pub const Vms = struct {
 
 		const nvgpu_socket = try std.fs.path.join(self.allocator, &.{ vm.dir, "nvgpu.sock" });
 		const backend_args = try nvidia.backendArgs(self.allocator, vm.dir, paths.backend);
-		const backend = exec.spawn(self.io, .{ .argv = backend_args, .stdin = .ignore, .stdout = .ignore, .stderr = .ignore }) catch return error.NvidiaBackendFailed;
+		const log_path = try std.fs.path.join(self.allocator, &.{ vm.dir, "backend.log" });
+		var log_file = std.Io.Dir.cwd().createFile(self.io, log_path, .{ .truncate = true }) catch null;
+		defer if (log_file) |*file| file.close(self.io);
+		const backend_err: std.process.SpawnOptions.StdIo = if (log_file) |file| .{ .file = file } else .ignore;
+		const backend = exec.spawn(self.io, .{ .argv = backend_args, .stdin = .ignore, .stdout = .ignore, .stderr = backend_err }) catch return error.NvidiaBackendFailed;
 		vm.backend_pid = backend.id orelse 0;
 		vm.backend_child = backend;
 		if (!try waitFile(self.io, nvgpu_socket, 10000)) return error.NvidiaBackendSocket;
@@ -2024,7 +2028,13 @@ pub const Vms = struct {
 		if (tag.len == 0) return error.MissingArgs;
 
 		const disk = self.diskOf(name) orelse return error.NotFound;
-		if (self.tierOf(name) != .off) return error.MustStop;
+
+		if (self.tierOf(name) != .off) {
+			const client = self.qmpOf(name) orelse return error.NotRunning;
+			const body = try std.fmt.allocPrint(allocator, "{{\"device\":\"disk0\",\"name\":\"{s}\"}}", .{tag});
+			_ = client.execute(allocator, "blockdev-snapshot-internal-sync", body) catch return error.SnapshotFailed;
+			return allocator.dupe(u8, "{\"ok\":true,\"live\":true}");
+		}
 
 		const result = try exec.run(self.io, allocator, &.{ "qemu-img", "snapshot", "-c", tag, disk });
 		defer result.deinit(allocator);
