@@ -106,3 +106,12 @@ bar and wallpaper then stay black even though Hyprland and the guest GPU work.
   copied with `qemu-img convert -U`. The copy is a live-disk image, so treat it as
   crash-consistent.
 - Conduit sets a migration blocker, so full savevm/RAM snapshots are not offered.
+
+## Audio
+
+Both backends attach an emulated Intel HDA card (`ich9-intel-hda` plus
+`hda-duplex`) backed by QEMU's `-audiodev none,id=snd0`. The guest gets a normal
+sound card and runs PipeWire, `pipewire-pulse` and WirePlumber (enabled for the
+user; sockets start with the session), so the shell volume control and test
+playback work. The backend discards every sample: QEMU never opens the host's
+PipeWire/PulseAudio, so no VM audio reaches the desktop.

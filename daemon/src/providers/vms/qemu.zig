@@ -35,6 +35,9 @@ pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
 	try addPair(allocator, &list, "-object", try std.fmt.allocPrint(allocator, "memory-backend-memfd,id=mem,size={d}M,share=on", .{config.mem_mb}));
 	try addPair(allocator, &list, "-numa", "node,memdev=mem");
 	try addPair(allocator, &list, "-drive", try std.fmt.allocPrint(allocator, "file={s},if=virtio,format=qcow2,cache=none,aio=io_uring,id=disk0", .{config.disk}));
+	try addPair(allocator, &list, "-audiodev", "none,id=snd0");
+	try addPair(allocator, &list, "-device", "ich9-intel-hda");
+	try addPair(allocator, &list, "-device", "hda-duplex,audiodev=snd0");
 
 	if (config.gl) {
 		try addPair(allocator, &list, "-device", "virtio-gpu-gl-pci,xres=2560,yres=1440,max_outputs=1");

@@ -992,6 +992,7 @@ if [ -d /mnt/nvidia/lib ]; then
 	export __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS=/mnt/nvidia/share/egl/egl_external_platform.d:/usr/share/egl/egl_external_platform.d
 	export VK_ICD_FILENAMES=/mnt/nvidia/share/vulkan/icd.d/nvidia_icd.json
 fi
+systemctl --user start pipewire.socket pipewire-pulse.socket wireplumber.service 2>/dev/null || true
 exec /usr/bin/start-hyprland
 SESSION
 chmod 755 /usr/local/bin/yudae-session
@@ -1027,6 +1028,7 @@ NET
 systemctl enable systemd-networkd systemd-resolved
 systemctl daemon-reload
 systemctl enable yudaemond yudae-desktop
+systemctl --global enable pipewire.socket pipewire-pulse.socket wireplumber.service 2>/dev/null || true
 systemctl set-default graphical.target
 passwd -d root >/dev/null 2>&1 || true
 touch /var/lib/dotfiles-golden
