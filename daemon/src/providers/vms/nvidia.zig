@@ -77,6 +77,7 @@ pub const Config = struct {
 	cores: u32,
 	mem_mb: u32,
 	qemu: []const u8,
+	wallpaper: bool = false,
 };
 
 pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
@@ -104,6 +105,10 @@ pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
 	try addPair(allocator, &list, "-device", "vhost-user-fs-pci,chardev=vfs0,tag=dotfiles");
 	try addPair(allocator, &list, "-chardev", try std.fmt.allocPrint(allocator, "socket,id=nvfs0,path={s}", .{nvfs}));
 	try addPair(allocator, &list, "-device", "vhost-user-fs-pci,chardev=nvfs0,tag=nvidia");
+	if (config.wallpaper) {
+		try addPair(allocator, &list, "-chardev", try std.fmt.allocPrint(allocator, "socket,id=wall0,path={s}/wallpaper.sock", .{config.dir}));
+		try addPair(allocator, &list, "-device", "vhost-user-fs-pci,chardev=wall0,tag=wallpaper");
+	}
 	try addPair(allocator, &list, "-chardev", try std.fmt.allocPrint(allocator, "socket,id=nvgpu,path={s}", .{nvgpu}));
 	try addPair(allocator, &list, "-device", "vhost-user-test-device-pci,chardev=nvgpu,virtio-id=45,num_vqs=3,vq_size=256,config_size=4036,class=0x380");
 	try addPair(allocator, &list, "-vga", "std");

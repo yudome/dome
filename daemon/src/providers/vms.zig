@@ -571,7 +571,7 @@ pub const Vms = struct {
 		} else |_| {}
 	}
 
-	fn applyDesktop(self: *Vms, vm: *Vm) void {
+	fn applyDesktop(self: *Vms, cid: u32) void {
 		const repo = proc.repo(self.io, self.allocator);
 		const script = std.fmt.allocPrint(self.allocator, "{s}/vm/desktop", .{repo}) catch return;
 		defer self.allocator.free(script);
@@ -579,7 +579,7 @@ pub const Vms = struct {
 		var arena = std.heap.ArenaAllocator.init(self.allocator);
 		defer arena.deinit();
 
-		if (self.guestExec(vm.cid, &.{ "bash", script }, arena.allocator())) |result| {
+		if (self.guestExec(cid, &.{ "bash", script }, arena.allocator())) |result| {
 			_ = result;
 		} else |_| {}
 	}
@@ -625,7 +625,12 @@ pub const Vms = struct {
 		vm.backend_child = backend;
 		if (!try waitFile(self.io, nvgpu_socket, 10000)) return error.NvidiaBackendSocket;
 
+		const wall_dir = self.wallpaperDir(repo);
+		defer if (wall_dir.len > 0) self.allocator.free(wall_dir);
+		const share_wall = try self.startWall(vm, wall_dir);
+
 		const argv = try nvidia.args(self.allocator, .{
+			.wallpaper = share_wall,
 			.name = vm.name,
 			.dir = vm.dir,
 			.disk = vm.disk,
@@ -648,6 +653,7 @@ pub const Vms = struct {
 			value.attach(self.io, vm.vfs_pid);
 			value.attach(self.io, vm.nvfs_pid);
 			value.attach(self.io, vm.backend_pid);
+			if (vm.wall_pid > 0) value.attach(self.io, vm.wall_pid);
 			vm.cgroup = value;
 		}
 		const pidfile = try std.fs.path.join(self.allocator, &.{ vm.dir, "qemu.pid" });
@@ -667,6 +673,25 @@ pub const Vms = struct {
 			const thread = std.Thread.spawn(.{}, agentBoot, .{ self, vm.cid, name }) catch null;
 			if (thread) |value| value.detach() else self.allocator.free(name);
 		}
+	}
+
+	fn startWall(self: *Vms, vm: *Vm, wall_dir: []const u8) !bool {
+		if (wall_dir.len == 0) return false;
+		const wall_socket = try std.fs.path.join(self.allocator, &.{ vm.dir, "wallpaper.sock" });
+		std.Io.Dir.cwd().deleteFile(self.io, wall_socket) catch {};
+		const wall_args = [_][]const u8{
+			"/usr/lib/virtiofsd",
+			try std.fmt.allocPrint(self.allocator, "--socket-path={s}", .{wall_socket}),
+			try std.fmt.allocPrint(self.allocator, "--shared-dir={s}", .{wall_dir}),
+			"--readonly",
+			"--cache=never",
+		};
+		const child = exec.spawn(self.io, .{ .argv = &wall_args, .stdin = .ignore, .stdout = .ignore, .stderr = .ignore }) catch return false;
+		vm.wall_pid = child.id orelse 0;
+		vm.wall_child = child;
+		if (try waitFile(self.io, wall_socket, 5000)) return true;
+		self.stopWall(vm);
+		return false;
 	}
 
 	fn stopNvidia(self: *Vms, vm: *Vm) void {
@@ -712,35 +737,7 @@ pub const Vms = struct {
 
 		const wall_dir = self.wallpaperDir(repo);
 		defer if (wall_dir.len > 0) self.allocator.free(wall_dir);
-
-		var share_wall = wall_dir.len > 0;
-		if (share_wall) {
-			const wall_socket = try std.fs.path.join(self.allocator, &.{ vm.dir, "wallpaper.sock" });
-			std.Io.Dir.cwd().deleteFile(self.io, wall_socket) catch {};
-			const wall_args = [_][]const u8{
-				"/usr/lib/virtiofsd",
-				try std.fmt.allocPrint(self.allocator, "--socket-path={s}", .{wall_socket}),
-				try std.fmt.allocPrint(self.allocator, "--shared-dir={s}", .{wall_dir}),
-				"--readonly",
-				"--cache=never",
-			};
-			const wall = exec.spawn(self.io, .{
-				.argv = &wall_args,
-				.stdin = .ignore,
-				.stdout = .ignore,
-				.stderr = .ignore,
-			}) catch null;
-			if (wall) |child| {
-				vm.wall_pid = child.id orelse 0;
-				vm.wall_child = child;
-				if (!try waitFile(self.io, wall_socket, 5000)) {
-					self.stopWall(vm);
-					share_wall = false;
-				}
-			} else {
-				share_wall = false;
-			}
-		}
+		const share_wall = try self.startWall(vm, wall_dir);
 
 		const argv = try qemu.args(self.allocator, .{
 			.name = vm.name,
@@ -986,7 +983,9 @@ pub const Vms = struct {
 			"export XDG_RUNTIME_DIR=/run/user/1000; " ++
 			"export WAYLAND_DISPLAY=$(basename $(ls /run/user/1000/wayland-* 2>/dev/null | grep -v '\\.lock$' | head -1)); " ++
 			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr | head -1); " ++
-			"hyprctl dispatch 'function() hl.monitor({{output=\"Virtual-1\",mode=\"{d}x{d}@279.96\",position=\"auto\",scale=\"{s}\"}}) end'", .{ width, height, scale }) catch return;
+			"out=$(hyprctl monitors | sed -n 's/^Monitor \\([^ ]*\\) .*/\\1/p' | head -1); mode={d}x{d}@279.96; scale={s}; " ++
+			"if [ -d /mnt/nvidia/lib ]; then mode=2560x1440@240; scale=1.6667; fi; " ++
+			"hyprctl dispatch \"function() hl.monitor({{output=\\\"$out\\\",mode=\\\"$mode\\\",position=\\\"auto\\\",scale=\\\"$scale\\\"}}) end\"", .{ width, height, scale }) catch return;
 
 		_ = self.guestExec(cid, &.{ "sh", "-lc", command }, allocator) catch return;
 	}
@@ -1009,6 +1008,7 @@ pub const Vms = struct {
 		self.mutex.unlock(self.io);
 
 		if (human) self.setGuestMode(cid, 2560, 1440, "1.6667") else self.setGuestMode(cid, 1536, 864, "1");
+		self.applyDesktop(cid);
 	}
 
 	fn stopWall(self: *Vms, vm: *Vm) void {
@@ -1266,7 +1266,7 @@ pub const Vms = struct {
 			"export XDG_RUNTIME_DIR=/run/user/1000; " ++
 			"export WAYLAND_DISPLAY=$(basename $(ls /run/user/1000/wayland-* 2>/dev/null | grep -v '\\.lock$' | head -1)); " ++
 			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr | head -1); " ++
-			"grim -s $(python3 -c 'import json,subprocess;print(json.loads(subprocess.check_output([\"hyprctl\",\"monitors\",\"-j\"]))[0][\"scale\"])') /tmp/yudae-shot.png >/dev/null 2>&1; base64 -w0 /tmp/yudae-shot.png";
+			"grim -s $(python3 -c 'import json,subprocess;m=json.loads(subprocess.check_output([\"hyprctl\",\"monitors\",\"-j\"]))[0];print(m[\"width\"]/round(m[\"width\"]/m[\"scale\"]))') /tmp/yudae-shot.png >/dev/null 2>&1; base64 -w0 /tmp/yudae-shot.png";
 
 		var attempts: usize = 0;
 		var text: []const u8 = "";
@@ -1742,7 +1742,7 @@ pub const Vms = struct {
 		self.hub.publish();
 
 		self.syncDesktop();
-		self.applyDesktop(vm);
+		self.applyDesktop(cid);
 
 		return std.fmt.allocPrint(allocator, "{{\"name\":\"{s}\",\"controller\":\"human\"}}", .{vm.name});
 	}
