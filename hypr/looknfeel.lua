@@ -60,6 +60,11 @@ hl.config({
     quirks = {
         skip_non_kms_dmabuf_formats = false,
     },
+
+    ecosystem = {
+        no_update_news   = true,
+        no_donation_nag  = true,
+    },
 })
 
 hl.curve("quick", { type = "bezier", points = { {0.15, 0}, {0.1, 1} } })
