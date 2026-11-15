@@ -933,9 +933,10 @@ Environment=XDG_CONFIG_HOME=/home/gabriel/.config
 Environment=XDG_SESSION_TYPE=wayland
 Environment=XDG_CURRENT_DESKTOP=Hyprland
 Environment=XDG_SESSION_DESKTOP=Hyprland
-ExecStartPre=+/bin/sh -c 'if [ -d /mnt/nvidia/lib/gbm ]; then mkdir -p /usr/lib/gbm; ln -sf /mnt/nvidia/lib/gbm/nvidia-drm_gbm.so /usr/lib/gbm/nvidia-drm_gbm.so; fi'
+ExecStartPre=+/usr/local/bin/yudae-gpu-wait
 ExecStart=/usr/local/bin/yudae-session
-Restart=no
+Restart=on-failure
+RestartSec=2
 
 [Install]
 WantedBy=graphical.target
@@ -994,6 +995,22 @@ fi
 exec /usr/bin/start-hyprland
 SESSION
 chmod 755 /usr/local/bin/yudae-session
+cat > /usr/local/bin/yudae-gpu-wait <<'WAIT'
+#!/bin/bash
+grep -qsx 0x106d /sys/bus/pci/devices/*/device || exit 0
+card=
+for _ in $(seq 1 150); do
+	mountpoint -q /mnt/nvidia || mount /mnt/nvidia 2>/dev/null
+	card=$(readlink -f /dev/dri/by-path/*pci-0010*-card 2>/dev/null | head -1)
+	[ -e "$card" ] && [ -d /mnt/nvidia/lib/gbm ] && break
+	sleep 0.2
+done
+echo "yudae-gpu-wait: card=${card:-none} share=$([ -d /mnt/nvidia/lib/gbm ] && echo yes || echo no)"
+[ -d /mnt/nvidia/lib/gbm ] || exit 0
+mkdir -p /usr/lib/gbm
+ln -sf /mnt/nvidia/lib/gbm/nvidia-drm_gbm.so /usr/lib/gbm/nvidia-drm_gbm.so
+WAIT
+chmod 755 /usr/local/bin/yudae-gpu-wait
 if ! pacman -Qq conduit-guest >/dev/null 2>&1; then
 	curl -fsSL https://github.com/olealgoritme/conduit/releases/download/v0.1.21/conduit-guest-0.1.21-1-any.pkg.tar.zst -o /tmp/conduit-guest.pkg.tar.zst || true
 	[ -s /tmp/conduit-guest.pkg.tar.zst ] && pacman -U --noconfirm /tmp/conduit-guest.pkg.tar.zst || true
