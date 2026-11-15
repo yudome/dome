@@ -988,6 +988,7 @@ if [ -d /mnt/nvidia/lib ]; then
 	export LD_LIBRARY_PATH=/mnt/nvidia/lib:/mnt/nvidia/lib/gbm
 	export GBM_BACKEND=nvidia-drm
 	export __EGL_VENDOR_LIBRARY_FILENAMES=/mnt/nvidia/share/glvnd/egl_vendor.d/10_nvidia.json
+	export __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS=/mnt/nvidia/share/egl/egl_external_platform.d:/usr/share/egl/egl_external_platform.d
 	export VK_ICD_FILENAMES=/mnt/nvidia/share/vulkan/icd.d/nvidia_icd.json
 fi
 exec /usr/bin/start-hyprland
