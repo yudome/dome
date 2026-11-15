@@ -42,11 +42,12 @@ pub fn ensureSink(io: Io, allocator: Allocator) bool {
 }
 
 pub fn passthrough(io: Io, allocator: Allocator, on: bool) bool {
+	if (!ensureSink(io, allocator)) return false;
+	rehome(io, allocator);
 	if (!on) {
 		unload(io, allocator);
 		return true;
 	}
-	if (!ensureSink(io, allocator)) return false;
 	if (loopback(io, allocator) != null) return true;
 
 	const result = exec.run(io, allocator, &.{ "pactl", "get-default-sink" }) catch return false;
@@ -61,6 +62,59 @@ pub fn passthrough(io: Io, allocator: Allocator, on: bool) bool {
 	defer load.deinit(allocator);
 
 	return load.code == 0;
+}
+
+fn rehome(io: Io, allocator: Allocator) void {
+	const sinks = exec.run(io, allocator, &.{ "pactl", "list", "short", "sinks" }) catch return;
+	defer sinks.deinit(allocator);
+	var null_index: []const u8 = "";
+	var sink_lines = std.mem.splitScalar(u8, sinks.out, '\n');
+	while (sink_lines.next()) |line| {
+		var fields = std.mem.tokenizeAny(u8, line, " \t");
+		const id = fields.next() orelse continue;
+		const name = fields.next() orelse continue;
+		if (std.mem.eql(u8, name, sink)) {
+			null_index = id;
+			break;
+		}
+	}
+	if (null_index.len == 0) return;
+
+	const list = exec.run(io, allocator, &.{ "pactl", "list", "sink-inputs" }) catch return;
+	defer list.deinit(allocator);
+
+	const Entry = struct { index: []const u8, sink: []const u8, vm: bool };
+	var entries: std.ArrayList(Entry) = .empty;
+	defer entries.deinit(allocator);
+
+	var index: []const u8 = "";
+	var current: []const u8 = "";
+	var vm = false;
+	var lines = std.mem.splitScalar(u8, list.out, '\n');
+	while (lines.next()) |line| {
+		const trimmed = std.mem.trim(u8, line, " \t\r");
+		if (std.mem.startsWith(u8, trimmed, "Sink Input #")) {
+			if (index.len > 0) entries.append(allocator, .{ .index = index, .sink = current, .vm = vm }) catch {};
+			index = std.mem.trim(u8, trimmed["Sink Input #".len..], " \t");
+			current = "";
+			vm = false;
+			continue;
+		}
+		if (index.len == 0) continue;
+		if (std.mem.startsWith(u8, trimmed, "Sink: ")) {
+			current = std.mem.trim(u8, trimmed["Sink: ".len..], " \t");
+			continue;
+		}
+		if (std.mem.indexOf(u8, trimmed, "application.name = \"yudae-") != null) vm = true;
+		if (std.mem.indexOf(u8, trimmed, "application.process.binary = \"qemu-system-x86_64\"") != null) vm = true;
+	}
+	if (index.len > 0) entries.append(allocator, .{ .index = index, .sink = current, .vm = vm }) catch {};
+
+	for (entries.items) |entry| {
+		if (!entry.vm or std.mem.eql(u8, entry.sink, null_index)) continue;
+		const moved = exec.run(io, allocator, &.{ "pactl", "move-sink-input", entry.index, sink }) catch continue;
+		moved.deinit(allocator);
+	}
 }
 
 fn loopback(io: Io, allocator: Allocator) ?[]u8 {

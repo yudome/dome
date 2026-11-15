@@ -101,7 +101,6 @@ pub const Vms = struct {
 	op: std.Io.Mutex = .init,
 	list: std.ArrayList(*Vm) = .empty,
 	selected: []u8 = &.{},
-	audio_on: bool = false,
 	audio_since_ms: i64 = 0,
 	opencode: ?*opencode.Opencode = null,
 	limit: budget.Budget,
@@ -330,28 +329,71 @@ pub const Vms = struct {
 
 	fn audioWatch(self: *Vms) void {
 		while (true) {
-			sleep.ms(2000);
-			self.mutex.lockUncancelable(self.io);
-			const tracking = self.audio_on;
-			const since = self.audio_since_ms;
-			self.mutex.unlock(self.io);
-			if (!tracking) continue;
-			if (fmt.nowMs(self.io) - since < 20000) continue;
+			self.audioRefresh();
+			var child = exec.spawn(self.io, .{
+				.argv = &.{ "pactl", "subscribe" },
+				.stdin = .ignore,
+				.stdout = .pipe,
+				.stderr = .ignore,
+			}) catch {
+				sleep.ms(30000);
+				continue;
+			};
 
-			const listing = exec.run(self.io, self.allocator, &.{ "hyprctl", "clients", "-j" }) catch continue;
-			defer listing.deinit(self.allocator);
-			if (std.mem.indexOf(u8, listing.out, "com.yudae.vms") != null) continue;
+			const fd = child.stdout.?.handle;
+			var buffer: [1024]u8 = undefined;
+			while (true) {
+				var fds = [_]std.os.linux.pollfd{.{ .fd = fd, .events = std.os.linux.POLL.IN, .revents = 0 }};
+				const ready = std.os.linux.poll(&fds, 1, 30000);
+				if (ready == 0) {
+					self.audioWindowCheck();
+					self.audioRefresh();
+					continue;
+				}
+				if (ready < 0) break;
 
-			self.mutex.lockUncancelable(self.io);
-			self.audio_on = false;
-			self.audio_since_ms = 0;
-			self.allocator.free(self.selected);
-			self.selected = self.allocator.dupe(u8, "") catch &.{};
-			self.mutex.unlock(self.io);
-			_ = audio.passthrough(self.io, self.allocator, false);
-			self.audio_on = false;
-			self.hub.publish();
+				const count = std.posix.read(fd, &buffer) catch break;
+				if (count == 0) break;
+				const line = buffer[0..count];
+
+				if (std.mem.indexOf(u8, line, "on sink") == null and
+				    std.mem.indexOf(u8, line, "on module") == null and
+				    std.mem.indexOf(u8, line, "on server") == null) continue;
+
+				sleep.ms(400);
+				self.audioRefresh();
+			}
+
+			child.kill(self.io);
+			sleep.ms(1000);
 		}
+	}
+
+	fn audioRefresh(self: *Vms) void {
+		self.mutex.lockUncancelable(self.io);
+		const viewing = self.selected.len > 0;
+		self.mutex.unlock(self.io);
+		_ = audio.passthrough(self.io, self.allocator, viewing);
+	}
+
+	fn audioWindowCheck(self: *Vms) void {
+		self.mutex.lockUncancelable(self.io);
+		const viewing = self.selected.len > 0;
+		const since = self.audio_since_ms;
+		self.mutex.unlock(self.io);
+		if (!viewing or fmt.nowMs(self.io) - since < 20000) return;
+
+		const listing = exec.run(self.io, self.allocator, &.{ "hyprctl", "clients", "-j" }) catch return;
+		defer listing.deinit(self.allocator);
+		if (std.mem.indexOf(u8, listing.out, "com.yudae.vms") != null) return;
+
+		self.mutex.lockUncancelable(self.io);
+		self.audio_since_ms = 0;
+		self.allocator.free(self.selected);
+		self.selected = self.allocator.dupe(u8, "") catch &.{};
+		self.mutex.unlock(self.io);
+		_ = audio.passthrough(self.io, self.allocator, false);
+		self.hub.publish();
 	}
 
 	fn govern(self: *Vms) void {
@@ -983,7 +1025,6 @@ pub const Vms = struct {
 
 	fn haltVm(self: *Vms, vm: *Vm) void {
 		_ = audio.passthrough(self.io, self.allocator, false);
-		self.audio_on = false;
 		if (vm.qmp) |client| {
 			_ = client.execute(null, "quit", null) catch {};
 			client.close();
@@ -1774,13 +1815,13 @@ pub const Vms = struct {
 		if (off) _ = try self.startVm(args, allocator);
 
 		if (vm.nvidia) {
-			self.audio_on = audio.passthrough(self.io, self.allocator, true);
+			_ = audio.passthrough(self.io, self.allocator, true);
 			self.audio_since_ms = fmt.nowMs(self.io);
 			self.hub.publish();
 			return std.fmt.allocPrint(allocator, "{{\"name\":\"{s}\",\"controller\":\"human\",\"backend\":\"nvidia\"}}", .{vm.name});
 		}
 
-		self.audio_on = audio.passthrough(self.io, self.allocator, true);
+		_ = audio.passthrough(self.io, self.allocator, true);
 		self.audio_since_ms = fmt.nowMs(self.io);
 		self.stopPump(vm);
 		self.setGuestMode(cid, 2560, 1440, "1.6667");
@@ -1912,8 +1953,7 @@ pub const Vms = struct {
 			self.allocator.free(self.selected);
 			self.selected = try self.allocator.dupe(u8, "");
 			_ = audio.passthrough(self.io, self.allocator, false);
-			self.audio_on = false;
-			self.mutex.unlock(self.io);
+				self.mutex.unlock(self.io);
 			self.hub.publish();
 			return std.fmt.allocPrint(allocator, "{{\"name\":\"{s}\",\"controller\":\"agent\",\"backend\":\"nvidia\"}}", .{vm.name});
 		}
@@ -1929,7 +1969,6 @@ pub const Vms = struct {
 		self.allocator.free(self.selected);
 		self.selected = try self.allocator.dupe(u8, "");
 		_ = audio.passthrough(self.io, self.allocator, false);
-		self.audio_on = false;
 		self.mutex.unlock(self.io);
 
 		self.captureThumb(vm);

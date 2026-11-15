@@ -117,7 +117,13 @@ with `-audiodev pa,id=snd0` and `PULSE_SINK=yudae-vm`.
 `yudae-vm` is a private null sink: at boot every VM stream lands there, so a VM
 that is not being viewed is silent. `yudae vm view` loads a `module-loopback`
 from `yudae-vm.monitor` to the current default sink; `release`, a normal window
-close, or a stopped VM unloads it. A watchdog unloads it if the VM app window
-disappears (crashed or killed) after a 20 s grace, and clears the selection.
+close, or a stopped VM unloads it.
+
+PipeWire is watched with `pactl subscribe`: if the server restarts and the
+private sink or loopback disappears, the daemon recreates the sink, moves every
+`yudae-*` QEMU stream back onto it, and restores the loopback when the VM is still
+being viewed. A 30 s safety pass (no 2 s polling) also checks the VM app window;
+if it was killed, the selection is cleared after a 20 s grace and audio returns to
+silent.
 If `pactl` or QEMU's `pa` backend is missing, the VM boots with `-audiodev none`
 and stays silent. The guest never captures the host microphone (`hda-output`).
