@@ -188,6 +188,7 @@ WlSessionLockSurface {
 			y: (root.top + 7) * root.cellHeight
 			width: root.fieldWidth * root.cellWidth
 			height: root.cellHeight
+			horizontalAlignment: Text.AlignHCenter
 			verticalAlignment: Text.AlignVCenter
 			clip: true
 			font: cell.font
