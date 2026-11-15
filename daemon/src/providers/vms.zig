@@ -8,6 +8,7 @@ const exec = @import("../primitives/exec.zig");
 const qmp = @import("vms/qmp.zig");
 const vsock = @import("vms/vsock.zig");
 const qemu = @import("vms/qemu.zig");
+const nvidia = @import("vms/nvidia.zig");
 const images = @import("vms/images.zig");
 const budget = @import("vms/budget.zig");
 const tiers = @import("vms/tiers.zig");
@@ -38,16 +39,21 @@ const Vm = struct {
 	cores: u32,
 	mem_mb: u32,
 	gl: bool,
+	nvidia: bool = false,
 	tier: tiers.Tier = .off,
 	pid: i32 = 0,
 	vfs_pid: i32 = 0,
 	wall_pid: i32 = 0,
 	pump_pid: i32 = 0,
+	backend_pid: i32 = 0,
+	nvfs_pid: i32 = 0,
 	qmp: ?*qmp.Qmp = null,
 	qemu_child: ?std.process.Child = null,
 	vfs_child: ?std.process.Child = null,
 	wall_child: ?std.process.Child = null,
 	pump_child: ?std.process.Child = null,
+	backend_child: ?std.process.Child = null,
+	nvfs_child: ?std.process.Child = null,
 	cgroup: ?cgroup.Cgroup = null,
 	created_ms: i64,
 	used_ms: i64,
@@ -64,12 +70,13 @@ fn writeVm(writer: *Writer, vm: *const Vm, now: i64) !void {
 	try std.json.Stringify.encodeJsonString(vm.name, .{}, writer);
 	try writer.writeAll(",\"tier\":");
 	try std.json.Stringify.encodeJsonString(vm.tier.text(), .{}, writer);
-	try writer.print(",\"cid\":{d},\"pid\":{d},\"cores\":{d},\"memMb\":{d},\"gl\":{s},\"cpu\":{d:.1},\"rssKb\":{d},\"agent\":", .{
+	try writer.print(",\"cid\":{d},\"pid\":{d},\"cores\":{d},\"memMb\":{d},\"gl\":{s},\"backend\":\"{s}\",\"cpu\":{d:.1},\"rssKb\":{d},\"agent\":", .{
 		vm.cid,
 		vm.pid,
 		vm.cores,
 		vm.mem_mb,
 		if (vm.gl) "true" else "false",
+		if (vm.nvidia) "nvidia" else "gl",
 		vm.cpu_pct,
 		vm.rss_kb,
 	});
@@ -222,6 +229,7 @@ pub const Vms = struct {
 		if (std.mem.eql(u8, method, "create")) return self.createVm(args, allocator);
 		if (std.mem.eql(u8, method, "start")) return self.startVm(args, allocator);
 		if (std.mem.eql(u8, method, "list")) return self.listJson(allocator);
+		if (std.mem.eql(u8, method, "doctor")) return self.doctorVm(allocator);
 		if (std.mem.eql(u8, method, "destroy")) return self.destroyVm(args, allocator);
 		if (std.mem.eql(u8, method, "stop")) return self.stopVm(args, allocator);
 		if (std.mem.eql(u8, method, "sleep")) return self.sleepVm(args, allocator);
@@ -400,6 +408,14 @@ pub const Vms = struct {
 		if (changed) self.hub.publish();
 	}
 
+	fn doctorVm(self: *Vms, allocator: Allocator) ![]u8 {
+		const repo = proc.repo(self.io, self.allocator);
+		const script = try std.fs.path.join(self.allocator, &.{ repo, "vm", "doctor" });
+		const result = exec.run(self.io, self.allocator, &.{ "sh", script, "--json" }) catch return error.DoctorFailed;
+		defer result.deinit(self.allocator);
+		return allocator.dupe(u8, result.out);
+	}
+
 	fn createVm(self: *Vms, args: json.Value, allocator: Allocator) ![]u8 {
 		self.op.lockUncancelable(self.io);
 		defer self.op.unlock(self.io);
@@ -437,7 +453,12 @@ pub const Vms = struct {
 
 		const mem = self.memOf(args);
 		const cores = self.coresOf(args);
-		const gl = if (json.field(args, "gl")) |value| switch (value) {
+		const backend = json.textAt(args, "backend");
+		const force_gl = std.mem.eql(u8, backend, "gl") or json.field(args, "gl") != null;
+		const force_nvidia = std.mem.eql(u8, backend, "nvidia") or json.flag(args, "nvidia");
+		const use_nvidia = force_nvidia or (!force_gl and nvidia.available(self.io, self.allocator));
+		if (force_nvidia and !use_nvidia) return error.NvidiaUnavailable;
+		const gl = if (use_nvidia) false else if (json.field(args, "gl")) |value| switch (value) {
 			.bool => |flag| flag,
 			else => true,
 		} else true;
@@ -477,6 +498,7 @@ pub const Vms = struct {
 			.cores = cores,
 			.mem_mb = mem,
 			.gl = gl,
+			.nvidia = use_nvidia,
 			.tier = .off,
 			.created_ms = fmt.nowMs(self.io),
 			.used_ms = fmt.nowMs(self.io),
@@ -562,7 +584,108 @@ pub const Vms = struct {
 		} else |_| {}
 	}
 
+	fn bootNvidia(self: *Vms, vm: *Vm) !void {
+		self.syncDesktop();
+		try std.Io.Dir.cwd().createDirPath(self.io, vm.dir);
+
+		const repo = proc.repo(self.io, self.allocator);
+		const paths = nvidia.paths(self.io, self.allocator) catch return error.NvidiaUnavailable;
+		const share = nvidia.ensureShare(self.io, self.allocator) catch return error.ShareFailed;
+
+		const vfs_socket = try std.fs.path.join(self.allocator, &.{ vm.dir, "virtiofsd.sock" });
+		const vfs_args = [_][]const u8{
+			"/usr/lib/virtiofsd",
+			try std.fmt.allocPrint(self.allocator, "--socket-path={s}", .{vfs_socket}),
+			try std.fmt.allocPrint(self.allocator, "--shared-dir={s}", .{repo}),
+			"--readonly",
+			"--cache=never",
+		};
+		const vfs = exec.spawn(self.io, .{ .argv = &vfs_args, .stdin = .ignore, .stdout = .ignore, .stderr = .ignore }) catch return error.VirtiofsSpawnFailed;
+		vm.vfs_pid = vfs.id orelse 0;
+		vm.vfs_child = vfs;
+		if (!try waitFile(self.io, vfs_socket, 5000)) return error.VirtiofsSocket;
+
+		const nvfs_socket = try std.fs.path.join(self.allocator, &.{ vm.dir, "nvidiafsd.sock" });
+		const nvfs_args = [_][]const u8{
+			"/usr/lib/virtiofsd",
+			try std.fmt.allocPrint(self.allocator, "--socket-path={s}", .{nvfs_socket}),
+			try std.fmt.allocPrint(self.allocator, "--shared-dir={s}", .{share}),
+			"--readonly",
+			"--cache=never",
+		};
+		const nvfs = exec.spawn(self.io, .{ .argv = &nvfs_args, .stdin = .ignore, .stdout = .ignore, .stderr = .ignore }) catch return error.VirtiofsSpawnFailed;
+		vm.nvfs_pid = nvfs.id orelse 0;
+		vm.nvfs_child = nvfs;
+		if (!try waitFile(self.io, nvfs_socket, 5000)) return error.VirtiofsSocket;
+
+		const nvgpu_socket = try std.fs.path.join(self.allocator, &.{ vm.dir, "nvgpu.sock" });
+		const backend_args = try nvidia.backendArgs(self.allocator, vm.dir, paths.backend);
+		const backend = exec.spawn(self.io, .{ .argv = backend_args, .stdin = .ignore, .stdout = .ignore, .stderr = .ignore }) catch return error.NvidiaBackendFailed;
+		vm.backend_pid = backend.id orelse 0;
+		vm.backend_child = backend;
+		if (!try waitFile(self.io, nvgpu_socket, 10000)) return error.NvidiaBackendSocket;
+
+		const argv = try nvidia.args(self.allocator, .{
+			.name = vm.name,
+			.dir = vm.dir,
+			.disk = vm.disk,
+			.dotfiles = repo,
+			.share = share,
+			.cid = vm.cid,
+			.cores = vm.cores,
+			.mem_mb = vm.mem_mb,
+			.qemu = paths.qemu,
+		});
+		const qmp_path = try std.fs.path.join(self.allocator, &.{ vm.dir, "qmp.sock" });
+		std.Io.Dir.cwd().deleteFile(self.io, qmp_path) catch {};
+		const child = exec.spawn(self.io, .{ .argv = argv, .stdin = .ignore, .stdout = .ignore, .stderr = .inherit }) catch return error.QemuSpawnFailed;
+		vm.pid = child.id orelse 0;
+		vm.qemu_child = child;
+
+		const group = cgroup.Cgroup.create(self.io, self.allocator, vm.name, vm.mem_mb, vm.cores) catch null;
+		if (group) |value| {
+			value.attach(self.io, vm.pid);
+			value.attach(self.io, vm.vfs_pid);
+			value.attach(self.io, vm.nvfs_pid);
+			value.attach(self.io, vm.backend_pid);
+			vm.cgroup = value;
+		}
+		const pidfile = try std.fs.path.join(self.allocator, &.{ vm.dir, "qemu.pid" });
+		proc.writeFile(self.io, pidfile, try std.fmt.allocPrint(self.allocator, "{d}\n", .{vm.pid})) catch {};
+
+		const socket = try std.fs.path.join(self.allocator, &.{ vm.dir, "qmp.sock" });
+		if (!try waitFile(self.io, socket, 10000)) return error.QmpSocket;
+		const client = try self.allocator.create(qmp.Qmp);
+		try client.init(socket);
+		vm.qmp = client;
+		vm.tier = .hot;
+		vm.used_ms = fmt.nowMs(self.io);
+		self.writeMeta(vm);
+
+		const boot_name = self.allocator.dupe(u8, vm.name) catch null;
+		if (boot_name) |name| {
+			const thread = std.Thread.spawn(.{}, agentBoot, .{ self, vm.cid, name }) catch null;
+			if (thread) |value| value.detach() else self.allocator.free(name);
+		}
+	}
+
+	fn stopNvidia(self: *Vms, vm: *Vm) void {
+		if (vm.backend_pid > 0) kill(vm.backend_pid);
+		if (vm.nvfs_pid > 0) kill(vm.nvfs_pid);
+		if (vm.backend_child) |*child| {
+			_ = child.wait(self.io) catch {};
+			vm.backend_child = null;
+		}
+		if (vm.nvfs_child) |*child| {
+			_ = child.wait(self.io) catch {};
+			vm.nvfs_child = null;
+		}
+		vm.backend_pid = 0;
+		vm.nvfs_pid = 0;
+	}
+
 	fn bootVm(self: *Vms, vm: *Vm) !void {
+		if (vm.nvidia) return self.bootNvidia(vm);
 		self.syncDesktop();
 		try std.Io.Dir.cwd().createDirPath(self.io, vm.dir);
 
@@ -715,7 +838,7 @@ pub const Vms = struct {
 				continue;
 			};
 
-			const alive = pid > 0 and proc.exists(self.io, std.fmt.allocPrint(self.allocator, "/proc/{d}", .{pid}) catch "");
+			const alive = pid > 0 and self.pidAlive(pid);
 			const dir_path = std.fs.path.join(self.allocator, &.{ runs, entry.name }) catch {
 				arena.deinit();
 				continue;
@@ -737,6 +860,7 @@ pub const Vms = struct {
 				.cores = @intCast(@max(json.integer(json.field(parsed.value, "cores")), 1)),
 				.mem_mb = @intCast(@max(json.integer(json.field(parsed.value, "memMb")), 512)),
 				.gl = json.flag(parsed.value, "gl"),
+				.nvidia = std.mem.eql(u8, json.textAt(parsed.value, "backend"), "nvidia"),
 				.tier = if (alive) .hot else .off,
 				.pid = if (alive) pid else 0,
 				.created_ms = fmt.nowMs(self.io),
@@ -796,12 +920,13 @@ pub const Vms = struct {
 			result.deinit(self.allocator);
 		} else |_| {}
 
-		const body = std.fmt.allocPrint(self.allocator, "{{\"name\":\"{s}\",\"cid\":{d},\"cores\":{d},\"memMb\":{d},\"gl\":{s},\"pid\":{d},\"agent\":\"{s}\",\"harness\":\"{s}\",\"session\":\"{s}\",\"sessionTitle\":\"{s}\",\"base\":\"{s}\",\"dirty\":{s},\"packages\":\"{s}\",\"destroyMs\":{d}}}", .{
+		const body = std.fmt.allocPrint(self.allocator, "{{\"name\":\"{s}\",\"cid\":{d},\"cores\":{d},\"memMb\":{d},\"gl\":{s},\"backend\":\"{s}\",\"pid\":{d},\"agent\":\"{s}\",\"harness\":\"{s}\",\"session\":\"{s}\",\"sessionTitle\":\"{s}\",\"base\":\"{s}\",\"dirty\":{s},\"packages\":\"{s}\",\"destroyMs\":{d}}}", .{
 			vm.name,
 			vm.cid,
 			vm.cores,
 			vm.mem_mb,
 			if (vm.gl) "true" else "false",
+			if (vm.nvidia) "nvidia" else "gl",
 			vm.pid,
 			vm.agent,
 			vm.harness,
@@ -826,6 +951,7 @@ pub const Vms = struct {
 			vm.qmp = null;
 		}
 
+		self.stopNvidia(vm);
 		if (vm.pid > 0) kill(vm.pid);
 		if (vm.vfs_pid > 0) kill(vm.vfs_pid);
 		self.stopWall(vm);
@@ -895,7 +1021,7 @@ pub const Vms = struct {
 	}
 
 	fn startPump(self: *Vms, vm: *Vm) void {
-		if (vm.pump_pid > 0) return;
+		if (vm.nvidia or vm.pump_pid > 0) return;
 
 		const repo = proc.repo(self.io, self.allocator);
 		const display_qmp = std.fs.path.join(self.allocator, &.{ vm.dir, "display.qmp" }) catch return;
@@ -924,6 +1050,7 @@ pub const Vms = struct {
 			vm.qmp = null;
 		}
 
+		self.stopNvidia(vm);
 		if (vm.pid > 0) kill(vm.pid);
 		if (vm.vfs_pid > 0) kill(vm.vfs_pid);
 		self.stopWall(vm);
@@ -1258,7 +1385,7 @@ pub const Vms = struct {
 		else
 			try std.fmt.allocPrint(allocator, "{s}/shot-{d}.png", .{ vm.dir, fmt.nowMs(self.io) });
 
-		if (vm.gl) {
+		if (vm.gl or vm.nvidia) {
 			if (self.guestScreenshot(vm, path, allocator)) |_| {
 				self.rememberScreen(name, path, allocator);
 				return std.fmt.allocPrint(allocator, "{{\"path\":\"{s}\"}}", .{path});
@@ -1604,6 +1731,11 @@ pub const Vms = struct {
 
 		if (off) _ = try self.startVm(args, allocator);
 
+		if (vm.nvidia) {
+			self.hub.publish();
+			return std.fmt.allocPrint(allocator, "{{\"name\":\"{s}\",\"controller\":\"human\",\"backend\":\"nvidia\"}}", .{vm.name});
+		}
+
 		self.stopPump(vm);
 		self.setGuestMode(cid, 2560, 1440, "1.6667");
 
@@ -1729,6 +1861,14 @@ pub const Vms = struct {
 		};
 		vm.controller = try self.allocator.dupe(u8, "agent");
 		const cid = vm.cid;
+
+		if (vm.nvidia) {
+			self.allocator.free(self.selected);
+			self.selected = try self.allocator.dupe(u8, "");
+			self.mutex.unlock(self.io);
+			self.hub.publish();
+			return std.fmt.allocPrint(allocator, "{{\"name\":\"{s}\",\"controller\":\"agent\",\"backend\":\"nvidia\"}}", .{vm.name});
+		}
 
 		if (vm.tier == .warm or vm.tier == .parked) {
 			if (vm.qmp) |client| {
@@ -1929,6 +2069,7 @@ pub const Vms = struct {
 		const cores = source.cores;
 		const mem = source.mem_mb;
 		const gl = source.gl;
+		const nvidia_backend = source.nvidia;
 		const source_disk = try self.allocator.dupe(u8, source.disk);
 		const cid = self.nextCidLocked();
 		self.mutex.unlock(self.io);
@@ -1955,6 +2096,7 @@ pub const Vms = struct {
 			.cores = cores,
 			.mem_mb = mem,
 			.gl = gl,
+			.nvidia = nvidia_backend,
 			.tier = .off,
 			.created_ms = fmt.nowMs(self.io),
 			.used_ms = fmt.nowMs(self.io),
@@ -1981,7 +2123,7 @@ pub const Vms = struct {
 
 		for (self.list.items, 0..) |vm, index| {
 			if (index > 0) try writer.writeAll(",");
-			try writer.print("{{\"name\":\"{s}\",\"tier\":\"{s}\",\"cid\":{d},\"pid\":{d},\"cores\":{d},\"memMb\":{d},\"gl\":{s}}}", .{
+			try writer.print("{{\"name\":\"{s}\",\"tier\":\"{s}\",\"cid\":{d},\"pid\":{d},\"cores\":{d},\"memMb\":{d},\"gl\":{s},\"backend\":\"{s}\"}}", .{
 				vm.name,
 				vm.tier.text(),
 				vm.cid,
@@ -1989,6 +2131,7 @@ pub const Vms = struct {
 				vm.cores,
 				vm.mem_mb,
 				if (vm.gl) "true" else "false",
+				if (vm.nvidia) "nvidia" else "gl",
 			});
 		}
 

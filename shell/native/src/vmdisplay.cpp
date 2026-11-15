@@ -1,5 +1,6 @@
 #include "vmdisplay.h"
 #include "qmp.h"
+#include "brokerdisplay.h"
 #include "inhibitor.h"
 
 #include <QGuiApplication>
@@ -173,6 +174,9 @@ struct VmDisplay::Private {
 	int updateW = 0;
 	int updateH = 0;
 	bool updatePending = false;
+	BrokerDisplay *broker = nullptr;
+	bool brokerFocused = false;
+	bool brokerPointer = false;
 	WaylandInhibitor inhibitor;
 	QMetaObject::Connection activeConnection;
 	bool pointerInside = false;
@@ -185,6 +189,7 @@ VmDisplay::VmDisplay(QQuickItem *parent) : QQuickItem(parent), d(new Private) {
 	setAcceptedMouseButtons(Qt::AllButtons);
 	setAcceptHoverEvents(true);
 	d->display = new QmpDisplay(this);
+	d->broker = new BrokerDisplay(this);
 	m_mouseTimer = new QTimer(this);
 	m_mouseTimer->setInterval(8);
 	connect(m_mouseTimer, &QTimer::timeout, this, &VmDisplay::flushPosition);
@@ -224,9 +229,17 @@ VmDisplay::VmDisplay(QQuickItem *parent) : QQuickItem(parent), d(new Private) {
 		emit runningChanged();
 		QTimer::singleShot(1000, this, [this]() { maybeStart(); });
 	});
+	connect(d->broker, &BrokerDisplay::frameReady, this, [this]() { update(); });
+	connect(d->broker, &BrokerDisplay::failed, this, [this](const QString &message) {
+		m_error = message;
+		emit errorChanged();
+		QTimer::singleShot(1000, this, [this]() { if (!m_running) maybeStart(); });
+	});
+	connect(this, &QQuickItem::activeFocusChanged, this, &VmDisplay::updateBrokerFocus);
 }
 
 VmDisplay::~VmDisplay() {
+	if (d->broker) d->broker->stop();
 	if (d->nodeTexture) delete d->nodeTexture;
 	if (d->texture) {
 		QOpenGLContext *ctx = QOpenGLContext::currentContext();
@@ -242,19 +255,53 @@ void VmDisplay::setQmp(const QString &value) {
 	if (m_qmp == value) return;
 	m_qmp = value;
 	emit qmpChanged();
+	stopSource();
 	maybeStart();
 }
 
+void VmDisplay::setBroker(const QString &value) {
+	if (m_broker == value) return;
+	m_broker = value;
+	emit brokerChanged();
+	stopSource();
+	maybeStart();
+}
+
+void VmDisplay::stopSource() {
+	if (m_running) {
+		m_running = false;
+		emit runningChanged();
+	}
+	if (d->broker) d->broker->stop();
+	d->display->stop();
+	d->brokerFocused = false;
+	d->brokerPointer = false;
+}
+
 void VmDisplay::maybeStart() {
-	if (m_qmp.isEmpty() || !window() || width() <= 0 || height() <= 0) return;
+	if (!window() || width() <= 0 || height() <= 0) return;
 	if (m_running) return;
+	if (m_broker.isEmpty() && m_qmp.isEmpty()) return;
 	QScreen *screen = window()->screen();
 	const QSize device = screen ? QSize(qRound(screen->size().width() * screen->devicePixelRatio()),
 	                                    qRound(screen->size().height() * screen->devicePixelRatio()))
 	                            : QSize(qRound(width() * window()->devicePixelRatio()),
 	                                    qRound(height() * window()->devicePixelRatio()));
 	if (device.width() <= 0 || device.height() <= 0) return;
-	d->display->start(m_qmp, device.width(), device.height());
+	if (!m_broker.isEmpty()) {
+		const qreal dpr = window()->devicePixelRatio();
+		const QSize surface(qRound(width() * dpr), qRound(height() * dpr));
+		if (surface.width() <= 0 || surface.height() <= 0) return;
+		const int refresh = qRound((screen ? screen->refreshRate() : 60.0) * 1000.0);
+		if (!d->broker->start(m_broker, surface.width(), surface.height(), refresh)) return;
+		m_running = true;
+		m_error.clear();
+		emit errorChanged();
+		emit runningChanged();
+		updateBrokerFocus();
+		return;
+	}
+	d->display->start(m_qmp, device.width(), device.height(), qRound(screen ? screen->refreshRate() : 0));
 	m_running = true;
 	emit runningChanged();
 }
@@ -263,7 +310,10 @@ void VmDisplay::geometryChange(const QRectF &next, const QRectF &prev) {
 	QQuickItem::geometryChange(next, prev);
 	if (next.size().toSize() == prev.size().toSize()) return;
 	maybeStart();
-	if (m_running && window() && window()->visibility() == QWindow::FullScreen) {
+	if (m_running && !m_broker.isEmpty()) {
+		const qreal dpr = window() ? window()->devicePixelRatio() : 1.0;
+		d->broker->setSurfaceSize(qRound(width() * dpr), qRound(height() * dpr));
+	} else if (m_running && window() && window()->visibility() == QWindow::FullScreen) {
 		QScreen *screen = window()->screen();
 		if (screen) d->display->setUiInfo(qRound(screen->size().width() * screen->devicePixelRatio()),
 		                                  qRound(screen->size().height() * screen->devicePixelRatio()));
@@ -285,12 +335,17 @@ void VmDisplay::itemChange(ItemChange change, const ItemChangeData &value) {
 		return;
 	}
 
-	d->activeConnection = connect(win, &QQuickWindow::activeChanged, this, [this]() { updateInhibitor(); });
+	d->activeConnection = connect(win, &QQuickWindow::activeChanged, this, [this]() {
+		updateInhibitor();
+		updateBrokerFocus();
+	});
 	updateInhibitor();
+	updateBrokerFocus();
 }
 
 void VmDisplay::mousePressEvent(QMouseEvent *event) {
 	d->pointerInside = insideImage(event->position());
+	if (d->broker) d->broker->sendPointer(d->pointerInside);
 	updateInhibitor();
 	forceActiveFocus();
 	sendMouse(event->position(), event->button(), true);
@@ -309,6 +364,12 @@ void VmDisplay::mouseMoveEvent(QMouseEvent *event) {
 
 void VmDisplay::wheelEvent(QWheelEvent *event) {
 	const int steps = event->angleDelta().y() / 120;
+	const int horizontal = event->angleDelta().x() / 120;
+	if (!m_broker.isEmpty() && d->broker) {
+		d->broker->sendWheel(steps, horizontal);
+		event->accept();
+		return;
+	}
 	for (int i = 0; i < qAbs(steps); i++) d->display->wheel(steps > 0);
 	event->accept();
 }
@@ -321,6 +382,20 @@ void VmDisplay::sendPosition(const QPointF &pos) {
 void VmDisplay::flushPosition() {
 	if (!m_hasPending) return;
 	m_hasPending = false;
+
+	if (!m_broker.isEmpty() && d->broker) {
+		const qreal dpr = window() ? window()->devicePixelRatio() : 1.0;
+		const int w = qMax(1, qRound(width() * dpr));
+		const int h = qMax(1, qRound(height() * dpr));
+		QRectF dst = d->dstRect.isValid() && !d->dstRect.isEmpty() ? d->dstRect : boundingRect();
+		if (dst.width() <= 0 || dst.height() <= 0 || !dst.contains(m_pendingPos)) return;
+		const qreal fx = (m_pendingPos.x() - dst.x()) / dst.width();
+		const qreal fy = (m_pendingPos.y() - dst.y()) / dst.height();
+		const int x = qBound(0, qRound(fx * (w - 1)), w - 1);
+		const int y = qBound(0, qRound(fy * (h - 1)), h - 1);
+		d->broker->sendAbs(x, y);
+		return;
+	}
 
 	const int w = d->textureW > 0 ? d->textureW : qRound(width() * (window() ? window()->devicePixelRatio() : 1));
 	const int h = d->textureH > 0 ? d->textureH : qRound(height() * (window() ? window()->devicePixelRatio() : 1));
@@ -341,6 +416,17 @@ void VmDisplay::flushPosition() {
 void VmDisplay::sendMouse(const QPointF &pos, Qt::MouseButton button, bool down) {
 	sendPosition(pos);
 	flushPosition();
+	if (!m_broker.isEmpty() && d->broker) {
+		int evdev = -1;
+		switch (button) {
+		case Qt::LeftButton: evdev = 0x110; break;
+		case Qt::RightButton: evdev = 0x111; break;
+		case Qt::MiddleButton: evdev = 0x112; break;
+		default: return;
+		}
+		d->broker->sendButton(evdev, down);
+		return;
+	}
 	int qbutton = 0;
 	switch (button) {
 	case Qt::LeftButton: qbutton = 0; break;
@@ -356,7 +442,13 @@ void VmDisplay::keyPressEvent(QKeyEvent *event) {
 		event->accept();
 		return;
 	}
-	const int qnum = qnumForEvdev(int(event->nativeScanCode()) - 8);
+	const int evdev = int(event->nativeScanCode()) - 8;
+	if (!m_broker.isEmpty() && d->broker) {
+		if (evdev > 0) d->broker->sendKey(evdev, true);
+		event->accept();
+		return;
+	}
+	const int qnum = qnumForEvdev(evdev);
 	if (qnum >= 0) d->display->key(qnum, true);
 	event->accept();
 }
@@ -366,7 +458,13 @@ void VmDisplay::keyReleaseEvent(QKeyEvent *event) {
 		event->accept();
 		return;
 	}
-	const int qnum = qnumForEvdev(int(event->nativeScanCode()) - 8);
+	const int evdev = int(event->nativeScanCode()) - 8;
+	if (!m_broker.isEmpty() && d->broker) {
+		if (evdev > 0) d->broker->sendKey(evdev, false);
+		event->accept();
+		return;
+	}
+	const int qnum = qnumForEvdev(evdev);
 	if (qnum >= 0) d->display->key(qnum, false);
 	event->accept();
 }
@@ -376,7 +474,19 @@ bool VmDisplay::insideImage(const QPointF &pos) const {
 	return boundingRect().contains(pos);
 }
 
+void VmDisplay::updateBrokerFocus() {
+	if (m_broker.isEmpty() || !d->broker) return;
+	const bool focused = window() && window()->isActive() && hasActiveFocus();
+	if (focused == d->brokerFocused) return;
+	d->brokerFocused = focused;
+	d->broker->sendFocus(focused);
+}
+
 void VmDisplay::updateInhibitor() {
+	if (!m_broker.isEmpty()) {
+		d->inhibitor.inhibit(false);
+		return;
+	}
 	QQuickWindow *window = this->window();
 	if (!window || !window->isActive() || !d->pointerInside) {
 		d->inhibitor.inhibit(false);
@@ -394,6 +504,7 @@ void VmDisplay::updateInhibitor() {
 
 void VmDisplay::hoverEnterEvent(QHoverEvent *event) {
 	d->pointerInside = insideImage(event->position());
+	if (d->broker) d->broker->sendPointer(d->pointerInside);
 	updateInhibitor();
 	if (d->pointerInside) forceActiveFocus();
 	QQuickItem::hoverEnterEvent(event);
@@ -404,6 +515,7 @@ void VmDisplay::hoverMoveEvent(QHoverEvent *event) {
 	const bool inside = insideImage(event->position());
 	if (inside != d->pointerInside) {
 		d->pointerInside = inside;
+		if (d->broker) d->broker->sendPointer(inside);
 		updateInhibitor();
 		if (inside) forceActiveFocus();
 	}
@@ -412,6 +524,7 @@ void VmDisplay::hoverMoveEvent(QHoverEvent *event) {
 
 void VmDisplay::hoverLeaveEvent(QHoverEvent *event) {
 	d->pointerInside = false;
+	if (d->broker) d->broker->sendPointer(false);
 	updateInhibitor();
 	QQuickItem::hoverLeaveEvent(event);
 }
@@ -426,7 +539,12 @@ QSGNode *VmDisplay::updatePaintNode(QSGNode *node, UpdatePaintNodeData *) {
 	loadEgl();
 	if (!createImage || !imageTarget) return nullptr;
 
-	if (auto frame = d->display->takeFrame(); frame.fd >= 0) {
+	QmpDisplay::Frame frame;
+	const bool brokerFrame = !m_broker.isEmpty() && d->broker;
+	if (brokerFrame) frame = d->broker->takeFrame();
+	else frame = d->display->takeFrame();
+
+	if (frame.fd >= 0) {
 		if (d->mapBase) {
 			munmap(d->mapBase, d->mapMapSize);
 			d->mapBase = nullptr;
@@ -435,11 +553,8 @@ QSGNode *VmDisplay::updatePaintNode(QSGNode *node, UpdatePaintNodeData *) {
 			d->mapMapSize = 0;
 		}
 		d->mapMode = false;
-		if (frame.fd >= 0 && d->eglDisplay != EGL_NO_DISPLAY) {
-			destroyImage(d->eglDisplay, d->image);
-			d->image = EGL_NO_IMAGE_KHR;
-		}
-		if (frame.fd >= 0) {
+		EGLImageKHR next = EGL_NO_IMAGE_KHR;
+		if (d->eglDisplay != EGL_NO_DISPLAY) {
 			EGLint attrs[] = {
 				EGL_WIDTH, frame.w,
 				EGL_HEIGHT, frame.h,
@@ -451,29 +566,40 @@ QSGNode *VmDisplay::updatePaintNode(QSGNode *node, UpdatePaintNodeData *) {
 				EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT, EGLint(frame.modHi),
 				EGL_NONE,
 			};
-			d->image = createImage(d->eglDisplay, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, attrs);
-			close(frame.fd);
+			next = createImage(d->eglDisplay, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, attrs);
 		}
-		if (frame.fd >= 0 && d->eglDisplay != EGL_NO_DISPLAY) {
+		close(frame.fd);
+		frame.fd = -1;
+		if (next != EGL_NO_IMAGE_KHR) {
 			GLuint texture = 0;
 			glGenTextures(1, &texture);
 			glBindTexture(GL_TEXTURE_2D, texture);
-			imageTarget(GL_TEXTURE_2D, d->image);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-			if (d->texture) context->functions()->glDeleteTextures(1, &d->texture);
-			d->texture = texture;
-			d->textureW = frame.w;
-			d->textureH = frame.h;
-			d->y0top = frame.y0top;
-			if (d->nodeTexture) {
-				delete d->nodeTexture;
-				d->nodeTexture = nullptr;
+			while (glGetError() != GL_NO_ERROR) {}
+			imageTarget(GL_TEXTURE_2D, next);
+			if (glGetError() == GL_NO_ERROR) {
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+				if (d->texture) context->functions()->glDeleteTextures(1, &d->texture);
+				if (d->image != EGL_NO_IMAGE_KHR) destroyImage(d->eglDisplay, d->image);
+				d->image = next;
+				d->texture = texture;
+				d->textureW = frame.w;
+				d->textureH = frame.h;
+				d->y0top = frame.y0top;
+				if (d->nodeTexture) {
+					delete d->nodeTexture;
+					d->nodeTexture = nullptr;
+				}
+			} else {
+				qWarning() << "cannot import dma-buf" << Qt::hex << frame.fourcc << frame.modLo << frame.modHi;
+				context->functions()->glDeleteTextures(1, &texture);
+				destroyImage(d->eglDisplay, next);
 			}
 		}
 	}
+	if (brokerFrame) d->broker->frameConsumed();
 
 	if (auto map = d->display->takeMap(); map.fd >= 0) {
 		if (map.w > 0 && map.h > 0 && map.stride > 0) {

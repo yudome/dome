@@ -158,6 +158,9 @@ task_doctor() {
 		missing=1
 	fi
 
+	echo
+	"$ROOT/vm/doctor"
+
 	return "$missing"
 }
 

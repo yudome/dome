@@ -734,7 +734,8 @@ AppWindow {
 
 								VmDisplay {
 									anchors.fill: parent
-									qmp: win.root + "/" + win.live + "/display.qmp"
+									qmp: win.current.backend === "gl" ? win.root + "/" + win.live + "/display.qmp" : ""
+									broker: win.current.backend === "nvidia" ? win.root + "/" + win.live + "/display-nvidia.sock" : ""
 									onErrorChanged: if (error.length > 0) console.warn("VmDisplay:", error)
 								}
 							}

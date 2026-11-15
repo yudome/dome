@@ -316,8 +316,18 @@ pub fn open(io: Io, args: []const []const u8) !void {
 
 pub fn virtualMachines(io: Io, args: []const []const u8) !void {
 	if (args.len < 3) {
-		std.debug.print("usage: yudae vm <create|list|start|stop|exec|screenshot|key|type|click|move|wait|sleep|wake|destroy|snapshot|restore|fork|state|view|scenario> [args...]\n", .{});
+		std.debug.print("usage: yudae vm <create|list|start|stop|exec|screenshot|key|type|click|move|wait|sleep|wake|destroy|snapshot|restore|fork|state|view|scenario|doctor> [args...]\n", .{});
 		std.process.exit(2);
+	}
+
+	if (std.mem.eql(u8, args[2], "doctor")) {
+		const allocator = std.heap.smp_allocator;
+		const repo = proc.repo(io, allocator);
+		const script = try std.fs.path.join(allocator, &.{ repo, "vm", "doctor" });
+		const result = exec.run(io, allocator, &.{ "sh", script, "--json" }) catch std.process.exit(1);
+		defer result.deinit(allocator);
+		printResult(io, result.out);
+		return;
 	}
 
 	const method = if (std.mem.eql(u8, args[2], "scenario")) "run_scenario" else args[2];

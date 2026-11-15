@@ -11,6 +11,7 @@ class VmDisplay : public QQuickItem {
 	Q_OBJECT
 	QML_ELEMENT
 	Q_PROPERTY(QString qmp READ qmp WRITE setQmp NOTIFY qmpChanged)
+	Q_PROPERTY(QString broker READ broker WRITE setBroker NOTIFY brokerChanged)
 	Q_PROPERTY(bool running READ running NOTIFY runningChanged)
 	Q_PROPERTY(int guestWidth READ guestWidth NOTIFY guestSizeChanged)
 	Q_PROPERTY(int guestHeight READ guestHeight NOTIFY guestSizeChanged)
@@ -22,6 +23,8 @@ public:
 
 	QString qmp() const { return m_qmp; }
 	void setQmp(const QString &value);
+	QString broker() const { return m_broker; }
+	void setBroker(const QString &value);
 	bool running() const { return m_running; }
 	int guestWidth() const { return m_guestWidth; }
 	int guestHeight() const { return m_guestHeight; }
@@ -31,6 +34,7 @@ public:
 
 signals:
 	void qmpChanged();
+	void brokerChanged();
 	void runningChanged();
 	void guestSizeChanged();
 	void errorChanged();
@@ -50,6 +54,8 @@ protected:
 
 private:
 	void maybeStart();
+	void stopSource();
+	void updateBrokerFocus();
 	void updateInhibitor();
 	bool insideImage(const QPointF &pos) const;
 	void sendPosition(const QPointF &pos);
@@ -60,6 +66,7 @@ private:
 	Private *d = nullptr;
 
 	QString m_qmp;
+	QString m_broker;
 	bool m_running = false;
 	int m_guestWidth = 0;
 	int m_guestHeight = 0;

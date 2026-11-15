@@ -558,9 +558,10 @@ UNIT
 
 cmd_packages() {
 	mkdir -p "$CACHE/seed"
-	local source=${DOTFILES_VM_PACKAGES:-}
+	local source=${DOTFILES_VM_PACKAGES:-$ROOT/vm/packages.txt}
 	if [ -n "$source" ]; then
 		cp "$source" "$CACHE/seed/packages.txt"
+		VM_EXCLUDE='^$'
 	else
 		pacman -Qqen > "$CACHE/seed/packages.txt"
 	fi
@@ -932,7 +933,8 @@ Environment=XDG_CONFIG_HOME=/home/gabriel/.config
 Environment=XDG_SESSION_TYPE=wayland
 Environment=XDG_CURRENT_DESKTOP=Hyprland
 Environment=XDG_SESSION_DESKTOP=Hyprland
-ExecStart=/usr/bin/start-hyprland
+ExecStartPre=+/bin/sh -c 'if [ -d /mnt/nvidia/lib/gbm ]; then mkdir -p /usr/lib/gbm; ln -sf /mnt/nvidia/lib/gbm/nvidia-drm_gbm.so /usr/lib/gbm/nvidia-drm_gbm.so; fi'
+ExecStart=/usr/local/bin/yudae-session
 Restart=no
 
 [Install]
@@ -975,8 +977,28 @@ chmod 440 /etc/sudoers.d/gabriel
 mkdir -p /home/gabriel/dotfiles /run/user/1000
 chown gabriel:gabriel /run/user/1000
 grep -q 'dotfiles /home/gabriel/dotfiles virtiofs' /etc/fstab || echo 'dotfiles /home/gabriel/dotfiles virtiofs ro,nofail,defaults 0 0' >> /etc/fstab
-mkdir -p /home/gabriel/.config
+grep -q 'nvidia /mnt/nvidia virtiofs' /etc/fstab || echo 'nvidia /mnt/nvidia virtiofs ro,nofail,defaults 0 0' >> /etc/fstab
+mkdir -p /home/gabriel/.config /mnt/nvidia
 ln -sfn /home/gabriel/dotfiles/hypr /home/gabriel/.config/hypr
+cat > /usr/local/bin/yudae-session <<'SESSION'
+#!/bin/bash
+if [ -d /mnt/nvidia/lib ]; then
+	card=$(readlink -f /dev/dri/by-path/*pci-0010*-card 2>/dev/null | head -1)
+	export AQ_DRM_DEVICES=${card:-/dev/dri/card0}
+	export LD_LIBRARY_PATH=/mnt/nvidia/lib:/mnt/nvidia/lib/gbm
+	export GBM_BACKEND=nvidia-drm
+	export __EGL_VENDOR_LIBRARY_FILENAMES=/mnt/nvidia/share/glvnd/egl_vendor.d/10_nvidia.json
+	export VK_ICD_FILENAMES=/mnt/nvidia/share/vulkan/icd.d/nvidia_icd.json
+fi
+exec /usr/bin/start-hyprland
+SESSION
+chmod 755 /usr/local/bin/yudae-session
+if ! pacman -Qq conduit-guest >/dev/null 2>&1; then
+	curl -fsSL https://github.com/olealgoritme/conduit/releases/download/v0.1.21/conduit-guest-0.1.21-1-any.pkg.tar.zst -o /tmp/conduit-guest.pkg.tar.zst || true
+	[ -s /tmp/conduit-guest.pkg.tar.zst ] && pacman -U --noconfirm /tmp/conduit-guest.pkg.tar.zst || true
+fi
+pacman -S --needed --noconfirm linux-headers dkms 2>/dev/null || true
+mkinitcpio -P 2>/dev/null || true
 mkdir -p /etc/systemd/network
 cat > /etc/systemd/network/20-wired.network <<'NET'
 [Match]

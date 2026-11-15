@@ -51,7 +51,7 @@ public:
 	explicit QmpDisplay(QObject *parent = nullptr);
 	~QmpDisplay() override;
 
-	void start(const QString &qmpPath, int width, int height);
+	void start(const QString &qmpPath, int width, int height, int fps = 0);
 	void stop();
 	void setUiInfo(int width, int height);
 	void key(int qnum, bool down);
