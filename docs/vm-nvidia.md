@@ -54,5 +54,28 @@ it listens on the backend's `display-nvidia.sock`, sends `EV_HELLO`/`EV_SURFACE`
 and input events, and imports each ATTACH dma-buf with EGL zero-copy. One 40-byte
 command per `recvmsg` keeps the SCM_RIGHTS fd bound to its ATTACH.
 
+Clipboard: the broker advertises `CAP_CLIP_LARGE`. Host text goes to the guest as
+`EV_CLIPBOARD` chunks when the display gains focus or the host clipboard changes
+while focused (up to 256 KiB); guest text arrives as `CMD_CLIPBOARD` chunks (up to
+1 MiB) and is set on the host clipboard. The guest side is `conduit-clipboard-agent`
+from `conduit-guest`.
+
+Wallpaper: the host wallpaper directory is shared as virtiofs tag `wallpaper`, and
+`vm/desktop` mounts it and runs `awww` once Hyprland is up. NVIDIA guests run
+`2560x1440@240` at scale `1.6667` (the Conduit mode list has no `1536x864`).
+
 The external `conduit-viewer` is only a manual fallback; it is not started by
 `yudae vm view`. `vm screenshot` uses guest `grim`, so it works without a viewer.
+
+## Guest session
+
+`yudae-session` exports the NVIDIA EGL vendor and external-platform directories:
+
+```sh
+__EGL_VENDOR_LIBRARY_FILENAMES=/mnt/nvidia/share/glvnd/egl_vendor.d/10_nvidia.json
+__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS=/mnt/nvidia/share/egl/egl_external_platform.d:/usr/share/egl/egl_external_platform.d
+```
+
+Without the second variable Qt reports `qt.qpa.wayland: EGL not available`,
+fails to create an RHI context, and Quickshell creates no layer surfaces. The
+bar and wallpaper then stay black even though Hyprland and the guest GPU work.
