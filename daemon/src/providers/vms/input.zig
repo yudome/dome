@@ -11,6 +11,9 @@ const Hardware = struct {
 };
 
 const hardware = [_]Hardware{
+	.{ .name = "return", .qcode = "ret" },
+	.{ .name = "enter", .qcode = "ret" },
+	.{ .name = "escape", .qcode = "esc" },
 	.{ .name = "xf86audioraisevolume", .qcode = "volumeup" },
 	.{ .name = "xf86volumeup", .qcode = "volumeup" },
 	.{ .name = "volumeup", .qcode = "volumeup" },
@@ -191,6 +194,8 @@ test "hardware names ignore case and separators" {
 	try std.testing.expectEqualStrings("volumedown", hardwareOf("volume_down").?);
 	try std.testing.expectEqualStrings("audiomute", hardwareOf("Mute").?);
 	try std.testing.expectEqualStrings("meta_l", hardwareOf("Super_L").?);
+	try std.testing.expectEqualStrings("ret", hardwareOf("Return").?);
+	try std.testing.expectEqualStrings("esc", hardwareOf("Escape").?);
 	try std.testing.expect(hardwareOf("a") == null);
 	try std.testing.expect(hardwareOf("raisevolumeup") == null);
 }
