@@ -4,8 +4,9 @@ local path = repo .. "/shell/cache/settings.lua"
 local ok, prefs = pcall(dofile, path)
 if not ok or type(prefs) ~= "table" then prefs = {} end
 
-local detect = os.execute("systemd-detect-virt -q --vm")
-local guest = detect == 0 or detect == true
+local vendor = io.open("/sys/class/dmi/id/sys_vendor")
+local guest = vendor ~= nil and (vendor:read("l") or ""):find("QEMU") ~= nil
+if vendor then vendor:close() end
 local shell_entry = guest and "shell-guest.qml" or "shell.qml"
 
 local function once(name, cmd)
