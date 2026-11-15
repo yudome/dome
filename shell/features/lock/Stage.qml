@@ -25,7 +25,13 @@ WlSessionLockSurface {
 		{ glyph: Config.iconReboot, command: ["systemctl", "reboot"] }
 	]
 
-	readonly property int boxWidth: Math.min(Math.max(14, root.filled + 8), root.cols - 2)
+	readonly property int boxWidth: {
+		const need = Math.max(14, root.filled + 9);
+		const even = need + need % 2;
+
+		return Math.min(even, (root.cols - 2) - ((root.cols - 2) % 2));
+	}
+	readonly property int fieldOffset: Math.floor((root.fieldWidth - root.field.length) / 2)
 	property bool blink: true
 	readonly property int fieldWidth: root.boxWidth - 8
 	readonly property int fontPixels: Math.round(Config.lockFontSize * 4 / 3)
@@ -194,8 +200,9 @@ WlSessionLockSurface {
 		Text {
 			x: (root.boxCol + 4) * root.cellWidth
 			y: (root.top + 7) * root.cellHeight
-			width: (root.fieldWidth + 1) * root.cellWidth
+			width: root.fieldWidth * root.cellWidth
 			height: root.cellHeight
+			horizontalAlignment: Text.AlignHCenter
 			verticalAlignment: Text.AlignVCenter
 			clip: true
 			font: cell.font
@@ -205,7 +212,7 @@ WlSessionLockSurface {
 
 		Rectangle {
 			visible: root.focusIndex === 0 && root.blink
-			x: (root.boxCol + 4 + root.field.length) * root.cellWidth
+			x: (root.boxCol + 4 + root.fieldOffset + root.field.length) * root.cellWidth
 			y: (root.top + 7) * root.cellHeight
 			width: Math.ceil(root.cellWidth)
 			height: root.cellHeight

@@ -39,14 +39,43 @@
       "text": "abc"
     },
     {
-      "do": "exec",
-      "cmd": "g=$(id -u greeter); d=$(sudo ls /run/user/$g | grep -m1 '^wayland-[0-9]$'); sudo -u greeter env XDG_RUNTIME_DIR=/run/user/$g WAYLAND_DISPLAY=$d grim /tmp/shot.png && sudo chmod 644 /tmp/shot.png",
-      "code": 0
+      "do": "type",
+      "text": "abcdefgh"
     },
     {
       "do": "pull",
       "path": "/tmp/shot.png",
       "to": "/home/gabriel/dotfiles/vm/runs/shots/greeter-lock/01b-greeter-dots.png"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "backspace"
+      ]
+    },
+    {
+      "do": "key",
+      "keys": [
+        "backspace"
+      ]
+    },
+    {
+      "do": "key",
+      "keys": [
+        "backspace"
+      ]
+    },
+    {
+      "do": "key",
+      "keys": [
+        "backspace"
+      ]
+    },
+    {
+      "do": "key",
+      "keys": [
+        "backspace"
+      ]
     },
     {
       "do": "key",

@@ -329,7 +329,10 @@ struct Layout {
 
 impl Layout {
     fn new(area: Rect, typed: usize) -> Self {
-        let box_width = (typed as u16 + 8).clamp(14, area.width.saturating_sub(2));
+        let need = (typed as u16).saturating_add(9).max(14);
+        let even = need + need % 2;
+        let cap = area.width.saturating_sub(2) & !1;
+        let box_width = even.min(cap);
         Layout {
             top: area.height.saturating_sub(11) / 2,
             box_width,
@@ -403,10 +406,11 @@ impl Greeter {
         let shown: String = if self.reveal { self.password.clone() } else { dots };
         let field = layout.box_width.saturating_sub(8);
         let shown: String = shown.chars().skip(shown.chars().count().saturating_sub(field as usize)).collect();
-        buf.set_string(layout.box_col + 4, layout.top + 7, &shown, ink);
+        let offset = field.saturating_sub(shown.chars().count() as u16) / 2;
+        buf.set_string(layout.box_col + 4 + offset, layout.top + 7, &shown, ink);
 
         if self.focus == 0 && self.blink {
-            let at = layout.box_col + 4 + shown.chars().count() as u16;
+            let at = layout.box_col + 4 + offset + shown.chars().count() as u16;
             if at < layout.box_col + layout.box_width - 2 {
                 buf[(at, layout.top + 7)].set_symbol(" ").set_style(plain.bg(theme.foreground));
             }
@@ -675,9 +679,9 @@ mod tests {
             let mut buf = Buffer::empty(area);
             greeter.render(area, &mut buf);
 
-            assert_eq!(buf[(layout.box_col + 4, row)].symbol(), "●");
-            assert_eq!(buf[(layout.box_col + 5, row)].symbol(), "●");
-            assert_eq!(buf[(layout.box_col + 6, row)].bg, if lit { greeter.theme.foreground } else { greeter.theme.surface });
+            assert_eq!(buf[(layout.box_col + 6, row)].symbol(), "●");
+            assert_eq!(buf[(layout.box_col + 7, row)].symbol(), "●");
+            assert_eq!(buf[(layout.box_col + 8, row)].bg, if lit { greeter.theme.foreground } else { greeter.theme.surface });
         }
     }
 
@@ -708,10 +712,16 @@ mod tests {
 
         assert_eq!(Layout::new(area, 0).box_width, 14);
         assert_eq!(Layout::new(area, 5).box_width, 14);
-        assert_eq!(Layout::new(area, 6).box_width, 14);
-        assert_eq!(Layout::new(area, 7).box_width, 15);
-        assert_eq!(Layout::new(area, 40).box_width, 48);
+        assert_eq!(Layout::new(area, 6).box_width, 16, "grows a cell on each side");
+        assert_eq!(Layout::new(area, 7).box_width, 16);
+        assert_eq!(Layout::new(area, 40).box_width, 50);
         assert_eq!(Layout::new(Rect::new(0, 0, 20, 30), 90).box_width, 18, "never wider than the screen");
+
+        for typed in 0..40 {
+            let width = Layout::new(area, typed).box_width;
+            assert_eq!(width % 2, 0, "even widths keep the box centred");
+            assert_eq!(Layout::new(area, typed).box_col, (area.width - width) / 2);
+        }
     }
 
     #[test]
