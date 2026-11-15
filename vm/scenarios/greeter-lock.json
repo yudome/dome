@@ -169,6 +169,16 @@
       "code": 0
     },
     {
+      "do": "exec",
+      "cmd": "test -s /home/gabriel/.local/state/session.log && grep -q . /home/gabriel/.local/state/session.log",
+      "code": 0
+    },
+    {
+      "do": "exec",
+      "cmd": "! pgrep -f \"[h]yprland-.*-screen\" >/dev/null",
+      "code": 0
+    },
+    {
       "do": "sleep",
       "ms": 3000
     },
