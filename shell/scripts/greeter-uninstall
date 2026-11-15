@@ -22,5 +22,7 @@ if [ -f /etc/security/faillock.conf.bak ]; then
 fi
 
 rm -f /etc/polkit-1/rules.d/49-quickshell-greeter.rules
+rm -f /etc/sysctl.d/60-greeter-quiet.conf
+sysctl -q --system >/dev/null 2>&1 || true
 
 echo "greetd disabled, sddm enabled. reboot to return to sddm."

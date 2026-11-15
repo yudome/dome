@@ -25,8 +25,8 @@ fi
 
 chmod o+x "$home"
 
-if ! runuser -u greeter -- test -x "$bin" || ! runuser -u greeter -- test -r "$config"; then
-	echo "greeter cannot read $bin or $config" >&2
+if ! runuser -u greeter -- test -x "$repo/greeter/start" || ! runuser -u greeter -- test -x "$bin" || ! runuser -u greeter -- test -r "$config"; then
+	echo "greeter cannot run $repo/greeter/start with $bin and $config" >&2
 	exit 1
 fi
 
@@ -77,12 +77,19 @@ FAILLOCK
 install -d -m 755 /etc/greetd
 [ -f /etc/greetd/config.toml.bak ] || cp -a /etc/greetd/config.toml /etc/greetd/config.toml.bak
 
+cat > /etc/sysctl.d/60-greeter-quiet.conf <<QUIET
+kernel.printk = 1 4 1 7
+QUIET
+
+sysctl -q -p /etc/sysctl.d/60-greeter-quiet.conf || true
+
 cat > /etc/greetd/config.toml <<CFG
 [terminal]
 vt = 1
+switch = false
 
 [default_session]
-command = "cage -d -s -- foot -o 'font=$font' -o pad=0x0 -o tweak.font-monospace-warn=no $bin $target $config"
+command = "$repo/greeter/start 'font=$font' $target $config"
 user = "greeter"
 CFG
 
