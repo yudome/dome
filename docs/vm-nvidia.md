@@ -60,6 +60,14 @@ while focused (up to 256 KiB); guest text arrives as `CMD_CLIPBOARD` chunks (up 
 1 MiB) and is set on the host clipboard. The guest side is `conduit-clipboard-agent`
 from `conduit-guest`.
 
+Input: the host cursor is hidden over the display; the guest draws its own into
+the frame. Hyprland's aquamarine does not declare
+`DRM_CLIENT_CAP_CURSOR_PLANE_HOTSPOT`, so Conduit's cursor plane is never used and
+`CAP_CURSOR` is not advertised. Host shortcuts are inhibited while the pointer is
+over the display, so SUPER binds reach the guest. Ctrl+Alt+G locks the pointer
+(`zwp_locked_pointer_v1` + relative motion as `EV_REL` under `EV_GRAB`) and
+toggles it back; losing window focus also unlocks.
+
 Wallpaper: the host wallpaper directory is shared as virtiofs tag `wallpaper`, and
 `vm/desktop` mounts it and runs `awww` once Hyprland is up. NVIDIA guests run
 `2560x1440@240` at scale `1.6667` (the Conduit mode list has no `1536x864`).
@@ -68,6 +76,13 @@ The external `conduit-viewer` is only a manual fallback; it is not started by
 `yudae vm view`. `vm screenshot` uses guest `grim`, so it works without a viewer.
 
 ## Guest session
+
+`yudae-desktop` runs `yudae-gpu-wait` first: on a Conduit guest (PCI `0x106d`) it
+waits for the `0010:01:00.0` DRM card and the `/mnt/nvidia` share, mounts the share
+if needed and links the NVIDIA GBM backend. Without it a second VM booting under
+load could start Hyprland before the share was mounted (`CBackend::create()
+failed`). The unit restarts on failure. `backend.log` in the VM run directory holds
+the Conduit backend log.
 
 `yudae-session` exports the NVIDIA EGL vendor and external-platform directories:
 
@@ -79,3 +94,15 @@ __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS=/mnt/nvidia/share/egl/egl_external_platform.
 Without the second variable Qt reports `qt.qpa.wayland: EGL not available`,
 fails to create an RHI context, and Quickshell creates no layer surfaces. The
 bar and wallpaper then stay black even though Hyprland and the guest GPU work.
+
+## Lifecycle
+
+- Memory budget: `budget.zig` allows three quarters of the host's current
+  `MemAvailable`, clamped to `MemTotal - 1 GiB`. A 16 GiB host fits two 4 GiB VMs.
+- `yudae vm snapshot <name> <tag>` on a running VM takes a disk-only internal
+  snapshot through QMP (`blockdev-snapshot-internal-sync` on `disk0`). It is
+  block-consistent, not RAM-inclusive; `restore` still needs the VM stopped.
+- `yudae vm fork <new> --from <name>` works against a running source: the disk is
+  copied with `qemu-img convert -U`. The copy is a live-disk image, so treat it as
+  crash-consistent.
+- Conduit sets a migration blocker, so full savevm/RAM snapshots are not offered.
