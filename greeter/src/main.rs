@@ -22,7 +22,7 @@ use std::{
 };
 
 const SESSION: &[&str] = &["/usr/bin/start-hyprland"];
-const SESSION_ENV: &[&str] = &["XDG_SESSION_TYPE=wayland", "XDG_CURRENT_DESKTOP=Hyprland", "XDG_SESSION_DESKTOP=Hyprland"];
+const SESSION_DIRS: [&str; 2] = ["/usr/share/wayland-sessions", "/usr/share/xsessions"];
 
 struct Settings(Value);
 
@@ -69,6 +69,9 @@ struct Theme {
     eye: String,
     eye_off: String,
     power: [String; 2],
+    switch: String,
+    back: String,
+    forward: String,
     wrong: String,
     format: String,
     digits: Vec<(char, Vec<String>)>,
@@ -99,6 +102,9 @@ impl Theme {
             eye: settings.text("iconEye", "\u{f06e}"),
             eye_off: settings.text("iconEyeOff", "\u{f070}"),
             power: [settings.text("iconPowerOff", "\u{f011}"), settings.text("iconReboot", "\u{ead2}")],
+            switch: settings.text("iconUser", "\u{f007}"),
+            back: settings.text("iconChevron", "\u{f053}"),
+            forward: settings.text("iconRight", "\u{f054}"),
             wrong: settings.text("lockWrongText", "Wrong password"),
             format: settings.text("lockClockFormat", "HH:mm"),
             digits,
@@ -162,6 +168,116 @@ fn block_rows(text: &str, digits: &[(char, Vec<String>)]) -> Vec<String> {
     lines
 }
 
+fn read_users(default: &str) -> Vec<String> {
+    let mut out = vec![default.to_string()];
+    if let Ok(text) = fs::read_to_string("/etc/passwd") {
+        for line in text.lines() {
+            let fields: Vec<&str> = line.split(':').collect();
+            if fields.len() < 7 {
+                continue;
+            }
+            let uid: u32 = fields[2].parse().unwrap_or(0);
+            if !(1000..65534).contains(&uid) || fields[6].contains("nologin") || fields[6].ends_with("false") {
+                continue;
+            }
+            if !out.iter().any(|known| known == fields[0]) {
+                out.push(fields[0].to_string());
+            }
+        }
+    }
+    out
+}
+
+fn read_sessions() -> Vec<(String, Vec<String>, String)> {
+    let mut out = vec![(
+        "hyprland".to_string(),
+        SESSION.iter().map(|arg| arg.to_string()).collect::<Vec<_>>(),
+        "Hyprland".to_string(),
+    )];
+    for dir in SESSION_DIRS {
+        let Ok(entries) = fs::read_dir(dir) else { continue };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("desktop") {
+                continue;
+            }
+            let Ok(text) = fs::read_to_string(&path) else { continue };
+            let Some(exec) = text.lines().find_map(|line| line.strip_prefix("Exec=")) else { continue };
+            let argv: Vec<String> = exec
+                .split_whitespace()
+                .filter(|part| !part.starts_with('%'))
+                .map(str::to_string)
+                .collect();
+            if argv.is_empty() {
+                continue;
+            }
+            let id = path.file_stem().and_then(|stem| stem.to_str()).unwrap_or("session").to_string();
+            let name = text
+                .lines()
+                .find_map(|line| line.strip_prefix("Name="))
+                .map(str::to_string)
+                .unwrap_or_else(|| id.clone());
+            if out.iter().any(|(_, known, _)| known == &argv) {
+                continue;
+            }
+            out.push((id, argv, name));
+        }
+    }
+    out
+}
+
+struct Choice {
+    users: Vec<String>,
+    sessions: Vec<(String, Vec<String>, String)>,
+    user: usize,
+    session: usize,
+    open: bool,
+    row: usize,
+}
+
+impl Choice {
+    fn value(&self, row: usize) -> String {
+        match row {
+            0 => self.sessions.get(self.session).map(|(_, _, name)| name.clone()),
+            _ => self.users.get(self.user).cloned(),
+        }
+        .unwrap_or_default()
+    }
+
+    fn step(&mut self, delta: i32) {
+        let count = if self.row == 0 { self.sessions.len() } else { self.users.len() };
+        if count == 0 {
+            return;
+        }
+        let current = if self.row == 0 { self.session } else { self.user };
+        let next = (current as i32 + delta).rem_euclid(count as i32) as usize;
+        if self.row == 0 {
+            self.session = next;
+        } else {
+            self.user = next;
+        }
+    }
+
+    fn focus(&mut self, delta: i32) {
+        self.row = ((self.row as i32 + delta).rem_euclid(2)) as usize;
+    }
+
+    fn panel(&self, area: Rect) -> Rect {
+        let width = 30u16.min(area.width.saturating_sub(2));
+        Rect::new(center(area.width, width), center(area.height, 5), width, 5)
+    }
+
+    fn hit(&self, area: Rect, column: u16, row: u16) -> Option<(usize, i32)> {
+        let panel = self.panel(area);
+        if column < panel.x || column >= panel.x + panel.width || row < panel.y + 1 || row > panel.y + 3 {
+            return None;
+        }
+        let which = if row == panel.y + 1 { 0 } else if row == panel.y + 3 { 1 } else { return None };
+        let middle = panel.x + panel.width / 2;
+        Some((which, if column < middle { -1 } else { 1 }))
+    }
+}
+
 struct Greeter {
     user: String,
     theme: Theme,
@@ -172,6 +288,7 @@ struct Greeter {
     reveal: bool,
     checking: bool,
     failed_at: Option<Instant>,
+    choice: Choice,
 }
 
 struct Layout {
@@ -189,21 +306,30 @@ impl Layout {
             top: area.height.saturating_sub(11) / 2,
             box_width,
             box_col: center(area.width, box_width),
-            power_col: center(area.width, 5),
+            power_col: center(area.width, 11),
             power_row: area.height.saturating_sub(2),
         }
     }
 
-    fn slots(&self) -> [(usize, u16, u16, u16); 3] {
+    fn slots(&self) -> [(usize, u16, u16, u16); 4] {
         [
             (1, self.box_col + self.box_width - 4, self.top + 7, 3),
-            (2, self.power_col.saturating_sub(1), self.power_row, 3),
-            (3, self.power_col + 3, self.power_row, 3),
+            (2, self.power_col, self.power_row, 3),
+            (3, self.power_col + 4, self.power_row, 3),
+            (4, self.power_col + 8, self.power_row, 3),
         ]
     }
 
     fn hit(&self, col: u16, row: u16) -> Option<usize> {
         self.slots().into_iter().find(|&(_, x, y, w)| row == y && col >= x && col < x + w).map(|(slot, ..)| slot)
+    }
+}
+
+fn fill(buf: &mut Buffer, area: Rect, style: Style) {
+    let blank = " ".repeat(area.width as usize);
+
+    for y in area.y..area.y + area.height {
+        buf.set_string(area.x, y, &blank, style);
     }
 }
 
@@ -236,9 +362,11 @@ impl Greeter {
             .render(Rect::new(layout.box_col, layout.top + 6, layout.box_width, 3).intersection(area), buf);
         buf.set_string(layout.box_col + 2, layout.top + 7, &theme.lock, ink);
 
+        let width = layout.box_width.saturating_sub(8);
         let field: String = if self.reveal { self.password.clone() } else { "●".repeat(self.password.chars().count()) };
-        let skip = field.chars().count().saturating_sub(layout.box_width as usize - 8);
-        buf.set_string(layout.box_col + 4, layout.top + 7, field.chars().skip(skip).collect::<String>(), ink);
+        let shown: String = field.chars().skip(field.chars().count().saturating_sub(width as usize)).collect();
+        let offset = width.saturating_sub(shown.chars().count() as u16) / 2;
+        buf.set_string(layout.box_col + 4 + offset, layout.top + 7, shown, ink);
 
         let message: String = self.message.chars().take(area.width as usize).collect();
         buf.set_string(center(area.width, message.chars().count() as u16), layout.top + 10, &message, plain.fg(theme.red));
@@ -249,10 +377,36 @@ impl Greeter {
             let glyph = match slot {
                 1 if self.reveal => &theme.eye_off,
                 1 => &theme.eye,
+                4 => &theme.switch,
                 _ => &theme.power[slot - 2],
             };
             buf.set_string(x, y, " ".repeat(width as usize), style);
             buf.set_string(x + 1, y, glyph, style);
+        }
+
+        if self.choice.open {
+            self.render_choice(area, buf);
+        }
+    }
+
+    fn render_choice(&self, area: Rect, buf: &mut Buffer) {
+        let theme = &self.theme;
+        let choice = &self.choice;
+        let panel = choice.panel(area);
+
+        fill(buf, area, Style::new().fg(theme.dim).bg(theme.dim));
+        fill(buf, panel, Style::new().fg(theme.foreground).bg(theme.surface));
+
+        for row in 0..2 {
+            let picked = choice.row == row;
+            let name = choice.value(row);
+            let name: String = name.chars().take(panel.width.saturating_sub(8) as usize).collect();
+            let y = panel.y + 1 + row as u16 * 2;
+            let ink = if picked { Style::new().fg(theme.foreground).bg(theme.surface) } else { Style::new().fg(theme.dim).bg(theme.surface) };
+
+            buf.set_string(panel.x + 2, y, &theme.back, ink);
+            buf.set_string(panel.x + panel.width - 3, y, &theme.forward, ink);
+            buf.set_string(panel.x + (panel.width - name.chars().count() as u16) / 2, y, &name, ink);
         }
     }
 
@@ -260,6 +414,7 @@ impl Greeter {
         match slot {
             0 => self.submit(terminal),
             1 => self.reveal = !self.reveal,
+            4 => self.choice.open = !self.choice.open,
             _ => {
                 let _ = Command::new("systemctl").arg(if slot == 2 { "poweroff" } else { "reboot" }).spawn();
             }
@@ -275,7 +430,19 @@ impl Greeter {
         let _ = terminal.draw(|frame| self.render(frame.area(), frame.buffer_mut()));
 
         let result = match env::var("GREETD_SOCK") {
-            Ok(path) => UnixStream::connect(path).map_err(greetd::Fail::from).and_then(|mut sock| greetd::login(&mut sock, &self.user, &self.password, SESSION, SESSION_ENV)),
+            Ok(path) => {
+                let user = self.choice.users.get(self.choice.user).cloned().unwrap_or_else(|| self.user.clone());
+                let (id, argv, _) = self.choice.sessions.get(self.choice.session).cloned().unwrap_or_else(|| read_sessions()[0].clone());
+                let cmd: Vec<&str> = argv.iter().map(String::as_str).collect();
+                let desktop = format!("XDG_SESSION_DESKTOP={id}");
+                let current = format!("XDG_CURRENT_DESKTOP={id}");
+                let envs = ["XDG_SESSION_TYPE=wayland".to_string(), desktop, current];
+                let env: Vec<&str> = envs.iter().map(String::as_str).collect();
+
+                UnixStream::connect(path)
+                    .map_err(greetd::Fail::from)
+                    .and_then(|mut sock| greetd::login(&mut sock, &user, &self.password, &cmd, &env))
+            }
             Err(_) => Err(greetd::Fail::Broken("GREETD_SOCK is not set".into())),
         };
         self.checking = false;
@@ -304,10 +471,19 @@ impl Greeter {
             }
             match event::read()? {
                 Event::Key(key) if key.kind != KeyEventKind::Release => match key.code {
-                    KeyCode::Tab => self.focus = (self.focus + 1) % 4,
-                    KeyCode::BackTab => self.focus = (self.focus + 3) % 4,
+                    KeyCode::Tab if self.choice.open => self.choice.focus(1),
+                    KeyCode::BackTab if self.choice.open => self.choice.focus(-1),
+                    KeyCode::Tab => self.focus = (self.focus + 1) % 5,
+                    KeyCode::BackTab => self.focus = (self.focus + 4) % 5,
+                    KeyCode::Left if self.choice.open => self.choice.step(-1),
+                    KeyCode::Right if self.choice.open => self.choice.step(1),
+                    KeyCode::Up if self.choice.open => self.choice.focus(-1),
+                    KeyCode::Down if self.choice.open => self.choice.focus(1),
+                    KeyCode::Enter if self.choice.open => self.choice.open = false,
+                    KeyCode::Esc if self.choice.open => self.choice.open = false,
                     KeyCode::Left if self.focus > 0 => self.focus = (self.focus - 1).max(1),
-                    KeyCode::Right if self.focus > 0 => self.focus = (self.focus + 1).min(3),
+                    KeyCode::Right if self.focus > 0 => self.focus = (self.focus + 1).min(4),
+                    KeyCode::Char(_) if self.choice.open => {}
                     KeyCode::Esc if self.focus > 0 => self.focus = 0,
                     KeyCode::Esc if env::var_os("GREETD_SOCK").is_none() => return Ok(()),
                     KeyCode::Esc => {
@@ -330,7 +506,15 @@ impl Greeter {
                 },
                 Event::Mouse(mouse) => {
                     let area = terminal.get_frame().area();
-                    self.hover = Layout::new(area, &self.clock()).hit(mouse.column, mouse.row);
+                    self.hover = if self.choice.open { None } else { Layout::new(area, &self.clock()).hit(mouse.column, mouse.row) };
+                    if self.choice.open {
+                        if let Some((row, delta)) = self.choice.hit(area, mouse.column, mouse.row) {
+                            self.choice.row = row;
+                            if matches!(mouse.kind, MouseEventKind::Down(MouseButton::Left)) {
+                                self.choice.step(delta);
+                            }
+                        }
+                    }
                     if let (MouseEventKind::Down(MouseButton::Left), Some(slot)) = (mouse.kind, self.hover) {
                         self.activate(slot, terminal);
                     }
@@ -361,7 +545,8 @@ fn main() -> io::Result<()> {
     let mut terminal = ratatui::init();
     execute!(io::stdout(), EnableMouseCapture)?;
 
-    let mut greeter = Greeter { user, theme, password: String::new(), message: String::new(), focus: 0, hover: None, reveal: false, checking: false, failed_at: None };
+    let choice = Choice { users: read_users(&user), sessions: read_sessions(), user: 0, session: 0, open: false, row: 0 };
+    let mut greeter = Greeter { choice, user, theme, password: String::new(), message: String::new(), focus: 0, hover: None, reveal: false, checking: false, failed_at: None };
     let result = greeter.run(&mut terminal);
 
     execute!(io::stdout(), DisableMouseCapture)?;
@@ -373,6 +558,38 @@ fn main() -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn choice_switches_the_session_and_the_user() {
+        let area = Rect::new(0, 0, 40, 10);
+        let mut choice = Choice {
+            users: vec!["a".into(), "b".into()],
+            sessions: (0..3).map(|i| (format!("s{i}"), vec![], format!("Session {i}"))).collect(),
+            user: 0,
+            session: 0,
+            open: true,
+            row: 0,
+        };
+
+        assert_eq!(choice.value(0), "Session 0");
+        choice.step(1);
+        assert_eq!(choice.value(0), "Session 1");
+        choice.step(-1);
+        choice.step(-1);
+        assert_eq!(choice.value(0), "Session 2", "steps wrap backwards");
+        choice.focus(1);
+        assert_eq!(choice.value(1), "a");
+        choice.step(1);
+        assert_eq!(choice.value(1), "b", "the user row changes instead");
+
+        let panel = choice.panel(area);
+        assert_eq!(panel, Rect::new(5, 2, 30, 5));
+        assert_eq!(choice.hit(area, panel.x + 1, panel.y + 1), Some((0, -1)));
+        assert_eq!(choice.hit(area, panel.x + 20, panel.y + 1), Some((0, 1)));
+        assert_eq!(choice.hit(area, panel.x + 20, panel.y + 3), Some((1, 1)));
+        assert_eq!(choice.hit(area, panel.x + 20, panel.y + 2), None);
+        assert_eq!(choice.hit(area, 0, panel.y + 1), None);
+    }
 
     #[test]
     fn clock_follows_the_config_font() {

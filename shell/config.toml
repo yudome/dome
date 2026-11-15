@@ -122,6 +122,7 @@ iconEthernet = "\U000F0200"
 iconPowerOff = "\uF011"
 iconReboot = "\uEAD2"
 iconLock = "\uF023"
+iconUser = "\uF007"
 iconEye = "\uF06E"
 iconEyeOff = "\uF070"
 

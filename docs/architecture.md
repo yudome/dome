@@ -32,6 +32,7 @@ dotfiles/
 - Only `xmake link` writes into `~/.config`. It refuses to overwrite a real file and prints what it would replace.
 - The shell and greeter run from the repo path, never from `~/.config`.
 - The greeter and the lock draw the same terminal grid: font, `lockFontSize`, `lockDigits`, `lockClockFormat` and colors come from `shell/config.toml`.
+- The greeter's third button opens the switch menu: one row for the session name and one for the user, arrows to change each, and that choice is used for the login. Sessions come from `/usr/share/wayland-sessions`.
 
 ## xmake
 

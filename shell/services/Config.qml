@@ -144,6 +144,7 @@ QtObject {
 	readonly property var iconWifi4: settings.iconWifi4 !== undefined ? settings.iconWifi4 : "\udb82\udd28"
 	readonly property var iconWifiOff: settings.iconWifiOff !== undefined ? settings.iconWifiOff : "\udb82\udd2d"
 	readonly property var iconEthernet: settings.iconEthernet !== undefined ? settings.iconEthernet : "\udb80\ude00"
+	readonly property var iconUser: settings.iconUser !== undefined ? settings.iconUser : "\uf007"
 	readonly property var iconEye: settings.iconEye !== undefined ? settings.iconEye : "\uf06e"
 	readonly property var iconEyeOff: settings.iconEyeOff !== undefined ? settings.iconEyeOff : "\uf070"
 	readonly property var iconPowerOff: settings.iconPowerOff !== undefined ? settings.iconPowerOff : "\uf011"
@@ -647,6 +648,7 @@ QtObject {
 		disk: root.iconDisk,
 		ethernet: root.iconEthernet,
 		eye: root.iconEye,
+		user: root.iconUser,
 		eyeOff: root.iconEyeOff,
 		lock: root.iconLock,
 		powerOff: root.iconPowerOff,
