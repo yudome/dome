@@ -29,6 +29,7 @@ constexpr uint16_t EV_FRAME = 3;
 constexpr uint16_t EV_KEY = 5;
 constexpr uint16_t EV_BTN = 6;
 constexpr uint16_t EV_ABS = 7;
+constexpr uint16_t EV_REL = 8;
 constexpr uint16_t EV_WHEEL = 9;
 constexpr uint16_t EV_GRAB = 10;
 constexpr uint16_t EV_FOCUS = 11;
@@ -38,6 +39,8 @@ constexpr uint16_t EV_FORMAT = 16;
 
 constexpr uint32_t CAP_KEYBOARD = 1u << 0;
 constexpr uint32_t CAP_ABS_POINTER = 1u << 1;
+constexpr uint32_t CAP_REL_POINTER = 1u << 2;
+constexpr uint32_t CAP_POINTER_LOCK = 1u << 3;
 constexpr uint32_t CAP_FOCUS_EVENTS = 1u << 5;
 constexpr uint32_t CAP_DMABUF = 1u << 7;
 constexpr uint32_t CAP_MODIFIERS = 1u << 8;
@@ -50,6 +53,7 @@ constexpr size_t CLIP_CMD_BYTES = 27;
 constexpr int CLIP_MAX = 1 << 20;
 constexpr int CLIP_SEND_MAX = 256 << 10;
 
+constexpr uint16_t F_GRABBED = 1u << 0;
 constexpr uint16_t F_FOCUSED = 1u << 1;
 
 constexpr uint16_t PROTO_VERSION = 2;
@@ -130,6 +134,7 @@ struct BrokerDisplay::Impl {
 	bool focused = false;
 	bool pointer = false;
 	bool windowActive = false;
+	bool grabbed = false;
 	int width = 0;
 	int height = 0;
 	int refresh = 0;
@@ -153,7 +158,7 @@ struct BrokerDisplay::Impl {
 		if (clientFd < 0) return;
 		Pkt p{};
 		p.type = type;
-		p.flags = focused ? F_FOCUSED : 0;
+		p.flags = uint16_t((focused ? F_FOCUSED : 0) | (grabbed ? F_GRABBED : 0));
 		p.seq = seq++;
 		p.x = x;
 		p.y = y;
@@ -163,10 +168,11 @@ struct BrokerDisplay::Impl {
 	}
 
 	void handshake() {
-		const uint32_t caps = CAP_KEYBOARD | CAP_ABS_POINTER | CAP_FOCUS_EVENTS | CAP_DMABUF | CAP_MODIFIERS | CAP_CLIP_LARGE;
+		const uint32_t caps = CAP_KEYBOARD | CAP_ABS_POINTER | CAP_REL_POINTER | CAP_POINTER_LOCK | CAP_FOCUS_EVENTS | CAP_DMABUF | CAP_MODIFIERS | CAP_CLIP_LARGE;
 		packet(EV_HELLO, 0, 0, PROTO_VERSION, caps);
 		packet(EV_SURFACE, width, height, uint32_t(refresh), 0);
 		packet(EV_FOCUS, focused ? 1 : 0);
+		grabbed = false;
 		packet(EV_GRAB, 0);
 		packet(EV_FRAME);
 	}
@@ -178,7 +184,7 @@ struct BrokerDisplay::Impl {
 			const size_t n = size_t(qMin<qsizetype>(qsizetype(CLIP_PKT_BYTES), text.size() - at));
 			ClipPkt p{};
 			p.type = EV_CLIPBOARD;
-			p.flags = focused ? F_FOCUSED : 0;
+			p.flags = uint16_t((focused ? F_FOCUSED : 0) | (grabbed ? F_GRABBED : 0));
 			p.seq = seq++;
 			p.info = uint8_t(n) | (at + qsizetype(n) >= text.size() ? CLIP_LAST : 0);
 			memcpy(p.data, text.constData() + at, n);
@@ -254,6 +260,7 @@ struct BrokerDisplay::Impl {
 		running = false;
 		focused = false;
 		pointer = false;
+		grabbed = false;
 		seq = 0;
 	}
 
@@ -491,6 +498,17 @@ void BrokerDisplay::sendFocus(bool focused) {
 	d->focused = focused;
 	d->packet(EV_FOCUS, focused ? 1 : 0);
 	if (focused) d->pushClipboard();
+}
+
+void BrokerDisplay::sendRel(int dx, int dy) {
+	if (dx == 0 && dy == 0) return;
+	d->packet(EV_REL, dx, dy);
+}
+
+void BrokerDisplay::sendGrab(bool grabbed) {
+	if (d->grabbed == grabbed) return;
+	d->grabbed = grabbed;
+	d->packet(EV_GRAB, grabbed ? 1 : 0);
 }
 
 void BrokerDisplay::setWindowActive(bool active) {

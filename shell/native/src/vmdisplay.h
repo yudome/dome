@@ -56,6 +56,7 @@ private:
 	void maybeStart();
 	void stopSource();
 	void updateBrokerFocus();
+	void setGrab(bool on);
 	void updateInhibitor();
 	bool insideImage(const QPointF &pos) const;
 	void sendPosition(const QPointF &pos);

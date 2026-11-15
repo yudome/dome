@@ -24,6 +24,8 @@ public:
 	void sendButton(int evdev, bool down);
 	void sendAbs(int x, int y);
 	void sendWheel(int vertical, int horizontal);
+	void sendRel(int dx, int dy);
+	void sendGrab(bool grabbed);
 	void sendFocus(bool focused);
 	void setWindowActive(bool active);
 	void sendPointer(bool inside);

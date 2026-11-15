@@ -2,6 +2,7 @@
 #include "qmp.h"
 #include "brokerdisplay.h"
 #include "inhibitor.h"
+#include "pointerlock.h"
 
 #include <QGuiApplication>
 #include <QKeyEvent>
@@ -178,6 +179,11 @@ struct VmDisplay::Private {
 	bool brokerFocused = false;
 	bool brokerPointer = false;
 	WaylandInhibitor inhibitor;
+	WaylandPointerLock pointerLock;
+	bool grabbed = false;
+	int swallowKey = -1;
+	double relX = 0;
+	double relY = 0;
 	QMetaObject::Connection activeConnection;
 	bool pointerInside = false;
 	int lastX = -1;
@@ -236,6 +242,18 @@ VmDisplay::VmDisplay(QQuickItem *parent) : QQuickItem(parent), d(new Private) {
 		QTimer::singleShot(1000, this, [this]() { if (!m_running) maybeStart(); });
 	});
 	connect(this, &QQuickItem::activeFocusChanged, this, &VmDisplay::updateBrokerFocus);
+	d->pointerLock.onMotion([this](double dx, double dy) {
+		d->relX += dx;
+		d->relY += dy;
+		const int x = int(d->relX);
+		const int y = int(d->relY);
+		d->relX -= x;
+		d->relY -= y;
+		if (d->broker) d->broker->sendRel(x, y);
+	});
+	d->pointerLock.onLost([this]() {
+		QMetaObject::invokeMethod(this, [this]() { setGrab(false); }, Qt::QueuedConnection);
+	});
 }
 
 VmDisplay::~VmDisplay() {
@@ -263,11 +281,14 @@ void VmDisplay::setBroker(const QString &value) {
 	if (m_broker == value) return;
 	m_broker = value;
 	emit brokerChanged();
+	if (m_broker.isEmpty()) unsetCursor();
+	else setCursor(Qt::BlankCursor);
 	stopSource();
 	maybeStart();
 }
 
 void VmDisplay::stopSource() {
+	setGrab(false);
 	if (m_running) {
 		m_running = false;
 		emit runningChanged();
@@ -384,6 +405,7 @@ void VmDisplay::flushPosition() {
 	m_hasPending = false;
 
 	if (!m_broker.isEmpty() && d->broker) {
+		if (d->grabbed) return;
 		const qreal dpr = window() ? window()->devicePixelRatio() : 1.0;
 		const int w = qMax(1, qRound(width() * dpr));
 		const int h = qMax(1, qRound(height() * dpr));
@@ -444,6 +466,13 @@ void VmDisplay::keyPressEvent(QKeyEvent *event) {
 	}
 	const int evdev = int(event->nativeScanCode()) - 8;
 	if (!m_broker.isEmpty() && d->broker) {
+		const Qt::KeyboardModifiers chord = Qt::ControlModifier | Qt::AltModifier;
+		if (event->key() == Qt::Key_G && (event->modifiers() & chord) == chord) {
+			d->swallowKey = evdev;
+			setGrab(!d->grabbed);
+			event->accept();
+			return;
+		}
 		if (evdev > 0) d->broker->sendKey(evdev, true);
 		event->accept();
 		return;
@@ -460,6 +489,11 @@ void VmDisplay::keyReleaseEvent(QKeyEvent *event) {
 	}
 	const int evdev = int(event->nativeScanCode()) - 8;
 	if (!m_broker.isEmpty() && d->broker) {
+		if (evdev == d->swallowKey) {
+			d->swallowKey = -1;
+			event->accept();
+			return;
+		}
 		if (evdev > 0) d->broker->sendKey(evdev, false);
 		event->accept();
 		return;
@@ -476,6 +510,7 @@ bool VmDisplay::insideImage(const QPointF &pos) const {
 
 void VmDisplay::updateBrokerFocus() {
 	if (m_broker.isEmpty() || !d->broker) return;
+	if (!window() || !window()->isActive()) setGrab(false);
 	d->broker->setWindowActive(window() && window()->isActive());
 	const bool focused = window() && window()->isActive() && hasActiveFocus();
 	if (focused == d->brokerFocused) return;
@@ -483,13 +518,31 @@ void VmDisplay::updateBrokerFocus() {
 	d->broker->sendFocus(focused);
 }
 
-void VmDisplay::updateInhibitor() {
-	if (!m_broker.isEmpty()) {
-		d->inhibitor.inhibit(false);
-		return;
+void VmDisplay::setGrab(bool on) {
+	if (on == d->grabbed) return;
+	if (on) {
+		QQuickWindow *window = this->window();
+		auto *application = qGuiApp->nativeInterface<QNativeInterface::QWaylandApplication>();
+		auto *wayland = window ? window->nativeInterface<QNativeInterface::Private::QWaylandWindow>() : nullptr;
+		if (m_broker.isEmpty() || !d->broker || !application || !wayland || !window->isActive()) return;
+		d->pointerLock.setSurface(application->display(), application->seat(), wayland->surface());
+		if (!d->pointerLock.lock(true)) return;
+		d->relX = 0;
+		d->relY = 0;
+		d->grabbed = true;
+		d->broker->sendGrab(true);
+	} else {
+		d->pointerLock.lock(false);
+		d->grabbed = false;
+		if (d->broker) d->broker->sendGrab(false);
 	}
+	updateInhibitor();
+	update();
+}
+
+void VmDisplay::updateInhibitor() {
 	QQuickWindow *window = this->window();
-	if (!window || !window->isActive() || !d->pointerInside) {
+	if (!window || !window->isActive() || (!d->pointerInside && !d->grabbed)) {
 		d->inhibitor.inhibit(false);
 		return;
 	}
@@ -720,5 +773,6 @@ QSGNode *VmDisplay::updatePaintNode(QSGNode *node, UpdatePaintNodeData *) {
 	textureNode->setTexture(d->nodeTexture);
 	textureNode->setTextureCoordinatesTransform(d->y0top ? QSGSimpleTextureNode::MirrorVertically : QSGSimpleTextureNode::NoTransform);
 	textureNode->markDirty(QSGNode::DirtyMaterial);
+
 	return textureNode;
 }

@@ -1,6 +1,6 @@
 target("YudaeNative")
 	add_rules("qt.qmlplugin")
-	add_files("src/*.cpp", "generated/inhibitor-protocol.c")
+	add_files("src/*.cpp", "generated/*.c")
 	add_files("src/*.h")
 	add_headerfiles("src/*.h")
 	add_values("qt.qmlplugin.import_name", "Yudae.Native")
