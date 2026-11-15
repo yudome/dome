@@ -314,6 +314,7 @@ struct Greeter {
     hover: Option<usize>,
     reveal: bool,
     checking: bool,
+    blink: bool,
     failed_at: Option<Instant>,
     choice: Choice,
 }
@@ -327,8 +328,8 @@ struct Layout {
 }
 
 impl Layout {
-    fn new(area: Rect, clock: &[String]) -> Self {
-        let box_width = clock.first().map_or(0, |line| line.chars().count() as u16).max(14);
+    fn new(area: Rect, typed: usize) -> Self {
+        let box_width = (typed as u16 + 8).clamp(14, area.width.saturating_sub(2));
         Layout {
             top: area.height.saturating_sub(11) / 2,
             box_width,
@@ -374,26 +375,42 @@ impl Greeter {
         let plain = Style::new().fg(theme.foreground).bg(theme.surface);
         buf.set_style(area, plain);
         let clock = self.clock();
-        let layout = Layout::new(area, &clock);
+        let layout = Layout::new(area, self.password.chars().count());
+
+        let pixel = Style::new().bg(theme.foreground).fg(theme.foreground);
 
         for (index, line) in clock.iter().enumerate() {
             let width = line.chars().count() as u16;
-            buf.set_string(center(area.width, width), layout.top + index as u16, line, plain);
+            let left = center(area.width, width);
+
+            for (offset, symbol) in line.chars().enumerate() {
+                if symbol != '█' {
+                    continue;
+                }
+                buf[(left + offset as u16, layout.top + index as u16)].set_symbol(" ").set_style(pixel);
+            }
         }
 
         let wrong = self.failed_at.is_some() && !self.message.is_empty();
         let ink = if self.checking { plain.fg(theme.dim) } else { plain };
         Block::bordered()
-            .border_type(BorderType::Rounded)
+            .border_type(BorderType::Plain)
             .border_style(if wrong { plain.fg(theme.red) } else { plain })
             .render(Rect::new(layout.box_col, layout.top + 6, layout.box_width, 3).intersection(area), buf);
         buf.set_string(layout.box_col + 2, layout.top + 7, &theme.lock, ink);
 
-        let width = layout.box_width.saturating_sub(8);
-        let field: String = if self.reveal { self.password.clone() } else { "●".repeat(self.password.chars().count()) };
-        let shown: String = field.chars().skip(field.chars().count().saturating_sub(width as usize)).collect();
-        let offset = width.saturating_sub(shown.chars().count() as u16) / 2;
-        buf.set_string(layout.box_col + 4 + offset, layout.top + 7, shown, ink);
+        let dots = "●".repeat(self.password.chars().count());
+        let shown: String = if self.reveal { self.password.clone() } else { dots };
+        let field = layout.box_width.saturating_sub(8);
+        let shown: String = shown.chars().skip(shown.chars().count().saturating_sub(field as usize)).collect();
+        buf.set_string(layout.box_col + 4, layout.top + 7, &shown, ink);
+
+        if self.focus == 0 && self.blink {
+            let at = layout.box_col + 4 + shown.chars().count() as u16;
+            if at < layout.box_col + layout.box_width - 2 {
+                buf[(at, layout.top + 7)].set_symbol(" ").set_style(plain.bg(theme.foreground));
+            }
+        }
 
         let message: String = self.message.chars().take(area.width as usize).collect();
         buf.set_string(center(area.width, message.chars().count() as u16), layout.top + 10, &message, plain.fg(theme.red));
@@ -493,6 +510,7 @@ impl Greeter {
             }
             terminal.draw(|frame| self.render(frame.area(), frame.buffer_mut()))?;
             if !event::poll(Duration::from_millis(500))? {
+                self.blink = !self.blink;
                 continue;
             }
             match event::read()? {
@@ -532,7 +550,7 @@ impl Greeter {
                 },
                 Event::Mouse(mouse) => {
                     let area = terminal.get_frame().area();
-                    self.hover = if self.choice.open { None } else { Layout::new(area, &self.clock()).hit(mouse.column, mouse.row) };
+                    self.hover = if self.choice.open { None } else { Layout::new(area, self.password.chars().count()).hit(mouse.column, mouse.row) };
                     if self.choice.open {
                         if let Some((row, delta)) = self.choice.hit(area, mouse.column, mouse.row) {
                             self.choice.row = row;
@@ -572,7 +590,7 @@ fn main() -> io::Result<()> {
     execute!(io::stdout(), EnableMouseCapture)?;
 
     let choice = Choice { users: read_users(&user), sessions: read_sessions(), user: 0, session: 0, open: false, row: 0 };
-    let mut greeter = Greeter { choice, user, theme, password: String::new(), message: String::new(), focus: 0, hover: None, reveal: false, checking: false, failed_at: None };
+    let mut greeter = Greeter { choice, user, theme, password: String::new(), message: String::new(), focus: 0, hover: None, reveal: false, checking: false, blink: true, failed_at: None };
     let result = greeter.run(&mut terminal);
 
     execute!(io::stdout(), DisableMouseCapture)?;
@@ -625,6 +643,75 @@ mod tests {
         assert!(cmd[0].ends_with("/session"), "shared wrapper first: {}", cmd[0]);
         assert_eq!(cmd[1], "/home/gabriel/.local/state/session.log");
         assert_eq!(cmd[2], "/usr/bin/start-hyprland");
+    }
+
+    fn greeter_with(password: &str, blink: bool) -> Greeter {
+        let settings = Settings(Value::Object(Default::default()));
+        let mut greeter = Greeter {
+            choice: Choice { users: vec!["u".into()], sessions: vec![], user: 0, session: 0, open: false, row: 0 },
+            user: "u".into(),
+            theme: Theme::new(&settings),
+            password: password.into(),
+            message: String::new(),
+            focus: 0,
+            hover: None,
+            reveal: false,
+            checking: false,
+            blink,
+            failed_at: None,
+        };
+        greeter.message.clear();
+        greeter
+    }
+
+    #[test]
+    fn the_cursor_blinks_after_the_dots() {
+        let area = Rect::new(0, 0, 80, 30);
+        let layout = Layout::new(area, 2);
+        let row = layout.top + 7;
+
+        for (blink, lit) in [(true, true), (false, false)] {
+            let greeter = greeter_with("ab", blink);
+            let mut buf = Buffer::empty(area);
+            greeter.render(area, &mut buf);
+
+            assert_eq!(buf[(layout.box_col + 4, row)].symbol(), "●");
+            assert_eq!(buf[(layout.box_col + 5, row)].symbol(), "●");
+            assert_eq!(buf[(layout.box_col + 6, row)].bg, if lit { greeter.theme.foreground } else { greeter.theme.surface });
+        }
+    }
+
+    #[test]
+    fn the_clock_is_filled_cells_not_block_glyphs() {
+        let area = Rect::new(0, 0, 80, 30);
+        let greeter = greeter_with("", true);
+        let mut buf = Buffer::empty(area);
+        greeter.render(area, &mut buf);
+        let layout = Layout::new(area, 0);
+
+        let filled: Vec<&str> = (0..layout.top + 5)
+            .flat_map(|y| (0..area.width).map(move |x| (x, y)))
+            .map(|(x, y)| buf[(x, y)].symbol())
+            .filter(|symbol| *symbol == " ")
+            .collect();
+
+        assert!(!filled.is_empty(), "the clock paints with filled cells");
+        assert!(
+            (0..area.width).all(|x| (0..layout.top + 5).all(|y| buf[(x, y)].symbol() != "█")),
+            "no block glyphs are drawn"
+        );
+    }
+
+    #[test]
+    fn the_box_grows_with_the_typed_digits() {
+        let area = Rect::new(0, 0, 80, 30);
+
+        assert_eq!(Layout::new(area, 0).box_width, 14);
+        assert_eq!(Layout::new(area, 5).box_width, 14);
+        assert_eq!(Layout::new(area, 6).box_width, 14);
+        assert_eq!(Layout::new(area, 7).box_width, 15);
+        assert_eq!(Layout::new(area, 40).box_width, 48);
+        assert_eq!(Layout::new(Rect::new(0, 0, 20, 30), 90).box_width, 18, "never wider than the screen");
     }
 
     #[test]

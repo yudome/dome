@@ -4,5 +4,7 @@ set -eu
 log=$1
 shift
 
+printf '\033[2J\033[H\033[?25l' || true
+
 cd "${HOME:-/}"
 exec "$@" >"$log" 2>&1
