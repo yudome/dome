@@ -1,0 +1,14 @@
+#!/bin/sh
+set -u
+
+index=${1:?index}
+sink=${2:-yudae-vm}
+
+while :; do
+	arecord -q -D "hw:Loopback,1,$index" -f S16_LE -r 48000 -c 2 -t raw 2>/dev/null |
+		pacat --playback --raw --format=s16le --rate=48000 --channels=2 \
+			--device="$sink" --latency-msec=20 \
+			--property=application.name=yudae-audio \
+			--property=node.hidden=true 2>/dev/null
+	sleep 0.5
+done

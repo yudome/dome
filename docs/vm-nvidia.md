@@ -24,12 +24,12 @@ Conduit module; `yudae-session` selects the card from `/dev/dri/by-path`.
 ## QEMU
 
 The source fork is `yumedots/qemu-linux`, `main` = QEMU v11.1.2 + Conduit's nine
-patches as commits. The daemon prefers the installed Conduit binary
-`/opt/conduit/bin/qemu-system-x86_64`, then
-`~/qemu-linux/install/bin/qemu-system-x86_64`. Override with
-`YUDAE_NVIDIA_QEMU`. The installed binary needs the Conduit device
-(`vhost-user-test-device-pci`) and, for audio, the `pa` backend; the local build
-uses `--enable-pa --audio-drv-list=pa`.
+patches as commits. The daemon prefers the local Conduit build
+`~/qemu-linux/install/bin/qemu-system-x86_64` (it has the `alsa` backend the
+audio bridge needs), then the installed
+`/opt/conduit/bin/qemu-system-x86_64`. Override with `YUDAE_NVIDIA_QEMU`. Both
+need the Conduit device (`vhost-user-test-device-pci`); the local build uses
+`--enable-alsa --enable-pa --audio-drv-list=alsa,pa`.
 
 ## ABI
 
@@ -114,24 +114,27 @@ bar and wallpaper then stay black even though Hyprland and the guest GPU work.
 ## Audio
 
 Both backends attach an output-only Intel HDA card (`ich9-intel-hda` plus
-`hda-output`). The Conduit QEMU fork is built with `--enable-pa
---audio-drv-list=pa`; when `pactl` and the `pa` backend are present, QEMU runs
-with `-audiodev pa,id=snd0` and `PULSE_SINK=yudae-vm`.
+`hda-output`). With the `snd-aloop` kernel module loaded
+(`/etc/modules-load.d/yudae-audio.conf`), QEMU runs with `-audiodev
+alsa,id=snd0,out.dev=yudaeN` and a per-VM `vm/asound.conf` alias:
+`hw:Loopback,0,N` playback, paired with `hw:Loopback,1,N`. A small
+`vm/audio-bridge` process reads that capture side and feeds the private
+`yudae-vm` sink through `pacat`.
 
-`yudae-vm` is a private null sink: at boot every VM stream lands there, so a VM
-that is not being viewed is silent. `yudae vm view` loads a `module-loopback`
-from `yudae-vm.monitor` to the current default sink; `release`, a normal window
-close, or a stopped VM unloads it.
+The guest is never a PipeWire client: its audio goes through the ALSA loopback,
+so a PipeWire restart only affects the bridge, which reconnects by itself. QEMU
+never appears as an output or application in the desktop audio graph; the
+WirePlumber rule `config/wireplumber` disables the ALSA Loopback card and hides
+the VM nodes, and the shell's audio lists skip `yudae-*`.
 
-The daemon watches the PulseAudio socket with inotify (the volume provider keeps
-its own `pactl subscribe`): when the server restarts and the private sink or
-loopback disappears, it recreates the sink, moves every `yudae-*` QEMU stream back
-onto it, and restores the loopback when the VM is still being viewed. A 30 s
-safety pass (no 2 s polling) covers module loss and the VM app window; if the app
-was killed, the selection is cleared after a 20 s grace and audio returns to silent.
+`yudae-vm` is a private null sink, so a VM that is not being viewed is silent.
+`yudae vm view` loads a `module-loopback` from `yudae-vm.monitor` to the current
+default sink; `release`, a normal window close, or a stopped VM unloads it. The
+daemon watches the PulseAudio socket with inotify and recreates the sink and
+loopback after a server restart; a 30 s safety pass covers module loss and the VM
+app window (clearing the selection after a 20 s grace if the app was killed).
 
-After a host PipeWire restart the daemon side heals, but QEMU's PulseAudio client
-does not reconnect; restart the VM to get guest audio again. A new VM has a fresh
-`pa` context.
-If `pactl` or QEMU's `pa` backend is missing, the VM boots with `-audiodev none`
-and stays silent. The guest never captures the host microphone (`hda-output`).
+If `snd-aloop` or QEMU's `alsa` backend is missing, the daemon falls back to
+`-audiodev pa` (and then `none`). The `pa` fallback does not reconnect after a
+host PipeWire restart; the ALSA path does. The guest never captures the host
+microphone (`hda-output`).

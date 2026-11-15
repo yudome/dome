@@ -1,5 +1,6 @@
 const std = @import("std");
 const exec = @import("../../primitives/exec.zig");
+const proc = @import("../../primitives/proc.zig");
 const sleep = @import("../../primitives/sleep.zig");
 
 const Io = std.Io;
@@ -13,10 +14,16 @@ pub fn available(io: Io, allocator: Allocator) bool {
 	return result.code == 0;
 }
 
-pub fn qemuPa(io: Io, allocator: Allocator, qemu: []const u8) bool {
+pub fn qemuHas(io: Io, allocator: Allocator, qemu: []const u8, backend: []const u8) bool {
 	const result = exec.run(io, allocator, &.{ qemu, "-audiodev", "help" }) catch return false;
 	defer result.deinit(allocator);
-	return result.code == 0 and std.mem.indexOf(u8, result.out, "pa") != null;
+	return result.code == 0 and std.mem.indexOf(u8, result.out, backend) != null;
+}
+
+pub fn alsaAvailable(io: Io, allocator: Allocator) bool {
+	const cards = proc.readFile(io, allocator, "/proc/asound/cards") catch return false;
+	defer allocator.free(cards);
+	return std.mem.indexOf(u8, cards, "Loopback") != null;
 }
 
 pub fn ensureSink(io: Io, allocator: Allocator) bool {
@@ -33,7 +40,7 @@ pub fn ensureSink(io: Io, allocator: Allocator) bool {
 	const result = exec.run(io, allocator, &.{
 		"pactl", "load-module", "module-null-sink",
 		"sink_name=" ++ sink,
-		"sink_properties=device.description=" ++ sink,
+		"sink_properties=device.description=" ++ sink ++ " node.hidden=true",
 	}) catch return false;
 	defer result.deinit(allocator);
 	return result.code == 0;

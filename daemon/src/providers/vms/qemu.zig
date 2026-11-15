@@ -2,6 +2,8 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
+pub const Audio = enum { none, pa, alsa };
+
 pub const Config = struct {
 	name: []const u8,
 	dir: []const u8,
@@ -12,7 +14,8 @@ pub const Config = struct {
 	mem_mb: u32,
 	cid: u32,
 	gl: bool,
-	host_audio: bool = false,
+	audio: Audio = .none,
+	audio_index: u8 = 0,
 };
 
 pub fn binary() []const u8 {
@@ -39,7 +42,11 @@ pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
 	try addPair(allocator, &list, "-object", try std.fmt.allocPrint(allocator, "memory-backend-memfd,id=mem,size={d}M,share=on", .{config.mem_mb}));
 	try addPair(allocator, &list, "-numa", "node,memdev=mem");
 	try addPair(allocator, &list, "-drive", try std.fmt.allocPrint(allocator, "file={s},if=virtio,format=qcow2,cache=none,aio=io_uring,id=disk0", .{config.disk}));
-	try addPair(allocator, &list, "-audiodev", if (config.host_audio) "pa,id=snd0" else "none,id=snd0");
+	switch (config.audio) {
+		.alsa => try addPair(allocator, &list, "-audiodev", try std.fmt.allocPrint(allocator, "alsa,id=snd0,out.dev=yudae{d},out.frequency=48000,out.channels=2,out.format=s16", .{config.audio_index})),
+		.pa => try addPair(allocator, &list, "-audiodev", "pa,id=snd0"),
+		.none => try addPair(allocator, &list, "-audiodev", "none,id=snd0"),
+	}
 	try addPair(allocator, &list, "-device", "ich9-intel-hda");
 	try addPair(allocator, &list, "-device", "hda-output,audiodev=snd0");
 

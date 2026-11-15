@@ -49,6 +49,7 @@ const Vm = struct {
 	pump_pid: i32 = 0,
 	backend_pid: i32 = 0,
 	nvfs_pid: i32 = 0,
+	audio_pid: i32 = 0,
 	qmp: ?*qmp.Qmp = null,
 	qemu_child: ?std.process.Child = null,
 	vfs_child: ?std.process.Child = null,
@@ -56,6 +57,7 @@ const Vm = struct {
 	pump_child: ?std.process.Child = null,
 	backend_child: ?std.process.Child = null,
 	nvfs_child: ?std.process.Child = null,
+	audio_child: ?std.process.Child = null,
 	cgroup: ?cgroup.Cgroup = null,
 	created_ms: i64,
 	used_ms: i64,
@@ -702,10 +704,15 @@ pub const Vms = struct {
 		defer if (wall_dir.len > 0) self.allocator.free(wall_dir);
 		const share_wall = try self.startWall(vm, wall_dir);
 
-		const host_audio = audio.ensureSink(self.io, self.allocator);
+		var mode: nvidia.Audio = if (audio.alsaAvailable(self.io, self.allocator) and audio.qemuHas(self.io, self.allocator, paths.qemu, "alsa") and audio.ensureSink(self.io, self.allocator)) .alsa else if (audio.qemuHas(self.io, self.allocator, paths.qemu, "pa") and audio.ensureSink(self.io, self.allocator)) .pa else .none;
+		const audio_index: u8 = @intCast(vm.cid % 8);
+		if (mode == .alsa) self.startBridge(vm, audio_index) catch {
+			mode = if (audio.qemuHas(self.io, self.allocator, paths.qemu, "pa")) .pa else .none;
+		};
 		const argv = try nvidia.args(self.allocator, .{
 			.wallpaper = share_wall,
-			.host_audio = host_audio,
+			.audio = mode,
+			.audio_index = audio_index,
 			.name = vm.name,
 			.dir = vm.dir,
 			.disk = vm.disk,
@@ -718,7 +725,8 @@ pub const Vms = struct {
 		});
 		const qmp_path = try std.fs.path.join(self.allocator, &.{ vm.dir, "qmp.sock" });
 		std.Io.Dir.cwd().deleteFile(self.io, qmp_path) catch {};
-		const child = exec.spawn(self.io, .{ .argv = try qemuEnv(self.allocator, argv, host_audio), .stdin = .ignore, .stdout = .ignore, .stderr = .inherit }) catch return error.QemuSpawnFailed;
+		const alsa_config = if (mode == .alsa) try std.fs.path.join(self.allocator, &.{ repo, "vm", "asound.conf" }) else "";
+		const child = exec.spawn(self.io, .{ .argv = try qemuEnv(self.allocator, argv, mode == .pa, alsa_config), .stdin = .ignore, .stdout = .ignore, .stderr = .inherit }) catch return error.QemuSpawnFailed;
 		vm.pid = child.id orelse 0;
 		vm.qemu_child = child;
 
@@ -769,6 +777,29 @@ pub const Vms = struct {
 		return false;
 	}
 
+	fn startBridge(self: *Vms, vm: *Vm, index: u8) !void {
+		const repo = proc.repo(self.io, self.allocator);
+		const script = try std.fs.path.join(self.allocator, &.{ repo, "vm", "audio-bridge" });
+		const idx = try std.fmt.allocPrint(self.allocator, "{d}", .{index});
+		const child = exec.spawn(self.io, .{
+			.argv = &.{ "/usr/bin/setsid", "sh", script, idx, "yudae-vm" },
+			.stdin = .ignore,
+			.stdout = .ignore,
+			.stderr = .ignore,
+		}) catch return error.BridgeFailed;
+		vm.audio_pid = child.id orelse 0;
+		vm.audio_child = child;
+	}
+
+	fn stopBridge(self: *Vms, vm: *Vm) void {
+		if (vm.audio_pid > 0) killGroup(vm.audio_pid);
+		if (vm.audio_child) |*child| {
+			_ = child.wait(self.io) catch {};
+			vm.audio_child = null;
+		}
+		vm.audio_pid = 0;
+	}
+
 	fn stopNvidia(self: *Vms, vm: *Vm) void {
 		if (vm.backend_pid > 0) kill(vm.backend_pid);
 		if (vm.nvfs_pid > 0) kill(vm.nvfs_pid);
@@ -814,9 +845,14 @@ pub const Vms = struct {
 		defer if (wall_dir.len > 0) self.allocator.free(wall_dir);
 		const share_wall = try self.startWall(vm, wall_dir);
 
-		const host_audio = audio.ensureSink(self.io, self.allocator);
+		var mode: qemu.Audio = if (audio.alsaAvailable(self.io, self.allocator) and audio.qemuHas(self.io, self.allocator, qemu.binary(), "alsa") and audio.ensureSink(self.io, self.allocator)) .alsa else if (audio.qemuHas(self.io, self.allocator, qemu.binary(), "pa") and audio.ensureSink(self.io, self.allocator)) .pa else .none;
+		const audio_index: u8 = @intCast(vm.cid % 8);
+		if (mode == .alsa) self.startBridge(vm, audio_index) catch {
+			mode = if (audio.qemuHas(self.io, self.allocator, qemu.binary(), "pa")) .pa else .none;
+		};
 		const argv = try qemu.args(self.allocator, .{
-			.host_audio = host_audio,
+			.audio = mode,
+			.audio_index = audio_index,
 			.name = vm.name,
 			.dir = vm.dir,
 			.disk = vm.disk,
@@ -831,8 +867,9 @@ pub const Vms = struct {
 		const qmp_path = try std.fs.path.join(self.allocator, &.{ vm.dir, "qmp.sock" });
 		std.Io.Dir.cwd().deleteFile(self.io, qmp_path) catch {};
 
+		const alsa_config = if (mode == .alsa) try std.fs.path.join(self.allocator, &.{ repo, "vm", "asound.conf" }) else "";
 		const child = exec.spawn(self.io, .{
-			.argv = try qemuEnv(self.allocator, argv, host_audio),
+			.argv = try qemuEnv(self.allocator, argv, mode == .pa, alsa_config),
 			.stdin = .ignore,
 			.stdout = .ignore,
 			.stderr = .inherit,
@@ -937,6 +974,10 @@ pub const Vms = struct {
 				.nvidia = std.mem.eql(u8, json.textAt(parsed.value, "backend"), "nvidia"),
 				.tier = if (alive) .hot else .off,
 				.pid = if (alive) pid else 0,
+				.audio_pid = blk: {
+					const apid: i32 = @intCast(json.integer(json.field(parsed.value, "audioPid")));
+					break :blk if (apid > 0 and self.pidAlive(apid)) apid else 0;
+				},
 				.created_ms = fmt.nowMs(self.io),
 				.used_ms = fmt.nowMs(self.io),
 				.destroy_ms = if (json.field(parsed.value, "destroyMs")) |value| @max(json.integer(value), 0) else idleDestroyDefault(),
@@ -994,7 +1035,7 @@ pub const Vms = struct {
 			result.deinit(self.allocator);
 		} else |_| {}
 
-		const body = std.fmt.allocPrint(self.allocator, "{{\"name\":\"{s}\",\"cid\":{d},\"cores\":{d},\"memMb\":{d},\"gl\":{s},\"backend\":\"{s}\",\"pid\":{d},\"agent\":\"{s}\",\"harness\":\"{s}\",\"session\":\"{s}\",\"sessionTitle\":\"{s}\",\"base\":\"{s}\",\"dirty\":{s},\"packages\":\"{s}\",\"destroyMs\":{d}}}", .{
+		const body = std.fmt.allocPrint(self.allocator, "{{\"name\":\"{s}\",\"cid\":{d},\"cores\":{d},\"memMb\":{d},\"gl\":{s},\"backend\":\"{s}\",\"pid\":{d},\"audioPid\":{d},\"agent\":\"{s}\",\"harness\":\"{s}\",\"session\":\"{s}\",\"sessionTitle\":\"{s}\",\"base\":\"{s}\",\"dirty\":{s},\"packages\":\"{s}\",\"destroyMs\":{d}}}", .{
 			vm.name,
 			vm.cid,
 			vm.cores,
@@ -1002,6 +1043,7 @@ pub const Vms = struct {
 			if (vm.gl) "true" else "false",
 			if (vm.nvidia) "nvidia" else "gl",
 			vm.pid,
+			vm.audio_pid,
 			vm.agent,
 			vm.harness,
 			vm.session,
@@ -1019,6 +1061,7 @@ pub const Vms = struct {
 	}
 
 	fn haltVm(self: *Vms, vm: *Vm) void {
+		self.stopBridge(vm);
 		_ = audio.passthrough(self.io, self.allocator, false);
 		if (vm.qmp) |client| {
 			_ = client.execute(null, "quit", null) catch {};
@@ -1122,6 +1165,8 @@ pub const Vms = struct {
 	}
 
 	fn cleanupVm(self: *Vms, vm: *Vm) void {
+		self.stopBridge(vm);
+		_ = audio.passthrough(self.io, self.allocator, false);
 		if (vm.qmp) |client| {
 			_ = client.execute(null, "quit", null) catch {};
 			client.close();
@@ -2401,17 +2446,32 @@ fn waitFile(io: Io, path: []const u8, timeout_ms: i64) !bool {
 	return false;
 }
 
-fn qemuEnv(allocator: Allocator, argv: []const []const u8, host_audio: bool) ![]const []const u8 {
-	if (!host_audio) return argv;
-	const out = try allocator.alloc([]const u8, argv.len + 2);
-	out[0] = "/usr/bin/env";
-	out[1] = "PULSE_SINK=yudae-vm";
-	@memcpy(out[2..], argv);
-	return out;
+fn qemuEnv(allocator: Allocator, argv: []const []const u8, pulse_sink: bool, alsa_config: []const u8) ![]const []const u8 {
+	if (!pulse_sink and alsa_config.len == 0) return argv;
+	const out = try allocator.alloc([]const u8, argv.len + 3);
+	var at: usize = 0;
+	out[at] = "/usr/bin/env";
+	at += 1;
+	if (pulse_sink) {
+		out[at] = "PULSE_SINK=yudae-vm";
+		at += 1;
+	}
+	if (alsa_config.len > 0) {
+		out[at] = try std.fmt.allocPrint(allocator, "ALSA_CONFIG_PATH={s}", .{alsa_config});
+		at += 1;
+	}
+	@memcpy(out[at .. at + argv.len], argv);
+	return out[0 .. at + argv.len];
 }
 
 fn kill(pid: i32) void {
 	std.posix.kill(pid, std.posix.SIG.TERM) catch return;
+}
+
+fn killGroup(pid: i32) void {
+	std.posix.kill(-pid, std.posix.SIG.KILL) catch {
+		std.posix.kill(pid, std.posix.SIG.KILL) catch {};
+	};
 }
 
 fn pointer(io: Io, client: *qmp.Qmp, allocator: Allocator, x: f64, y: f64, screen: [2]u32) !void {

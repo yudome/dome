@@ -18,10 +18,10 @@ pub fn paths(io: Io, allocator: Allocator) !Paths {
 	const local = "/home/gabriel/qemu-linux/install/bin/qemu-system-x86_64";
 	const qemu: []const u8 = if (std.c.getenv("YUDAE_NVIDIA_QEMU")) |value|
 		std.mem.span(value)
-	else if (proc.exists(io, installed))
-		installed
+	else if (proc.exists(io, local))
+		local
 	else
-		local;
+		installed;
 	const backend: []const u8 = if (std.c.getenv("YUDAE_NVIDIA_BACKEND")) |value| std.mem.span(value) else "/opt/conduit/bin/conduit-backend";
 	const userspace: []const u8 = if (std.c.getenv("YUDAE_NVIDIA_USERSPACE")) |value| std.mem.span(value) else "/opt/conduit/bin/conduit-userspace";
 	const cache = proc.env(io, allocator, "XDG_CACHE_HOME") orelse try std.fmt.allocPrint(allocator, "{s}/.cache", .{home});
@@ -74,6 +74,8 @@ pub fn backendArgs(allocator: Allocator, dir: []const u8, backend: []const u8) !
 	return list.toOwnedSlice(allocator);
 }
 
+pub const Audio = enum { none, pa, alsa };
+
 pub const Config = struct {
 	name: []const u8,
 	dir: []const u8,
@@ -85,7 +87,8 @@ pub const Config = struct {
 	mem_mb: u32,
 	qemu: []const u8,
 	wallpaper: bool = false,
-	host_audio: bool = false,
+	audio: Audio = .none,
+	audio_index: u8 = 0,
 };
 
 pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
@@ -108,7 +111,11 @@ pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
 	try addPair(allocator, &list, "-m", try std.fmt.allocPrint(allocator, "{d}M", .{config.mem_mb}));
 	try addPair(allocator, &list, "-object", mem);
 	try addPair(allocator, &list, "-drive", try std.fmt.allocPrint(allocator, "file={s},if=virtio,format=qcow2,cache=none,id=disk0", .{config.disk}));
-	try addPair(allocator, &list, "-audiodev", if (config.host_audio) "pa,id=snd0" else "none,id=snd0");
+	switch (config.audio) {
+		.alsa => try addPair(allocator, &list, "-audiodev", try std.fmt.allocPrint(allocator, "alsa,id=snd0,out.dev=yudae{d},out.frequency=48000,out.channels=2,out.format=s16", .{config.audio_index})),
+		.pa => try addPair(allocator, &list, "-audiodev", "pa,id=snd0"),
+		.none => try addPair(allocator, &list, "-audiodev", "none,id=snd0"),
+	}
 	try addPair(allocator, &list, "-device", "ich9-intel-hda");
 	try addPair(allocator, &list, "-device", "hda-output,audiodev=snd0");
 	try addPair(allocator, &list, "-device", try std.fmt.allocPrint(allocator, "vhost-vsock-pci,guest-cid={d}", .{config.cid}));
