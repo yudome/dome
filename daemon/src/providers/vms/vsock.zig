@@ -39,7 +39,7 @@ pub fn state(io: Io, allocator: Allocator, cid: u32) ![]u8 {
 
 pub fn exec(io: Io, allocator: Allocator, cid: u32, argv: []const []const u8) !Result {
 	_ = io;
-	const buffer = try allocator.alloc(u8, 4 * 1024 * 1024);
+	const buffer = try allocator.alloc(u8, 32 * 1024 * 1024);
 	defer allocator.free(buffer);
 
 	var connection = try sock.connectVsock(cid, port, buffer);

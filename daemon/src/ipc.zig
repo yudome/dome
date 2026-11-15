@@ -185,7 +185,7 @@ pub const Ipc = struct {
 
 			for (list, 0..) |item, index| argv[index] = json.text(item);
 
-			const result = exec.runLimit(self.io, self.allocator, argv, null, 4 * 1024 * 1024) catch |err| {
+			const result = exec.runLimit(self.io, self.allocator, argv, null, 32 * 1024 * 1024) catch |err| {
 				var out: std.Io.Writer.Allocating = .init(arena.allocator());
 				out.writer.print("{{\"ok\":false,\"error\":\"{s}\"}}", .{@errorName(err)}) catch {};
 				sendLine(self.io, client, out.written());
