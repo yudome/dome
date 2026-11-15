@@ -168,6 +168,33 @@ fn block_rows(text: &str, digits: &[(char, Vec<String>)]) -> Vec<String> {
     lines
 }
 
+fn home_of(user: &str) -> String {
+    fs::read_to_string("/etc/passwd")
+        .ok()
+        .and_then(|text| {
+            text.lines().find_map(|line| {
+                let fields: Vec<&str> = line.split(':').collect();
+                (fields.len() >= 7 && fields[0] == user).then(|| fields[5].to_string())
+            })
+        })
+        .unwrap_or_else(|| format!("/home/{user}"))
+}
+
+fn quiet_session(user: &str, argv: &[String]) -> Vec<String> {
+    let state = format!("{}/.local/state", home_of(user));
+    let log = format!("{state}/session.log");
+    let _ = fs::create_dir_all(&state);
+    let wrapper = env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().and_then(|dir| dir.parent()).map(|dir| dir.join("session")))
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "/usr/bin/start-hyprland".into());
+
+    let mut cmd = vec![wrapper, log];
+    cmd.extend(argv.iter().cloned());
+    cmd
+}
+
 fn read_users(default: &str) -> Vec<String> {
     let mut out = vec![default.to_string()];
     if let Ok(text) = fs::read_to_string("/etc/passwd") {
@@ -394,7 +421,7 @@ impl Greeter {
         let choice = &self.choice;
         let panel = choice.panel(area);
 
-        fill(buf, area, Style::new().fg(theme.dim).bg(theme.dim));
+        buf.set_style(area, Style::new().fg(theme.dim).bg(theme.surface));
         fill(buf, panel, Style::new().fg(theme.foreground).bg(theme.surface));
 
         for row in 0..2 {
@@ -432,11 +459,10 @@ impl Greeter {
         let result = match env::var("GREETD_SOCK") {
             Ok(path) => {
                 let user = self.choice.users.get(self.choice.user).cloned().unwrap_or_else(|| self.user.clone());
-                let (id, argv, _) = self.choice.sessions.get(self.choice.session).cloned().unwrap_or_else(|| read_sessions()[0].clone());
-                let cmd: Vec<&str> = argv.iter().map(String::as_str).collect();
-                let desktop = format!("XDG_SESSION_DESKTOP={id}");
-                let current = format!("XDG_CURRENT_DESKTOP={id}");
-                let envs = ["XDG_SESSION_TYPE=wayland".to_string(), desktop, current];
+                let (_id, argv, _) = self.choice.sessions.get(self.choice.session).cloned().unwrap_or_else(|| read_sessions()[0].clone());
+                let quiet = quiet_session(&user, &argv);
+                let cmd: Vec<&str> = quiet.iter().map(String::as_str).collect();
+                let envs = ["XDG_SESSION_TYPE=wayland".to_string()];
                 let env: Vec<&str> = envs.iter().map(String::as_str).collect();
 
                 UnixStream::connect(path)
@@ -589,6 +615,16 @@ mod tests {
         assert_eq!(choice.hit(area, panel.x + 20, panel.y + 3), Some((1, 1)));
         assert_eq!(choice.hit(area, panel.x + 20, panel.y + 2), None);
         assert_eq!(choice.hit(area, 0, panel.y + 1), None);
+    }
+
+    #[test]
+    fn the_session_writes_to_a_log_instead_of_the_console() {
+        let cmd = quiet_session("gabriel", &["/usr/bin/start-hyprland".into()]);
+
+        assert_eq!(cmd.len(), 3);
+        assert!(cmd[0].ends_with("/session"), "shared wrapper first: {}", cmd[0]);
+        assert_eq!(cmd[1], "/home/gabriel/.local/state/session.log");
+        assert_eq!(cmd[2], "/usr/bin/start-hyprland");
     }
 
     #[test]

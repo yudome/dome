@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+log=$1
+shift
+
+cd "${HOME:-/}"
+exec "$@" >"$log" 2>&1
