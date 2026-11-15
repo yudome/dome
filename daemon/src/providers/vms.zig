@@ -10,6 +10,7 @@ const vsock = @import("vms/vsock.zig");
 const qemu = @import("vms/qemu.zig");
 const nvidia = @import("vms/nvidia.zig");
 const audio = @import("vms/audio.zig");
+const inotify = @import("../primitives/watch.zig");
 const images = @import("vms/images.zig");
 const budget = @import("vms/budget.zig");
 const tiers = @import("vms/tiers.zig");
@@ -328,44 +329,38 @@ pub const Vms = struct {
 	}
 
 	fn audioWatch(self: *Vms) void {
+		var watcher = inotify.Watcher.init() catch null;
+		defer if (watcher) |*w| w.close();
+
+		const runtime = proc.runtimeDir(self.io, self.allocator);
+		const dir = std.fmt.allocPrintSentinel(self.allocator, "{s}/pulse", .{runtime}, 0) catch {
+			sleep.ms(30000);
+			return;
+		};
+		defer self.allocator.free(dir);
+
+		var watching = false;
 		while (true) {
-			self.audioRefresh();
-			var child = exec.spawn(self.io, .{
-				.argv = &.{ "pactl", "subscribe" },
-				.stdin = .ignore,
-				.stdout = .pipe,
-				.stderr = .ignore,
-			}) catch {
-				sleep.ms(30000);
-				continue;
-			};
-
-			const fd = child.stdout.?.handle;
-			var buffer: [1024]u8 = undefined;
-			while (true) {
-				var fds = [_]std.os.linux.pollfd{.{ .fd = fd, .events = std.os.linux.POLL.IN, .revents = 0 }};
-				const ready = std.os.linux.poll(&fds, 1, 30000);
-				if (ready == 0) {
-					self.audioWindowCheck();
-					self.audioRefresh();
-					continue;
+			if (!watching) {
+				if (watcher) |*w| {
+					w.add(dir) catch {};
+					watching = true;
 				}
-				if (ready < 0) break;
-
-				const count = std.posix.read(fd, &buffer) catch break;
-				if (count == 0) break;
-				const line = buffer[0..count];
-
-				if (std.mem.indexOf(u8, line, "on sink") == null and
-				    std.mem.indexOf(u8, line, "on module") == null and
-				    std.mem.indexOf(u8, line, "on server") == null) continue;
-
-				sleep.ms(400);
-				self.audioRefresh();
 			}
 
-			child.kill(self.io);
-			sleep.ms(1000);
+			const fired = if (watcher) |*w| w.wait(30000) else blk: {
+				sleep.ms(30000);
+				break :blk false;
+			};
+
+			if (fired) {
+				watcher.?.drain();
+				watching = false;
+				sleep.ms(500);
+			}
+
+			self.audioWindowCheck();
+			self.audioRefresh();
 		}
 	}
 

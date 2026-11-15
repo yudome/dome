@@ -24,8 +24,12 @@ Conduit module; `yudae-session` selects the card from `/dev/dri/by-path`.
 ## QEMU
 
 The source fork is `yumedots/qemu-linux`, `main` = QEMU v11.1.2 + Conduit's nine
-patches as commits. Built binary: `~/qemu-linux/install/bin/qemu-system-x86_64`.
-Override with `YUDAE_NVIDIA_QEMU`.
+patches as commits. The daemon prefers the installed Conduit binary
+`/opt/conduit/bin/qemu-system-x86_64`, then
+`~/qemu-linux/install/bin/qemu-system-x86_64`. Override with
+`YUDAE_NVIDIA_QEMU`. The installed binary needs the Conduit device
+(`vhost-user-test-device-pci`) and, for audio, the `pa` backend; the local build
+uses `--enable-pa --audio-drv-list=pa`.
 
 ## ABI
 
@@ -119,11 +123,15 @@ that is not being viewed is silent. `yudae vm view` loads a `module-loopback`
 from `yudae-vm.monitor` to the current default sink; `release`, a normal window
 close, or a stopped VM unloads it.
 
-PipeWire is watched with `pactl subscribe`: if the server restarts and the
-private sink or loopback disappears, the daemon recreates the sink, moves every
-`yudae-*` QEMU stream back onto it, and restores the loopback when the VM is still
-being viewed. A 30 s safety pass (no 2 s polling) also checks the VM app window;
-if it was killed, the selection is cleared after a 20 s grace and audio returns to
-silent.
+The daemon watches the PulseAudio socket with inotify (the volume provider keeps
+its own `pactl subscribe`): when the server restarts and the private sink or
+loopback disappears, it recreates the sink, moves every `yudae-*` QEMU stream back
+onto it, and restores the loopback when the VM is still being viewed. A 30 s
+safety pass (no 2 s polling) covers module loss and the VM app window; if the app
+was killed, the selection is cleared after a 20 s grace and audio returns to silent.
+
+After a host PipeWire restart the daemon side heals, but QEMU's PulseAudio client
+does not reconnect; restart the VM to get guest audio again. A new VM has a fresh
+`pa` context.
 If `pactl` or QEMU's `pa` backend is missing, the VM boots with `-audiodev none`
 and stays silent. The guest never captures the host microphone (`hda-output`).

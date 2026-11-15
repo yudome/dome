@@ -14,7 +14,14 @@ pub const Paths = struct {
 
 pub fn paths(io: Io, allocator: Allocator) !Paths {
 	const home = proc.home(io, allocator);
-	const qemu: []const u8 = if (std.c.getenv("YUDAE_NVIDIA_QEMU")) |value| std.mem.span(value) else "/home/gabriel/qemu-linux/install/bin/qemu-system-x86_64";
+	const installed = "/opt/conduit/bin/qemu-system-x86_64";
+	const local = "/home/gabriel/qemu-linux/install/bin/qemu-system-x86_64";
+	const qemu: []const u8 = if (std.c.getenv("YUDAE_NVIDIA_QEMU")) |value|
+		std.mem.span(value)
+	else if (proc.exists(io, installed))
+		installed
+	else
+		local;
 	const backend: []const u8 = if (std.c.getenv("YUDAE_NVIDIA_BACKEND")) |value| std.mem.span(value) else "/opt/conduit/bin/conduit-backend";
 	const userspace: []const u8 = if (std.c.getenv("YUDAE_NVIDIA_USERSPACE")) |value| std.mem.span(value) else "/opt/conduit/bin/conduit-userspace";
 	const cache = proc.env(io, allocator, "XDG_CACHE_HOME") orelse try std.fmt.allocPrint(allocator, "{s}/.cache", .{home});

@@ -26,11 +26,9 @@ pub fn ensureSink(io: Io, allocator: Allocator) bool {
 		sleep.ms(100);
 	}
 
-
 	const list = exec.run(io, allocator, &.{ "pactl", "list", "short", "sinks" }) catch return false;
 	defer list.deinit(allocator);
 	if (std.mem.indexOf(u8, list.out, sink) != null) return true;
-
 
 	const result = exec.run(io, allocator, &.{
 		"pactl", "load-module", "module-null-sink",
