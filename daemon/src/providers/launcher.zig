@@ -8,6 +8,8 @@ const clipwatch = @import("clipwatch.zig");
 const filesmod = @import("files/index.zig");
 const recentmod = @import("files/recent.zig");
 const buildmod = @import("files/build.zig");
+const followmod = @import("files/follow.zig");
+const sleep = @import("../primitives/sleep.zig");
 const calc = @import("../primitives/calc.zig");
 const json = @import("../primitives/json.zig");
 const exec = @import("../primitives/exec.zig");
@@ -29,7 +31,6 @@ const page_bytes = 8000;
 const file_results = 8;
 const file_candidates = 64;
 const file_scan_ms = 10 * 1000;
-const file_compact_ms = 24 * 60 * 60 * 1000;
 const file_after = 4;
 const first_pages = 2;
 const more_pages = 2;
@@ -238,6 +239,7 @@ pub const Launcher = struct {
 	files_mutex: std.Io.Mutex = .init,
 	files_building: std.atomic.Value(bool) = .init(false),
 	files_scanned: std.atomic.Value(i64) = .init(0),
+	following: std.atomic.Value(bool) = .init(false),
 	recent: ?*recentmod.Recent = null,
 	pins: std.ArrayListUnmanaged([]u8) = .empty,
 	saved: std.ArrayListUnmanaged(Saved) = .empty,
@@ -1392,6 +1394,7 @@ pub const Launcher = struct {
 	}
 
 	fn refreshFiles(self: *Launcher) void {
+		if (self.following.load(.acquire) and self.files != null) return;
 		if (fmt.nowMs(self.io) - self.files_scanned.load(.acquire) < file_scan_ms) return;
 		if (self.files_building.swap(true, .acq_rel)) return;
 
@@ -1422,9 +1425,18 @@ pub const Launcher = struct {
 		defer self.files_scanned.store(fmt.nowMs(self.io), .release);
 		const index = if (self.files) |*loaded| loaded else return self.buildFiles();
 		const recent = self.recent orelse return self.buildFiles();
-		if (fmt.nowMs(self.io) - index.built_ms > file_compact_ms) return self.buildFiles();
 		const changed = buildmod.changes(self.allocator, index, proc.home(self.io, self.allocator), recent) catch return self.buildFiles();
 		if (changed > 0) self.hub.publish();
+	}
+
+	fn followFiles(self: *Launcher) void {
+		var follower: Follower = .{ .launcher = self };
+		while (true) {
+			followmod.listen(&.{ "/", proc.home(self.io, self.allocator) }, &follower) catch {};
+			self.following.store(false, .release);
+			follower.drop();
+			sleep.ms(60 * 1000);
+		}
 	}
 
 	fn buildFiles(self: *Launcher) void {
@@ -1718,7 +1730,48 @@ fn preloadIndex(self: *Launcher) void {
 		} else |_| {}
 	} else |_| {}
 	self.refreshFiles();
+	if (std.Thread.spawn(.{}, Launcher.followFiles, .{self})) |thread| thread.detach() else |_| {}
 }
+
+const Follower = struct {
+	launcher: *Launcher,
+	pending: std.ArrayList([]u8) = .empty,
+
+	pub fn ready(self: *Follower) void {
+		self.launcher.following.store(true, .release);
+	}
+
+	pub fn dir(self: *Follower, path: []const u8) void {
+		const copy = self.launcher.allocator.dupe(u8, path) catch return;
+		self.pending.append(self.launcher.allocator, copy) catch self.launcher.allocator.free(copy);
+	}
+
+	pub fn overflow(self: *Follower) void {
+		self.launcher.files_scanned.store(0, .release);
+		self.launcher.following.store(false, .release);
+		self.launcher.refreshFiles();
+		self.launcher.following.store(true, .release);
+	}
+
+	pub fn flush(self: *Follower) void {
+		const launcher = self.launcher;
+		defer self.drop();
+		while (launcher.files_building.swap(true, .acq_rel)) sleep.ms(20);
+		defer launcher.files_building.store(false, .release);
+		const index = if (launcher.files) |*loaded| loaded else return;
+		const recent = launcher.recent orelse return;
+		const home = proc.home(launcher.io, launcher.allocator);
+		for (self.pending.items) |path| {
+			buildmod.apply(launcher.allocator, index, path, home, recent) catch return launcher.buildFiles();
+		}
+		launcher.hub.publish();
+	}
+
+	fn drop(self: *Follower) void {
+		for (self.pending.items) |path| self.launcher.allocator.free(path);
+		self.pending.clearRetainingCapacity();
+	}
+};
 
 const Wake = struct {
 	sock: []u8,
