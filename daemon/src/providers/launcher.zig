@@ -5,6 +5,7 @@ const sysmod = @import("system.zig");
 const windowsmod = @import("windows.zig");
 const vmsmod = @import("vms.zig");
 const clipwatch = @import("clipwatch.zig");
+const filesmod = @import("files.zig");
 const calc = @import("../primitives/calc.zig");
 const json = @import("../primitives/json.zig");
 const exec = @import("../primitives/exec.zig");
@@ -12,6 +13,7 @@ const http = @import("../primitives/http.zig");
 const config = @import("../primitives/config.zig");
 const environ = @import("../primitives/environ.zig");
 const proc = @import("../primitives/proc.zig");
+const fmt = @import("../primitives/fmt.zig");
 
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
@@ -22,6 +24,9 @@ const max_results = 60;
 const usage_max = 10;
 const clip_limit = 5 * 1024 * 1024;
 const page_bytes = 8000;
+const file_results = 8;
+const file_candidates = 200;
+const file_stale_ms = 10 * 60 * 1000;
 const first_pages = 2;
 const more_pages = 2;
 
@@ -29,7 +34,8 @@ const glyph_command = "\u{f018c}";
 const glyph_calc = "\u{f00ec}";
 const glyph_clip = "\u{f07f}";
 const glyph_image = "\u{f03e}";
-const glyph_file = "\u{f0213}";
+const glyph_file = "\u{f15b}";
+const glyph_folder = "\u{f07b}";
 const glyph_apps = "\u{f0c9}";
 const glyph_wallpaper = "\u{f0e09}";
 const glyph_process = "\u{f0874}";
@@ -224,6 +230,9 @@ pub const Launcher = struct {
 	index: ?*Index = null,
 	index_tried: bool = false,
 	index_mutex: std.Io.Mutex = .init,
+	files: ?filesmod.Index = null,
+	files_mutex: std.Io.Mutex = .init,
+	files_building: std.atomic.Value(bool) = .init(false),
 	pins: std.ArrayListUnmanaged([]u8) = .empty,
 	saved: std.ArrayListUnmanaged(Saved) = .empty,
 	clips: std.ArrayListUnmanaged(Clip) = .empty,
@@ -822,6 +831,11 @@ pub const Launcher = struct {
 			return;
 		}
 
+		if (std.mem.startsWith(u8, id, "file:")) {
+			self.openUrl(id["file:".len..]);
+			return;
+		}
+
 		if (std.mem.startsWith(u8, id, "web:")) {
 			self.openUrl(id["web:".len..]);
 			return;
@@ -1130,7 +1144,8 @@ pub const Launcher = struct {
 	}
 
 	fn rankOrWeb(self: *Launcher, arena: Allocator, rows: []Row, search: []const u8, home: bool) ![]Row {
-		const ranked = self.rank(arena, rows, search, home, true);
+		var ranked = self.rank(arena, rows, search, home, true);
+		if (home and search.len > 0) ranked = self.fileRows(arena, ranked, search) catch ranked;
 
 		if (ranked.len > 0 or search.len == 0) return ranked;
 
@@ -1305,6 +1320,87 @@ pub const Launcher = struct {
 				.image = std.mem.eql(u8, entry.kind, "image"),
 			});
 		}
+	}
+
+	fn fileRows(self: *Launcher, arena: Allocator, ranked: []Row, search: []const u8) ![]Row {
+		self.refreshFiles();
+
+		self.files_mutex.lockUncancelable(self.io);
+		defer self.files_mutex.unlock(self.io);
+		const index = if (self.files) |*loaded| loaded else return ranked;
+
+		const needle = try lowerAlloc(arena, search);
+		var hits: [file_candidates]u32 = undefined;
+		const found = hits[0..index.search(needle, &hits)];
+		var keyed: [file_candidates]u64 = undefined;
+		var name_buf: [256]u8 = undefined;
+		for (found, keyed[0..found.len]) |id, *slot| slot.* = @as(u64, fileQuality(index.item(id, &name_buf).name, needle)) << 32 | id;
+		std.mem.sort(u64, keyed[0..found.len], {}, std.sort.asc(u64));
+
+		var out: std.ArrayListUnmanaged(Row) = .empty;
+		try out.appendSlice(arena, ranked);
+		var buffer: [std.fs.max_path_bytes]u8 = undefined;
+		var added: usize = 0;
+
+		for (keyed[0..found.len]) |slot| {
+			const id: u32 = @truncate(slot);
+			if (added >= file_results) break;
+			const path = try arena.dupeSentinel(u8, index.path(&buffer, id), 0);
+			if (path.len == 0 or std.os.linux.errno(std.os.linux.faccessat(std.os.linux.AT.FDCWD, path, std.os.linux.F_OK, 0)) != .SUCCESS) continue;
+
+			try out.append(arena, .{
+				.id = try std.fmt.allocPrint(arena, "file:{s}", .{path}),
+				.kind = "file",
+				.name = std.fs.path.basename(path),
+				.glyph = if (index.item(id, &name_buf).dir) glyph_folder else glyph_file,
+				.detail = std.fs.path.dirname(path) orelse "/",
+			});
+			added += 1;
+		}
+
+		return out.items;
+	}
+
+	fn refreshFiles(self: *Launcher) void {
+		self.files_mutex.lockUncancelable(self.io);
+		const built = if (self.files) |loaded| loaded.built_ms else 0;
+		self.files_mutex.unlock(self.io);
+
+		if (fmt.nowMs(self.io) - built < file_stale_ms) return;
+		if (self.files_building.swap(true, .acq_rel)) return;
+
+		const thread = std.Thread.spawn(.{}, buildFiles, .{self}) catch {
+			self.files_building.store(false, .release);
+			return;
+		};
+		thread.detach();
+	}
+
+	fn loadFiles(self: *Launcher) void {
+		const path = self.statePath(self.allocator, "files.idx") catch return;
+		defer self.allocator.free(path);
+		const loaded = filesmod.load(self.io, path) catch return;
+
+		self.files_mutex.lockUncancelable(self.io);
+		const old = self.files;
+		self.files = loaded;
+		self.files_mutex.unlock(self.io);
+		if (old) |stale| {
+			var gone = stale;
+			gone.deinit();
+		}
+	}
+
+	fn buildFiles(self: *Launcher) void {
+		defer self.files_building.store(false, .release);
+
+		const path = self.statePath(self.allocator, "files.idx") catch return;
+		defer self.allocator.free(path);
+		const result = exec.run(self.io, self.allocator, &.{ "/proc/self/exe", "files-index", "/", proc.home(self.io, self.allocator), path }) catch return;
+		result.deinit(self.allocator);
+
+		self.loadFiles();
+		self.hub.publish();
 	}
 
 	fn ensureIndex(self: *Launcher) void {
@@ -1547,8 +1643,17 @@ pub const Launcher = struct {
 	}
 };
 
+fn fileQuality(name: []const u8, needle: []const u8) u8 {
+	if (std.ascii.eqlIgnoreCase(name, needle)) return 0;
+	if (std.ascii.startsWithIgnoreCase(name, needle)) return 1;
+	const at = std.ascii.findIgnoreCase(name, needle) orelse return 3;
+	return if (std.mem.indexOfScalar(u8, " -_.", name[at - 1]) != null) 2 else 3;
+}
+
 fn preloadIndex(self: *Launcher) void {
 	self.ensureIndex();
+	self.loadFiles();
+	self.refreshFiles();
 }
 
 const Wake = struct {

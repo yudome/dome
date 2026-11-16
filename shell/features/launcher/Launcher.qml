@@ -1263,12 +1263,12 @@ PanelWindow {
 									id: rowHint
 
 									width: parent.width
-									visible: root.mode === "emoji"
-									elide: Text.ElideRight
+									visible: root.mode === "emoji" || row.modelData.kind === "file"
+									elide: Text.ElideMiddle
 									font.family: Config.fontFamily
 									font.pixelSize: Math.round(root.fontSize * 0.72)
 									color: Config.muted
-									text: "click to copy to clipboard"
+									text: row.modelData.kind === "file" ? row.modelData.detail : "click to copy to clipboard"
 								}
 							}
 
