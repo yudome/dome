@@ -27,7 +27,7 @@ const clip_limit = 5 * 1024 * 1024;
 const page_bytes = 8000;
 const file_results = 8;
 const file_candidates = 64;
-const file_stale_ms = 5 * 60 * 1000;
+const file_stale_ms = 60 * 1000;
 const file_after = 4;
 const first_pages = 2;
 const more_pages = 2;
@@ -289,6 +289,11 @@ pub const Launcher = struct {
 
 	fn stateDir(self: *Launcher, allocator: Allocator) ![]u8 {
 		return std.fmt.allocPrint(allocator, "{s}/dotfiles/shell/cache/launcher", .{proc.home(self.io, self.allocator)});
+	}
+
+	fn cacheFile(self: *Launcher, allocator: Allocator, name: []const u8) ![]u8 {
+		if (proc.env(self.io, allocator, "XDG_CACHE_HOME")) |cache| return std.fmt.allocPrint(allocator, "{s}/yudae/{s}", .{ cache, name });
+		return std.fmt.allocPrint(allocator, "{s}/.cache/yudae/{s}", .{ proc.home(self.io, allocator), name });
 	}
 
 	fn statePath(self: *Launcher, allocator: Allocator, name: []const u8) ![]u8 {
@@ -1399,7 +1404,7 @@ pub const Launcher = struct {
 	}
 
 	fn loadFiles(self: *Launcher) void {
-		const path = self.statePath(self.allocator, "files.idx") catch return;
+		const path = self.cacheFile(self.allocator, "files.idx") catch return;
 		defer self.allocator.free(path);
 		const loaded = filesmod.load(self.io, path) catch return;
 
@@ -1416,7 +1421,7 @@ pub const Launcher = struct {
 	fn buildFiles(self: *Launcher) void {
 		defer self.files_building.store(false, .release);
 
-		const path = self.statePath(self.allocator, "files.idx") catch return;
+		const path = self.cacheFile(self.allocator, "files.idx") catch return;
 		defer self.allocator.free(path);
 		const started = fmt.nowMs(self.io);
 		const result = exec.run(self.io, self.allocator, &.{ "/proc/self/exe", "files-index", "/", proc.home(self.io, self.allocator), path }) catch return;
@@ -1700,7 +1705,9 @@ fn preloadIndex(self: *Launcher) void {
 	self.ensureIndex();
 	self.loadFiles();
 	self.refreshFiles();
-	const recent = recentmod.Recent.create(self.allocator, self.io, proc.home(self.io, self.allocator)) catch return;
+	const log = self.cacheFile(self.allocator, "files.log") catch return;
+	defer self.allocator.free(log);
+	const recent = recentmod.Recent.create(self.allocator, self.io, proc.home(self.io, self.allocator), log) catch return;
 	recent.start() catch return;
 	self.recent = recent;
 }
