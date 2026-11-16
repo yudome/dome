@@ -36,6 +36,7 @@ test {
 	_ = @import("providers/files/index.zig");
 	_ = @import("providers/files/build.zig");
 	_ = @import("providers/files/recent.zig");
+	_ = @import("providers/files/follow.zig");
 	_ = @import("providers/clipwatch.zig");
 	_ = @import("providers/icons.zig");
 	_ = @import("primitives/icons.zig");
