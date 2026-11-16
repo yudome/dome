@@ -145,7 +145,7 @@ pub fn mountPoints(allocator: Allocator, io: Io) ![][]u8 {
 	return out.toOwnedSlice(allocator);
 }
 
-fn unescape(allocator: Allocator, raw: []const u8) ![]u8 {
+pub fn unescape(allocator: Allocator, raw: []const u8) ![]u8 {
 	var out: std.ArrayList(u8) = .empty;
 	errdefer out.deinit(allocator);
 
