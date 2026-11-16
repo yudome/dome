@@ -90,7 +90,6 @@ pub const Index = struct {
 	names: []const u8,
 	post: []const u8,
 	count: u32,
-	root: u32,
 	built_ms: i64,
 
 	pub fn deinit(self: *Index) void {
@@ -156,7 +155,7 @@ pub const Index = struct {
 			var walk = self.cursor(block);
 			var id = block * block_size;
 			while (walk.next(&buf)) |entry| : (id += 1) {
-				if (id == self.root or !matches(entry.name, needle, ascii, &folded)) continue;
+				if (id == 0 or !matches(entry.name, needle, ascii, &folded)) continue;
 				out[found] = id;
 				found += 1;
 				if (found == out.len) return found;
@@ -167,46 +166,30 @@ pub const Index = struct {
 	}
 
 	fn gather(self: *const Index, needle: []const u8, lists: *[max_lists]Postings) usize {
-		var grams: [max_lists]u32 = undefined;
-		var keys: [max_lists]Key = undefined;
-		var used: usize = 0;
-
-		if (needle.len == 1) {
-			grams[0] = tag_uni | lower(needle[0]);
-			used = 1;
-		} else if (needle.len == 2) {
-			grams[0] = tag_bi | lower(needle[0]) << 8 | lower(needle[1]);
-			used = 1;
+		var keys: [256]Key = undefined;
+		var count: usize = 0;
+		if (needle.len < 3) {
+			const gram = if (needle.len == 1) tag_uni | @as(u32, needle[0]) else tag_bi | @as(u32, needle[0]) << 8 | needle[1];
+			keys[0] = self.lookup(gram) orelse return 0;
+			count = 1;
 		}
-
 		var i: usize = 0;
 		while (needle.len >= 3 and i + 3 <= needle.len) : (i += 1) {
-			const gram = triOf(needle[i..][0..3]);
-			if (std.mem.indexOfScalar(u32, grams[0..used], gram) != null) continue;
-			const key = self.lookup(gram) orelse return 0;
-			if (used < max_lists) {
-				grams[used] = gram;
-				keys[used] = key;
-				used += 1;
-				continue;
-			}
-			var worst: usize = 0;
-			for (keys[0..used], 0..) |k, at| if (k.count > keys[worst].count) {
-				worst = at;
-			};
-			if (key.count < keys[worst].count) {
-				grams[worst] = gram;
-				keys[worst] = key;
-			}
+			keys[count] = self.lookup(triOf(needle[i..][0..3])) orelse return 0;
+			count += 1;
 		}
-
-		if (needle.len < 3) keys[0] = self.lookup(grams[0]) orelse return 0;
-		std.mem.sort(Key, keys[0..used], {}, struct {
-			fn less(_: void, a: Key, b: Key) bool {
-				return a.count < b.count;
+		std.sort.pdq(Key, keys[0..count], {}, struct {
+			fn less(_: void, x: Key, y: Key) bool {
+				return x.count < y.count or (x.count == y.count and x.off < y.off);
 			}
 		}.less);
-		for (keys[0..used], lists[0..used]) |key, *list| list.* = .{ .bytes = self.post, .at = key.off, .left = key.count };
+		var used: usize = 0;
+		for (keys[0..count]) |key| {
+			if (used == max_lists) break;
+			if (used > 0 and lists[used - 1].at == key.off) continue;
+			lists[used] = .{ .bytes = self.post, .at = key.off, .left = key.count };
+			used += 1;
+		}
 		return used;
 	}
 
@@ -246,7 +229,6 @@ pub fn load(io: Io, file_path: []const u8) !Index {
 		.names = mapped[header.names_at..][0..header.names_len],
 		.post = mapped[header.post_at..][0..header.post_len],
 		.count = header.count,
-		.root = 0,
 		.built_ms = header.built_ms,
 	};
 }
@@ -272,12 +254,11 @@ const Store = struct {
 	allocator: Allocator,
 	slots: std.ArrayList(Slot) = .empty,
 	chunks: std.ArrayList(Chunk) = .empty,
-	index: []u32,
+	index: []u32 = &.{},
 
-	fn init(allocator: Allocator) !Store {
-		const index = try allocator.alloc(u32, 256 + 65536 + (1 << 18));
-		@memset(index, none);
-		return .{ .allocator = allocator, .index = index };
+	fn init(self: *Store) !void {
+		self.index = try self.allocator.alloc(u32, 256 + 65536 + (1 << 18));
+		@memset(self.index, none);
 	}
 
 	fn deinit(self: *Store) void {
@@ -295,7 +276,8 @@ const Store = struct {
 		const slot = &self.slots.items[index.*];
 		if (slot.count > 0 and slot.last == block) return;
 		var scratch: [10]u8 = undefined;
-		for (encodeVarint(&scratch, block - slot.last)) |byte| {
+		const bytes = encodeVarint(&scratch, block - slot.last);
+		for (bytes) |byte| {
 			if (slot.used == chunk_data) {
 				const fresh: u32 = @intCast(self.chunks.items.len);
 				try self.chunks.append(self.allocator, .{ .data = undefined, .next = none });
@@ -306,19 +288,9 @@ const Store = struct {
 			self.chunks.items[slot.tail].data[slot.used] = byte;
 			slot.used += 1;
 		}
-		slot.len += @intCast(encodeVarint(&scratch, block - slot.last).len);
+		slot.len += @intCast(bytes.len);
 		slot.last = block;
 		slot.count += 1;
-	}
-
-	fn chain(self: *const Store, slot: Slot, w: *std.Io.Writer) !void {
-		var left: usize = slot.len;
-		var at = slot.head;
-		while (left > 0) : (at = self.chunks.items[at].next) {
-			const take = @min(left, chunk_data);
-			try w.writeAll(self.chunks.items[at].data[0..take]);
-			left -= take;
-		}
 	}
 };
 
@@ -331,8 +303,14 @@ fn writeStore(allocator: Allocator, store: *Store, w: *std.Io.Writer, keys: *std
 	var off = base;
 	for (store.slots.items) |slot| {
 		try keys.append(allocator, .{ .gram = slot.gram, .count = slot.count, .off = @intCast(off) });
-		try store.chain(slot, w);
 		off += slot.len;
+		var left: usize = slot.len;
+		var at = slot.head;
+		while (left > 0) : (at = store.chunks.items[at].next) {
+			const take = @min(left, chunk_data);
+			try w.writeAll(store.chunks.items[at].data[0..take]);
+			left -= take;
+		}
 	}
 	return off;
 }
@@ -426,7 +404,7 @@ const Poster = struct {
 const Posters = struct {
 	io: Io,
 	allocator: Allocator,
-	posters: [2]*Poster,
+	posters: [2]Poster,
 	feeds: [2]Feed = .{ .{}, .{} },
 	filling: usize = 0,
 	shipped: usize = 0,
@@ -434,15 +412,18 @@ const Posters = struct {
 	stop: bool = false,
 
 	fn spawn(self: *Posters) void {
-		for (self.posters) |poster| poster.thread = std.Thread.spawn(.{}, worker, .{ self, poster }) catch null;
+		for (&self.posters) |*poster| poster.thread = std.Thread.spawn(.{}, worker, .{ self, poster }) catch null;
 	}
 
 	fn deinit(self: *Posters) void {
 		@atomicStore(bool, &self.stop, true, .release);
-		for (self.posters) |poster| if (poster.thread) |thread| {
-			poster.start.post(self.io);
-			thread.join();
-		};
+		for (&self.posters) |*poster| {
+			if (poster.thread) |thread| {
+				poster.start.post(self.io);
+				thread.join();
+			}
+			poster.deinit();
+		}
 		for (&self.feeds) |*feed| feed.deinit(self.allocator);
 	}
 
@@ -455,7 +436,7 @@ const Posters = struct {
 	fn ship(self: *Posters) !void {
 		try self.wait();
 		self.shipped = self.filling;
-		for (self.posters) |poster| {
+		for (&self.posters) |*poster| {
 			if (poster.thread == null) try poster.feed(&self.feeds[self.shipped]) else poster.start.post(self.io);
 		}
 		self.busy = true;
@@ -465,15 +446,15 @@ const Posters = struct {
 
 	fn wait(self: *Posters) !void {
 		if (!self.busy) return;
-		for (self.posters) |poster| if (poster.thread != null) poster.done.waitUncancelable(self.io);
+		for (&self.posters) |*poster| if (poster.thread != null) poster.done.waitUncancelable(self.io);
 		self.busy = false;
-		for (self.posters) |poster| if (@atomicLoad(bool, &poster.failed, .acquire)) return error.PostFailed;
+		for (&self.posters) |*poster| if (@atomicLoad(bool, &poster.failed, .acquire)) return error.PostFailed;
 	}
 
 	fn finish(self: *Posters) !void {
 		try self.ship();
 		try self.wait();
-		for (self.posters) |poster| try poster.flush(0);
+		for (&self.posters) |*poster| try poster.flush(0);
 	}
 
 	fn worker(self: *Posters, poster: *Poster) void {
@@ -578,9 +559,10 @@ const Lister = struct {
 
 	fn list(self: *Lister, dir: Dir) !Listing {
 		const from: u32 = @intCast(self.children.items.len);
-		const z = try self.allocator.dupeSentinel(u8, if (dir.path.len == 0) "/" else dir.path, 0);
-		defer self.allocator.free(z);
-		const opened = linux.open(z, .{ .ACCMODE = .RDONLY, .DIRECTORY = true, .NOFOLLOW = true, .CLOEXEC = true }, 0);
+		self.path.clearRetainingCapacity();
+		try self.path.appendSlice(self.allocator, if (dir.path.len == 0) "/" else dir.path);
+		try self.path.append(self.allocator, 0);
+		const opened = linux.open(@ptrCast(self.path.items.ptr), .{ .ACCMODE = .RDONLY, .DIRECTORY = true, .NOFOLLOW = true, .CLOEXEC = true }, 0);
 		if (linux.errno(opened) != .SUCCESS) return .{ .lister = self.index, .from = from, .to = from };
 		const fd: i32 = @intCast(opened);
 		defer _ = linux.close(fd);
@@ -643,14 +625,24 @@ fn skipPath(full: []const u8) bool {
 
 const batch_dirs = 64;
 
+const Batch = struct {
+	listers: []Lister,
+	results: std.ArrayList(Listing) = .empty,
+	from: usize = 0,
+	to: usize = 0,
+};
+
 const Pool = struct {
 	io: Io,
+	batches: [2]Batch,
 	threads: [max_threads]std.Thread = undefined,
 	count: usize = 0,
 	start: std.Io.Semaphore = .{},
 	done: std.Io.Semaphore = .{},
-	pass: *Pass = undefined,
+	current: *Batch = undefined,
 	dirs: []const Dir = &.{},
+	cursor: std.atomic.Value(usize) = .init(0),
+	busy: bool = false,
 	stop: bool = false,
 
 	fn spawn(self: *Pool, wanted: usize) void {
@@ -663,8 +655,7 @@ const Pool = struct {
 		while (true) {
 			self.start.waitUncancelable(self.io);
 			if (@atomicLoad(bool, &self.stop, .acquire)) return;
-			const pass = self.pass;
-			pass.listers[index].run(self.dirs[pass.from..pass.to], pass.results.items, &pass.cursor);
+			self.current.listers[index].run(self.dirs, self.current.results.items, &self.cursor);
 			self.done.post(self.io);
 		}
 	}
@@ -673,52 +664,32 @@ const Pool = struct {
 		@atomicStore(bool, &self.stop, true, .release);
 		for (0..self.count) |_| self.start.post(self.io);
 		for (self.threads[0..self.count]) |thread| thread.join();
-		self.count = 0;
 	}
-};
 
-const Pass = struct {
-	pool: *Pool,
-	listers: []Lister,
-	results: std.ArrayList(Listing) = .empty,
-	cursor: std.atomic.Value(usize) = .init(0),
-	active: bool = false,
-	from: usize = 0,
-	to: usize = 0,
-
-	fn start(self: *Pass, allocator: Allocator, dirs: []const Dir, from: usize, to: usize) !void {
-		self.from = from;
-		self.to = to;
-		try self.results.resize(allocator, to - from);
+	fn list(self: *Pool, allocator: Allocator, batch: *Batch, dirs: []const Dir, from: usize, to: usize) !void {
+		batch.from = from;
+		batch.to = to;
+		try batch.results.resize(allocator, to - from);
 		self.cursor.store(0, .monotonic);
-		if (self.pool.count == 0) {
-			self.listers[0].run(dirs[from..to], self.results.items, &self.cursor);
-			return;
-		}
-		self.pool.pass = self;
-		self.pool.dirs = dirs;
-		self.active = true;
-		for (0..self.pool.count) |_| self.pool.start.post(self.pool.io);
+		self.current = batch;
+		self.dirs = dirs[from..to];
+		if (self.count == 0) return batch.listers[0].run(self.dirs, batch.results.items, &self.cursor);
+		self.busy = true;
+		for (0..self.count) |_| self.start.post(self.io);
 	}
 
-	fn wait(self: *Pass) !void {
-		if (self.active) {
-			for (0..self.pool.count) |_| self.pool.done.waitUncancelable(self.pool.io);
-			self.active = false;
-		}
-		for (self.listers) |lister| if (lister.failed) return error.WalkFailed;
-	}
-
-	fn reset(self: *Pass) void {
-		for (self.listers) |*lister| lister.reset();
+	fn wait(self: *Pool, batch: *Batch) !void {
+		if (self.busy) for (0..self.count) |_| self.done.waitUncancelable(self.io);
+		self.busy = false;
+		for (batch.listers) |lister| if (lister.failed) return error.WalkFailed;
 	}
 };
 
 const Walker = struct {
 	allocator: Allocator,
 	encoder: *Encoder,
-	passes: *[2]Pass,
-	blocked: *const std.StringHashMapUnmanaged(void),
+	pool: *Pool,
+	blocked: []const []u8,
 	exclude: []const u8 = "",
 	ancestors: []const Dir = &.{},
 
@@ -726,18 +697,18 @@ const Walker = struct {
 		var level: std.ArrayList(Dir) = .empty;
 		defer freeDirs(self.allocator, &level);
 		try level.append(self.allocator, .{ .path = try self.allocator.dupe(u8, start.path), .id = start.id, .depth = start.depth });
-		defer for (self.passes) |*pass| pass.wait() catch {};
+		defer self.pool.wait(&self.pool.batches[0]) catch {};
 
 		while (level.items.len > 0) {
 			var next: std.ArrayList(Dir) = .empty;
 			errdefer freeDirs(self.allocator, &next);
 
 			const batches = (level.items.len + batch_dirs - 1) / batch_dirs;
-			try self.passes[0].start(self.allocator, level.items, 0, @min(batch_dirs, level.items.len));
+			try self.pool.list(self.allocator, &self.pool.batches[0], level.items, 0, @min(batch_dirs, level.items.len));
 			for (0..batches) |b| {
-				const pass = &self.passes[b % 2];
-				try pass.wait();
-				if (b + 1 < batches) try self.passes[(b + 1) % 2].start(self.allocator, level.items, (b + 1) * batch_dirs, @min((b + 2) * batch_dirs, level.items.len));
+				const pass = &self.pool.batches[b % 2];
+				try self.pool.wait(pass);
+				if (b + 1 < batches) try self.pool.list(self.allocator, &self.pool.batches[(b + 1) % 2], level.items, (b + 1) * batch_dirs, @min((b + 2) * batch_dirs, level.items.len));
 
 				for (level.items[pass.from..pass.to], pass.results.items) |*dir, listing| {
 					const lister = &pass.listers[listing.lister];
@@ -749,7 +720,7 @@ const Walker = struct {
 						const id = try self.encoder.add(entry_name, dir.id, child.dir);
 						if (!child.dir) continue;
 						const child_path = try std.mem.concat(self.allocator, u8, &.{ dir.path, "/", entry_name });
-						if (self.blocked.contains(child_path)) {
+						if (contains(self.blocked, child_path)) {
 							self.allocator.free(child_path);
 							continue;
 						}
@@ -758,7 +729,7 @@ const Walker = struct {
 					self.allocator.free(dir.path);
 					dir.path = &.{};
 				}
-				pass.reset();
+				for (pass.listers) |*lister| lister.reset();
 				try self.encoder.posters.ship();
 			}
 
@@ -807,44 +778,35 @@ pub fn build(io: Io, allocator: Allocator, root: []const u8, home: []const u8, o
 	try w.writeAll(std.mem.asBytes(&header));
 
 	const thread_count = @min(std.Thread.getCpuCount() catch 1, max_threads);
-	var pair: [2]*Poster = undefined;
-	var made: usize = 0;
-	defer for (pair[0..made]) |poster| {
-		poster.deinit();
-		allocator.destroy(poster);
-	};
-	while (made < 2) : (made += 1) {
-		pair[made] = try allocator.create(Poster);
-		pair[made].* = .{ .allocator = allocator, .store = try Store.init(allocator), .tri = made == 0 };
-	}
-	var posters: Posters = .{ .io = io, .allocator = allocator, .posters = pair };
-	posters.spawn();
+	const posters = try allocator.create(Posters);
+	defer allocator.destroy(posters);
+	posters.* = .{ .io = io, .allocator = allocator, .posters = .{
+		.{ .allocator = allocator, .store = .{ .allocator = allocator }, .tri = true },
+		.{ .allocator = allocator, .store = .{ .allocator = allocator }, .tri = false },
+	} };
 	defer posters.deinit();
+	for (&posters.posters) |*poster| try poster.store.init();
+	posters.spawn();
 
-	var encoder: Encoder = .{ .allocator = allocator, .w = w, .posters = &posters };
+	var encoder: Encoder = .{ .allocator = allocator, .w = w, .posters = posters };
 	defer encoder.starts.deinit(allocator);
 	var listers: [2][max_threads]Lister = undefined;
-	var pool: Pool = .{ .io = io };
+	for (&listers) |*set| for (set[0..thread_count], 0..) |*lister, i| {
+		lister.* = .{ .allocator = allocator, .index = @intCast(i), .home = home_path };
+	};
+	var pool: Pool = .{ .io = io, .batches = undefined };
 	pool.spawn(thread_count);
 	defer pool.shutdown();
-	var passes: [2]Pass = undefined;
-	for (&listers, &passes) |*set, *pass| {
-		for (set[0..thread_count], 0..) |*lister, i| lister.* = .{ .allocator = allocator, .index = @intCast(i), .home = home_path };
-		pass.* = .{ .pool = &pool, .listers = set[0..@max(1, pool.count)] };
-	}
-	defer for (&listers, &passes) |*set, *pass| {
+	for (&pool.batches, &listers) |*batch, *set| batch.* = .{ .listers = set[0..@max(1, pool.count)] };
+	defer for (&listers, &pool.batches) |*set, *batch| {
 		for (set[0..thread_count]) |*lister| lister.deinit();
-		pass.results.deinit(allocator);
+		batch.results.deinit(allocator);
 	};
 
 	_ = try encoder.add(root_name, none, true);
 	var blocked = try blockedMounts(io, allocator, root_name, home_path);
-	defer {
-		var keys = blocked.keyIterator();
-		while (keys.next()) |key| allocator.free(key.*);
-		blocked.deinit(allocator);
-	}
-	var walker: Walker = .{ .allocator = allocator, .encoder = &encoder, .passes = &passes, .blocked = &blocked };
+	defer freePaths(allocator, &blocked);
+	var walker: Walker = .{ .allocator = allocator, .encoder = &encoder, .pool = &pool, .blocked = blocked.items };
 
 	var ancestors: std.ArrayList(Dir) = .empty;
 	defer {
@@ -876,7 +838,7 @@ pub fn build(io: Io, allocator: Allocator, root: []const u8, home: []const u8, o
 
 	var keys: std.ArrayList(Key) = .empty;
 	defer keys.deinit(allocator);
-	header.post_len = try writeStore(allocator, &pair[1].store, w, &keys, try writeStore(allocator, &pair[0].store, w, &keys, 0));
+	header.post_len = try writeStore(allocator, &posters.posters[1].store, w, &keys, try writeStore(allocator, &posters.posters[0].store, w, &keys, 0));
 	header.keys = @intCast(keys.items.len);
 
 	const pad = (4 - (header.post_at + header.post_len) % 4) % 4;
@@ -898,9 +860,9 @@ const Mount = struct {
 	source: []const u8,
 };
 
-fn blockedMounts(io: Io, allocator: Allocator, root: []const u8, home: []const u8) !std.StringHashMapUnmanaged(void) {
-	var blocked: std.StringHashMapUnmanaged(void) = .empty;
-	errdefer blocked.deinit(allocator);
+fn blockedMounts(io: Io, allocator: Allocator, root: []const u8, home: []const u8) !std.ArrayList([]u8) {
+	var blocked: std.ArrayList([]u8) = .empty;
+	errdefer freePaths(allocator, &blocked);
 	const body = proc.readFile(io, allocator, "/proc/self/mountinfo") catch return blocked;
 	defer allocator.free(body);
 
@@ -930,10 +892,20 @@ fn blockedMounts(io: Io, allocator: Allocator, root: []const u8, home: []const u
 	for (mounts.items) |mount| {
 		if (std.mem.eql(u8, mount.source, keep_root) or std.mem.eql(u8, mount.source, keep_home)) continue;
 		if (!within(mount.point, root) or std.mem.eql(u8, mount.point, root)) continue;
-		if (blocked.contains(mount.point)) continue;
-		try blocked.put(allocator, try allocator.dupe(u8, mount.point), {});
+		if (contains(blocked.items, mount.point)) continue;
+		try blocked.append(allocator, try allocator.dupe(u8, mount.point));
 	}
 	return blocked;
+}
+
+fn contains(paths: []const []u8, path: []const u8) bool {
+	for (paths) |known| if (std.mem.eql(u8, known, path)) return true;
+	return false;
+}
+
+fn freePaths(allocator: Allocator, paths: *std.ArrayList([]u8)) void {
+	for (paths.items) |path| allocator.free(path);
+	paths.deinit(allocator);
 }
 
 fn sourceOf(mounts: []const Mount, path: []const u8) []const u8 {
@@ -1066,20 +1038,14 @@ pub const Recent = struct {
 			self.mutex.unlock(self.io);
 			return;
 		};
-		const full = std.mem.concat(self.allocator, u8, &.{ parent.path, "/", name }) catch {
-			self.mutex.unlock(self.io);
-			return;
-		};
-		if (self.paths.items.len >= recent_cap) self.allocator.free(self.paths.orderedRemove(0).path);
-		self.paths.append(self.allocator, .{ .path = full, .at = std.Io.Clock.real.now(self.io).toMilliseconds() }) catch self.allocator.free(full);
-		const depth = parent.depth;
+		var buf: [std.fs.max_path_bytes]u8 = undefined;
+		const full = std.fmt.bufPrint(&buf, "{s}/{s}", .{ parent.path, name }) catch "";
+		if (full.len > 0) if (self.allocator.dupe(u8, full)) |owned| {
+			if (self.paths.items.len >= recent_cap) self.allocator.free(self.paths.orderedRemove(0).path);
+			self.paths.append(self.allocator, .{ .path = owned, .at = std.Io.Clock.real.now(self.io).toMilliseconds() }) catch self.allocator.free(owned);
+		} else |_| {};
 		self.mutex.unlock(self.io);
-		if (dir and depth < watch_depth) {
-			var copy_buf: [std.fs.max_path_bytes]u8 = undefined;
-			if (copy_buf.len < full.len) return;
-			@memcpy(copy_buf[0..full.len], full);
-			self.watchTree(copy_buf[0..full.len], depth + 1);
-		}
+		if (dir and full.len > 0 and parent.depth < watch_depth) self.watchTree(full, parent.depth + 1);
 	}
 
 	pub fn search(self: *Recent, arena: Allocator, query: []const u8, out: *std.ArrayList([]const u8)) !void {
@@ -1170,10 +1136,6 @@ fn foldCodepoint(cp: u16) u16 {
 		0x460...0x481, 0x48A...0x4BF => cp | 1,
 		else => cp,
 	};
-}
-
-fn lower(c: u8) u32 {
-	return std.ascii.toLower(c);
 }
 
 const symbols = blk: {
