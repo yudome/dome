@@ -51,12 +51,13 @@ A governor loop every 5s steps idle VMs hot to warm (5 min), warm to parked (15 
 
 ## File search
 
-`providers/files.zig` is the launcher's file and folder name index, Spotlight style. The launcher appends up to 8 `file` rows under the ranked results for any home search; activating one runs `xdg-open`.
+`providers/files.zig` is the launcher's file and folder name index, Spotlight style. For any home search the launcher puts up to 8 `file` rows after the first 4 results; activating one runs `xdg-open` and records usage like apps.
 
-- Built by `yudaemond files-index <root> <home> <out>`, a short-lived child at nice 19, so its memory goes back to the OS. It runs as the user, so only readable paths are indexed and no root-only name leaks. One thread per core walks `/` with `getdents64` only (no stat per entry). Hidden entries are never indexed. Skipped: the disk guard's protected paths, `/tmp /var/tmp /var/cache /var/log /lost+found`, and `node_modules`, `__pycache__`, `zig-out`.
-- File `shell/cache/launcher/files.idx`, written to a temp file and renamed, read through `mmap` so idle RAM is the page cache only. Entries are sorted by rank (depth, outside `$HOME` pushed down), then parent, then name, and packed in blocks of 64: front-coded names plus a zigzag varint parent delta and dir bit. Each 1, 2 and 3 letter gram keeps a varint list of the blocks it appears in.
-- A query intersects up to 8 of its rarest gram lists, decodes only the matching blocks and stops at 200 hits. Hits are reordered exact, prefix, word start, substring and checked with `faccessat` so deleted files never show.
-- Rebuilt in the background when older than 10 minutes and a search arrives. There is no live fanotify patching yet.
+- Built by `yudaemond files-index <root> <home> <out>`, a short-lived child at nice 19, so its memory goes back to the OS. It runs as the user, so only readable paths are indexed. Hidden entries are skipped except `~/.config`. Skipped: the disk guard's protected paths, `/tmp /var /opt /nix /snap /lost+found`, `node_modules`, `__pycache__`, `zig-out`, and any mount whose source device is not the one `/` or `$HOME` lives on (USB disks, network shares), whose folder shows but is not walked.
+- Breadth first, `$HOME` before the rest, so ids are already in rank order. A thread pool lists directories in batches of 64 while the main thread streams names to the file; two poster threads build the gram lists (trigrams, and 1 and 2 byte grams).
+- File `shell/cache/launcher/files.idx`, written to a hidden temp file and renamed, read through `mmap`. Layout: header with section offsets, names, posting lists, block starts, keys. Blocks of 64 entries hold front-coded names plus a zigzag varint parent delta and dir bit. Names are folded to lower case for ASCII, Latin-1, Latin Extended-A, Greek and Cyrillic.
+- A query intersects up to 8 of its rarest gram lists, decodes only matching blocks and stops at 64 hits. Rows sort exact match first, then files you opened before, then prefix, word start, substring, then `$HOME` first, then newest modified; `statx` drops deleted files.
+- Freshness: the launcher sends `opened` when it shows, and the index is rebuilt in the background when older than 5 minutes. An inotify watcher on `$HOME` and two levels below (at most 2048 directories) adds new files to the results at once; they are dropped from that list after the next rebuild.
 
 ## Disk provider
 
