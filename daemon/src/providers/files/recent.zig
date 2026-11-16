@@ -2,6 +2,7 @@ const std = @import("std");
 const linux = std.os.linux;
 const index = @import("index.zig");
 const build = @import("build.zig");
+const proc = @import("../../primitives/proc.zig");
 
 const Allocator = std.mem.Allocator;
 const recent_cap = 512;
@@ -22,20 +23,25 @@ pub const Recent = struct {
 	allocator: Allocator,
 	io: std.Io,
 	home: []u8,
+	log: []u8,
 	fd: i32 = -1,
+	log_fd: i32 = -1,
 	mutex: std.Io.Mutex = .init,
 	paths: std.ArrayList(Fresh) = .empty,
 	dirs: std.AutoHashMapUnmanaged(i32, Watched) = .empty,
 
-	pub fn create(allocator: Allocator, io: std.Io, home: []const u8) !*Recent {
+	pub fn create(allocator: Allocator, io: std.Io, home: []const u8, log: []const u8) !*Recent {
 		const self = try allocator.create(Recent);
 		errdefer allocator.destroy(self);
-		self.* = .{ .allocator = allocator, .io = io, .home = try allocator.dupe(u8, std.mem.trimEnd(u8, home, "/")) };
+		self.* = .{ .allocator = allocator, .io = io, .home = try allocator.dupe(u8, std.mem.trimEnd(u8, home, "/")), .log = try allocator.dupe(u8, log) };
+		if (std.fs.path.dirname(log)) |dir| std.Io.Dir.cwd().createDirPath(io, dir) catch {};
 		return self;
 	}
 
 	pub fn deinit(self: *Recent) void {
 		if (self.fd >= 0) _ = linux.close(self.fd);
+		if (self.log_fd >= 0) _ = linux.close(self.log_fd);
+		self.allocator.free(self.log);
 		var dirs = self.dirs.valueIterator();
 		while (dirs.next()) |dir| self.allocator.free(dir.path);
 		self.dirs.deinit(self.allocator);
@@ -48,8 +54,49 @@ pub const Recent = struct {
 		const fd = linux.inotify_init1(linux.IN.CLOEXEC);
 		if (linux.errno(fd) != .SUCCESS) return error.WatchInit;
 		self.fd = @intCast(fd);
+		self.load();
 		self.watchTree(self.home, 0);
 		(try std.Thread.spawn(.{}, loop, .{self})).detach();
+	}
+
+	fn load(self: *Recent) void {
+		const body = proc.readFile(self.io, self.allocator, self.log) catch "";
+		defer self.allocator.free(body);
+		var lines = std.mem.splitScalar(u8, body, '\n');
+		while (lines.next()) |line| {
+			const space = std.mem.indexOfScalar(u8, line, ' ') orelse continue;
+			const at = std.fmt.parseInt(i64, line[0..space], 10) catch continue;
+			self.remember(line[space + 1 ..], at, false);
+		}
+		self.rewrite();
+	}
+
+	fn remember(self: *Recent, path: []const u8, at: i64, append: bool) void {
+		const owned = self.allocator.dupe(u8, path) catch return;
+		if (self.paths.items.len >= recent_cap) self.allocator.free(self.paths.orderedRemove(0).path);
+		self.paths.append(self.allocator, .{ .path = owned, .at = at }) catch return self.allocator.free(owned);
+		if (!append) return;
+		var buf: [std.fs.max_path_bytes + 32]u8 = undefined;
+		const line = std.fmt.bufPrint(&buf, "{d} {s}\n", .{ at, path }) catch return;
+		_ = linux.write(self.log_fd, line.ptr, line.len);
+	}
+
+	fn rewrite(self: *Recent) void {
+		var buf: [std.fs.max_path_bytes + 32]u8 = undefined;
+		const temp = std.fmt.bufPrintSentinel(&buf, "{s}.tmp", .{self.log}, 0) catch return;
+		const fd = linux.open(temp, .{ .ACCMODE = .WRONLY, .CREAT = true, .TRUNC = true, .CLOEXEC = true }, 0o600);
+		if (linux.errno(fd) != .SUCCESS) return;
+		var line_buf: [std.fs.max_path_bytes + 32]u8 = undefined;
+		for (self.paths.items) |fresh| {
+			const line = std.fmt.bufPrint(&line_buf, "{d} {s}\n", .{ fresh.at, fresh.path }) catch continue;
+			_ = linux.write(@intCast(fd), line.ptr, line.len);
+		}
+		var log_buf: [std.fs.max_path_bytes + 1]u8 = undefined;
+		const log = std.fmt.bufPrintSentinel(&log_buf, "{s}", .{self.log}, 0) catch return;
+		if (linux.errno(linux.rename(temp, log)) != .SUCCESS) return;
+		if (self.log_fd >= 0) _ = linux.close(self.log_fd);
+		self.log_fd = @intCast(fd);
+		_ = linux.lseek(self.log_fd, 0, linux.SEEK.END);
 	}
 
 	fn watchTree(self: *Recent, path: []const u8, depth: u8) void {
@@ -109,10 +156,7 @@ pub const Recent = struct {
 		self.mutex.lockUncancelable(self.io);
 		const parent = self.dirs.get(wd) orelse return self.mutex.unlock(self.io);
 		const full = std.fmt.bufPrint(&buf, "{s}/{s}", .{ parent.path, name }) catch return self.mutex.unlock(self.io);
-		if (self.allocator.dupe(u8, full)) |owned| {
-			if (self.paths.items.len >= recent_cap) self.allocator.free(self.paths.orderedRemove(0).path);
-			self.paths.append(self.allocator, .{ .path = owned, .at = std.Io.Clock.real.now(self.io).toMilliseconds() }) catch self.allocator.free(owned);
-		} else |_| {}
+		self.remember(full, std.Io.Clock.real.now(self.io).toMilliseconds(), true);
 		self.mutex.unlock(self.io);
 		if (dir and parent.depth < watch_depth) self.watchTree(full, parent.depth + 1);
 	}
@@ -140,6 +184,7 @@ pub const Recent = struct {
 		while (at < self.paths.items.len) {
 			if (self.paths.items[at].at >= before) at += 1 else self.allocator.free(self.paths.orderedRemove(at).path);
 		}
+		self.rewrite();
 	}
 };
 
@@ -156,9 +201,12 @@ test "recent files show up from inotify before the next rebuild" {
 	defer allocator.free(file);
 	try std.Io.Dir.cwd().createDirPath(io, std.fs.path.dirname(file).?);
 
-	var recent: Recent = .{ .allocator = allocator, .io = io, .home = try allocator.dupe(u8, root) };
+	const log = try std.fmt.allocPrint(allocator, "{s}/files.log", .{root});
+	defer allocator.free(log);
+	var recent: Recent = .{ .allocator = allocator, .io = io, .home = try allocator.dupe(u8, root), .log = try allocator.dupe(u8, log) };
 	defer recent.deinit();
 	recent.fd = @intCast(linux.inotify_init1(linux.IN.CLOEXEC | linux.IN.NONBLOCK));
+	recent.load();
 	recent.watchTree(recent.home, 0);
 	try std.testing.expectEqual(@as(u32, 2), recent.dirs.count());
 
@@ -176,8 +224,19 @@ test "recent files show up from inotify before the next rebuild" {
 	try std.testing.expectEqual(@as(usize, 1), out.items.len);
 	try std.testing.expectEqualStrings(file, out.items[0]);
 
+	var reopened: Recent = .{ .allocator = allocator, .io = io, .home = try allocator.dupe(u8, root), .log = try allocator.dupe(u8, log) };
+	defer reopened.deinit();
+	reopened.load();
+	out.clearRetainingCapacity();
+	try reopened.search(arena.allocator(), "invoice", &out);
+	try std.testing.expectEqual(@as(usize, 1), out.items.len);
+
 	recent.prune(std.math.maxInt(i64));
 	out.clearRetainingCapacity();
 	try recent.search(arena.allocator(), "invoice", &out);
 	try std.testing.expectEqual(@as(usize, 0), out.items.len);
+	var emptied: Recent = .{ .allocator = allocator, .io = io, .home = try allocator.dupe(u8, root), .log = try allocator.dupe(u8, log) };
+	defer emptied.deinit();
+	emptied.load();
+	try std.testing.expectEqual(@as(usize, 0), emptied.paths.items.len);
 }
