@@ -3,10 +3,12 @@ const hubmod = @import("../hub.zig");
 const http = @import("../primitives/http.zig");
 const json = @import("../primitives/json.zig");
 const proc = @import("../primitives/proc.zig");
+const exec = @import("../primitives/exec.zig");
 const sleep = @import("../primitives/sleep.zig");
 const config = @import("../primitives/config.zig");
 const setStr = @import("opencode.zig").setStr;
 const fmt = @import("../primitives/fmt.zig");
+const networkmod = @import("network.zig");
 
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
@@ -15,6 +17,16 @@ const Hub = hubmod.Hub;
 
 const max_places = 4;
 const max_stations = 3;
+const retry_floor_ms: u64 = 10_000;
+const connect_timeout_s = "5";
+const request_timeout_s = "15";
+const user_agent = "quickshell-weather (weather@example.com)";
+
+fn nextWait(refresh_ms: u64, wait: u64, loaded: bool) u64 {
+	if (loaded) return refresh_ms;
+
+	return @min(refresh_ms, @max(wait *| 2, retry_floor_ms));
+}
 
 const Day = struct {
 	date: []u8,
@@ -110,7 +122,7 @@ pub const Weather = struct {
 	allocator: Allocator,
 	io: Io,
 	hub: *Hub,
-	http: *http.Client,
+	network: ?*networkmod.Network = null,
 	mutex: std.Io.Mutex = .init,
 	scratch: std.heap.ArenaAllocator,
 	places: [max_places][]u8 = .{ &.{}, &.{}, &.{}, &.{} },
@@ -132,19 +144,22 @@ pub const Weather = struct {
 	codes: []const config.CodeRow = &.{},
 	sun: []const u8 = &.{},
 
-	pub fn create(allocator: Allocator, io: Io, hub: *Hub, client: *http.Client) !*Weather {
+	pub fn create(allocator: Allocator, io: Io, hub: *Hub) !*Weather {
 		const self = try allocator.create(Weather);
 		self.* = .{
 			.allocator = allocator,
 			.io = io,
 			.hub = hub,
-			.http = client,
 			.scratch = std.heap.ArenaAllocator.init(allocator),
 		};
 
 		self.loadConfig();
 
 		return self;
+	}
+
+	pub fn attachNetwork(self: *Weather, net: *networkmod.Network) void {
+		self.network = net;
 	}
 
 	pub fn provider(self: *Weather) hubmod.Provider {
@@ -203,15 +218,48 @@ pub const Weather = struct {
 
 		self.refreshAll(focused);
 
+		var wait: u64 = @min(self.refresh_ms, retry_floor_ms);
+
 		while (true) {
-			sleep.ms(self.refresh_ms);
+			self.waitForLink(wait);
 
 			self.mutex.lockUncancelable(self.io);
 			const current = self.index;
 			self.mutex.unlock(self.io);
 
 			self.refreshAll(current);
+			wait = nextWait(self.refresh_ms, wait, self.hasData());
 		}
+	}
+
+	fn waitForLink(self: *Weather, ms: u64) void {
+		const net = self.network orelse return sleep.ms(ms);
+
+		if (net.online()) return sleep.ms(ms);
+
+		var left = ms;
+
+		while (left > 0) {
+			const step = @min(left, 1_000);
+			sleep.ms(step);
+			left -= step;
+			if (net.online()) return;
+		}
+	}
+
+	fn hasData(self: *Weather) bool {
+		self.mutex.lockUncancelable(self.io);
+		defer self.mutex.unlock(self.io);
+
+		var wanted = false;
+
+		for (self.places, 0..) |place, i| {
+			if (place.len == 0) continue;
+			if (self.slots[i].temp.len > 0) return true;
+			wanted = true;
+		}
+
+		return !wanted;
 	}
 
 	fn loadPlaces(self: *Weather) void {
@@ -423,6 +471,16 @@ pub const Weather = struct {
 		days: []Day,
 	};
 
+	fn getJson(self: *Weather, arena: Allocator, url: []const u8) !std.json.Parsed(std.json.Value) {
+		const result = try exec.run(self.io, arena, &.{
+			"curl", "-fsS", "--connect-timeout", connect_timeout_s, "--max-time", request_timeout_s, "-A", user_agent, url,
+		});
+
+		if (result.code != 0) return error.HttpStatus;
+
+		return std.json.parseFromSlice(std.json.Value, arena, result.out, .{ .allocate = .alloc_always });
+	}
+
 	fn forecast(self: *Weather, lat: f64, lon: f64) ?Forecast {
 		const url = std.fmt.allocPrint(self.allocator, "https://api.open-meteo.com/v1/forecast?latitude={d}&longitude={d}" ++
 			"&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,precipitation" ++
@@ -433,7 +491,7 @@ pub const Weather = struct {
 		var arena = std.heap.ArenaAllocator.init(self.allocator);
 		defer arena.deinit();
 
-		const parsed = self.http.getJson(arena.allocator(), url, null, &.{}) catch return null;
+		const parsed = self.getJson(arena.allocator(), url) catch return null;
 		const root = parsed.value;
 		const current = json.field(root, "current") orelse return null;
 
@@ -498,7 +556,7 @@ pub const Weather = struct {
 		var arena = std.heap.ArenaAllocator.init(self.allocator);
 		defer arena.deinit();
 
-		const parsed = self.http.getJson(arena.allocator(), target, null, &.{}) catch return null;
+		const parsed = self.getJson(arena.allocator(), target) catch return null;
 		const row = pickRegion(json.listAt(parsed.value, "results"), region) orelse return null;
 
 		return .{ json.numberAt(row, "latitude"), json.numberAt(row, "longitude") };
@@ -514,7 +572,7 @@ pub const Weather = struct {
 		var arena = std.heap.ArenaAllocator.init(self.allocator);
 		defer arena.deinit();
 
-		const parsed = self.http.getJson(arena.allocator(), target, null, &.{}) catch return;
+		const parsed = self.getJson(arena.allocator(), target) catch return;
 
 		var next: std.ArrayListUnmanaged(Suggest) = .empty;
 
@@ -793,25 +851,23 @@ pub const Weather = struct {
 	}
 
 	fn observationCode(self: *Weather, lat: f64, lon: f64) ?i64 {
-		const user_agent = [_]std.http.Header{.{ .name = "User-Agent", .value = "quickshell-weather (weather@example.com)" }};
-
 		const points_url = std.fmt.allocPrint(self.allocator, "https://api.weather.gov/points/{d},{d}", .{ lat, lon }) catch return null;
 		defer self.allocator.free(points_url);
 
 		var arena = std.heap.ArenaAllocator.init(self.allocator);
 		defer arena.deinit();
 
-		const points = self.http.getJson(arena.allocator(), points_url, null, &user_agent) catch return null;
+		const points = self.getJson(arena.allocator(), points_url) catch return null;
 		const stations_url = json.textDeep(points.value, &.{ "properties", "observationStations" });
 		if (stations_url.len == 0) return null;
 
-		const stations = self.http.getJson(arena.allocator(), stations_url, null, &user_agent) catch return null;
+		const stations = self.getJson(arena.allocator(), stations_url) catch return null;
 
 		const ids = nearestStations(arena.allocator(), stations.value, lat, lon, self.station_count) catch return null;
 
 		for (ids) |id| {
 			const url = std.fmt.allocPrint(arena.allocator(), "https://api.weather.gov/stations/{s}/observations/latest", .{id}) catch continue;
-			const observation = self.http.getJson(arena.allocator(), url, null, &user_agent) catch continue;
+			const observation = self.getJson(arena.allocator(), url) catch continue;
 
 			const text = json.textDeep(observation.value, &.{ "properties", "textDescription" });
 			const code = codeFromText(text);
@@ -1090,6 +1146,15 @@ fn codeFromText(text: []const u8) i64 {
 	if (std.mem.indexOf(u8, line, "clear") != null or std.mem.indexOf(u8, line, "sunny") != null) return 0;
 
 	return -1;
+}
+
+test "an empty weather retries sooner than the refresh" {
+	try std.testing.expectEqual(@as(u64, 120_000), nextWait(120_000, 10_000, true));
+	try std.testing.expectEqual(@as(u64, 20_000), nextWait(120_000, 10_000, false));
+	try std.testing.expectEqual(@as(u64, 40_000), nextWait(120_000, 20_000, false));
+	try std.testing.expectEqual(@as(u64, 120_000), nextWait(120_000, 80_000, false));
+	try std.testing.expectEqual(@as(u64, 120_000), nextWait(120_000, 120_000, false));
+	try std.testing.expectEqual(@as(u64, 5_000), nextWait(5_000, 10_000, false));
 }
 
 test "day labels follow the date" {

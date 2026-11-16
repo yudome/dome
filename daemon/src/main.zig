@@ -556,7 +556,7 @@ fn run(io: std.Io) !void {
 	const github_provider = try github.Github.create(allocator, io, hub, client);
 	try hub.add(github_provider.provider());
 
-	const weather_provider = try weather.Weather.create(allocator, io, hub, client);
+	const weather_provider = try weather.Weather.create(allocator, io, hub);
 	try hub.add(weather_provider.provider());
 
 	const system_provider = try system.System.create(allocator, io, hub, opencode_provider);
@@ -576,6 +576,7 @@ fn run(io: std.Io) !void {
 	try hub.add(config_settings.provider());
 
 	const network_provider = try network.Network.create(allocator, io, hub);
+	weather_provider.attachNetwork(network_provider);
 	try hub.add(network_provider.provider());
 
 	const audio_provider = try audio.Audio.create(allocator, io, hub);

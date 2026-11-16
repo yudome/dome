@@ -275,6 +275,13 @@ pub const Network = struct {
 		self.scan(false);
 	}
 
+	pub fn online(self: *Network) bool {
+		self.mutex.lockUncancelable(self.io);
+		defer self.mutex.unlock(self.io);
+
+		return self.connected;
+	}
+
 	pub fn hasWifi(self: *Network) bool {
 		for (self.adapters.items) |entry| {
 			if (std.mem.eql(u8, entry.kind, "wifi")) return true;
