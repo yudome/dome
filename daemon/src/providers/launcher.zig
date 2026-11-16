@@ -7,6 +7,7 @@ const vmsmod = @import("vms.zig");
 const clipwatch = @import("clipwatch.zig");
 const filesmod = @import("files/index.zig");
 const recentmod = @import("files/recent.zig");
+const buildmod = @import("files/build.zig");
 const calc = @import("../primitives/calc.zig");
 const json = @import("../primitives/json.zig");
 const exec = @import("../primitives/exec.zig");
@@ -27,7 +28,8 @@ const clip_limit = 5 * 1024 * 1024;
 const page_bytes = 8000;
 const file_results = 8;
 const file_candidates = 64;
-const file_stale_ms = 60 * 1000;
+const file_scan_ms = 10 * 1000;
+const file_compact_ms = 24 * 60 * 60 * 1000;
 const file_after = 4;
 const first_pages = 2;
 const more_pages = 2;
@@ -235,6 +237,7 @@ pub const Launcher = struct {
 	files: ?filesmod.Index = null,
 	files_mutex: std.Io.Mutex = .init,
 	files_building: std.atomic.Value(bool) = .init(false),
+	files_scanned: std.atomic.Value(i64) = .init(0),
 	recent: ?*recentmod.Recent = null,
 	pins: std.ArrayListUnmanaged([]u8) = .empty,
 	saved: std.ArrayListUnmanaged(Saved) = .empty,
@@ -1389,14 +1392,10 @@ pub const Launcher = struct {
 	}
 
 	fn refreshFiles(self: *Launcher) void {
-		self.files_mutex.lockUncancelable(self.io);
-		const built = if (self.files) |loaded| loaded.built_ms else 0;
-		self.files_mutex.unlock(self.io);
-
-		if (fmt.nowMs(self.io) - built < file_stale_ms) return;
+		if (fmt.nowMs(self.io) - self.files_scanned.load(.acquire) < file_scan_ms) return;
 		if (self.files_building.swap(true, .acq_rel)) return;
 
-		const thread = std.Thread.spawn(.{}, buildFiles, .{self}) catch {
+		const thread = std.Thread.spawn(.{}, syncFiles, .{self}) catch {
 			self.files_building.store(false, .release);
 			return;
 		};
@@ -1418,9 +1417,17 @@ pub const Launcher = struct {
 		}
 	}
 
-	fn buildFiles(self: *Launcher) void {
+	fn syncFiles(self: *Launcher) void {
 		defer self.files_building.store(false, .release);
+		defer self.files_scanned.store(fmt.nowMs(self.io), .release);
+		const index = if (self.files) |*loaded| loaded else return self.buildFiles();
+		const recent = self.recent orelse return self.buildFiles();
+		if (fmt.nowMs(self.io) - index.built_ms > file_compact_ms) return self.buildFiles();
+		const changed = buildmod.changes(self.allocator, index, proc.home(self.io, self.allocator), recent) catch return self.buildFiles();
+		if (changed > 0) self.hub.publish();
+	}
 
+	fn buildFiles(self: *Launcher) void {
 		const path = self.cacheFile(self.allocator, "files.idx") catch return;
 		defer self.allocator.free(path);
 		const started = fmt.nowMs(self.io);
@@ -1704,12 +1711,13 @@ fn fileQuality(path: []const u8, needle: []const u8) u8 {
 fn preloadIndex(self: *Launcher) void {
 	self.ensureIndex();
 	self.loadFiles();
+	if (self.cacheFile(self.allocator, "files.log")) |log| {
+		defer self.allocator.free(log);
+		if (recentmod.Recent.create(self.allocator, self.io, proc.home(self.io, self.allocator), log)) |recent| {
+			if (recent.start()) self.recent = recent else |_| {}
+		} else |_| {}
+	} else |_| {}
 	self.refreshFiles();
-	const log = self.cacheFile(self.allocator, "files.log") catch return;
-	defer self.allocator.free(log);
-	const recent = recentmod.Recent.create(self.allocator, self.io, proc.home(self.io, self.allocator), log) catch return;
-	recent.start() catch return;
-	self.recent = recent;
 }
 
 const Wake = struct {
