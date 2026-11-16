@@ -5,7 +5,8 @@ const sysmod = @import("system.zig");
 const windowsmod = @import("windows.zig");
 const vmsmod = @import("vms.zig");
 const clipwatch = @import("clipwatch.zig");
-const filesmod = @import("files.zig");
+const filesmod = @import("files/index.zig");
+const recentmod = @import("files/recent.zig");
 const calc = @import("../primitives/calc.zig");
 const json = @import("../primitives/json.zig");
 const exec = @import("../primitives/exec.zig");
@@ -234,7 +235,7 @@ pub const Launcher = struct {
 	files: ?filesmod.Index = null,
 	files_mutex: std.Io.Mutex = .init,
 	files_building: std.atomic.Value(bool) = .init(false),
-	recent: ?*filesmod.Recent = null,
+	recent: ?*recentmod.Recent = null,
 	pins: std.ArrayListUnmanaged([]u8) = .empty,
 	saved: std.ArrayListUnmanaged(Saved) = .empty,
 	clips: std.ArrayListUnmanaged(Clip) = .empty,
@@ -1699,7 +1700,7 @@ fn preloadIndex(self: *Launcher) void {
 	self.ensureIndex();
 	self.loadFiles();
 	self.refreshFiles();
-	const recent = filesmod.Recent.create(self.allocator, self.io, proc.home(self.io, self.allocator)) catch return;
+	const recent = recentmod.Recent.create(self.allocator, self.io, proc.home(self.io, self.allocator)) catch return;
 	recent.start() catch return;
 	self.recent = recent;
 }
