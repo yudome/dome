@@ -37,6 +37,7 @@ const media = @import("providers/media.zig");
 const calendar = @import("providers/calendar.zig");
 const vms = @import("providers/vms.zig");
 const fsd = @import("providers/disk/fsd.zig");
+const files = @import("providers/files.zig");
 const disk = @import("providers/disk/disk.zig");
 const iconsmod = @import("primitives/icons.zig");
 const cli = @import("cli.zig");
@@ -493,6 +494,7 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "parity")) return cli.parity(io, args);
 	if (std.mem.eql(u8, command, "mcp")) return cli.mcp(io, args);
 	if (std.mem.eql(u8, command, "fsd") or std.mem.eql(u8, command, "yudae-fsd")) return fsd.run(io);
+	if (std.mem.eql(u8, command, "files-index")) return files.command(io, args);
 
 	if (!std.mem.eql(u8, command, "run")) {
 		std.debug.print("usage: yudae [run|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|ui|spawn-check|logout]\n", .{});
