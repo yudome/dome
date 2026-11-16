@@ -9,6 +9,8 @@ const guardmod = @import("guard.zig");
 const scanner = @import("scanner.zig");
 const cache = @import("cache.zig");
 const fanotify = @import("fanotify.zig");
+const follow = @import("../files/follow.zig");
+const files = @import("../files/build.zig");
 
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
@@ -17,6 +19,7 @@ const scan_action = "org.yudae.fs.scan";
 const remove_action = "org.yudae.fs.remove";
 const bench_action = "org.yudae.fs.bench";
 const packages_action = "org.yudae.packages.manage";
+const follow_action = "org.yudae.fs.follow";
 
 const Peer = extern struct {
 	pid: i32,
@@ -109,8 +112,7 @@ fn dispatch(
 	request: json.Value,
 	socket_dir: []const u8,
 ) ![]const u8 {
-	_ = fd;
-
+	if (std.mem.eql(u8, action, "follow")) return followAction(io, allocator, fd, pidfd, peer, request);
 	if (std.mem.eql(u8, action, "scan")) return scan(io, allocator, pidfd, peer, request, socket_dir);
 	if (std.mem.eql(u8, action, "remove")) return remove(io, allocator, pidfd, peer, request);
 	if (std.mem.eql(u8, action, "move")) return move(io, allocator, pidfd, peer, request);
@@ -382,6 +384,21 @@ fn watch(io: Io, allocator: Allocator, pidfd: i32, peer: Peer, request: json.Val
 	}
 	try out.writer.writeAll("]}");
 	return out.written();
+}
+
+fn followAction(io: Io, allocator: Allocator, fd: i32, pidfd: i32, peer: Peer, request: json.Value) ![]const u8 {
+	try authorize(pidfd, peer.uid, peer.gid, follow_action, "/");
+	var roots: std.ArrayList([]const u8) = .empty;
+	for (json.listAt(request, "paths")) |item| {
+		const path = json.text(item);
+		if (path.len == 0 or path[0] != '/' or std.mem.indexOf(u8, path, "/..") != null) return error.BadPath;
+		try roots.append(allocator, path);
+	}
+	if (roots.items.len == 0) return error.BadPath;
+	var mounts = try files.followedMounts(io, allocator, roots.items[0], roots.items[roots.items.len - 1]);
+	defer mounts.deinit(allocator);
+	try follow.serve(allocator, fd, follow.Access.of(peer.pid, peer.uid, peer.gid), roots.items, mounts.items);
+	return "{\"ok\":true}";
 }
 
 fn hasName(names: []const []const u8, name: []const u8) bool {

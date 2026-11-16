@@ -18,6 +18,17 @@
     <annotate key="org.freedesktop.policykit.exec.path">/usr/local/lib/yudae/yudaemond</annotate>
   </action>
 
+  <action id="org.yudae.fs.follow">
+    <description>Follow folder changes for file search</description>
+    <message>Authentication is required to follow folder changes for file search.</message>
+    <icon_name>system-search</icon_name>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+  </action>
+
   <action id="org.yudae.fs.remove">
     <description>Remove a root-owned path</description>
     <message>Authentication is required to remove this root-owned path.</message>
