@@ -371,14 +371,15 @@ const Lister = struct {
 		const from: u32 = @intCast(self.children.items.len);
 		var listing: Listing = .{ .lister = self.index, .from = from, .to = from };
 		const z: [*:0]const u8 = @ptrCast((try self.setPath(&.{ if (dir.path.len == 0) "/" else dir.path, "\x00" })).ptr);
-		listing.mtime = mtimeOf(z);
-		if (listing.mtime < 0) return listing;
 		const record = if (self.old != null and dir.old != none) self.old.?.dirOf(dir.old) else null;
+		listing.mtime = if (record != null) mtimeOf(z) else 0;
+		if (listing.mtime < 0) return listing;
 		if (record != null and record.?.partial == 0 and record.?.mtime == listing.mtime) {
 			try self.reuse(record.?);
 		} else {
 			var entries = Entries.open(z) orelse return listing;
 			defer entries.close();
+			if (record == null) listing.mtime = mtimeAt(entries.fd, "", linux.AT.EMPTY_PATH);
 			try self.read(dir, &entries);
 		}
 		listing.to = @intCast(self.children.items.len);
@@ -719,16 +720,61 @@ pub fn changes(allocator: Allocator, old: *const index.Index, home: []const u8, 
 	for (old.dirs, stale, 0..) |record, dirty, at| {
 		if (!dirty) continue;
 		changed += 1;
-		const path = std.fmt.bufPrintSentinel(&z, "{s}", .{old.dirPath(at, &buffer)}, 0) catch continue;
-		var arena = std.heap.ArenaAllocator.init(allocator);
-		defer arena.deinit();
-		var known: std.StringHashMapUnmanaged(void) = .empty;
-		var range = old.children(record.first);
-		var name_buf: [256]u8 = undefined;
-		for (0..record.count) |_| try known.put(arena.allocator(), try arena.allocator().dupe(u8, (range.next(&name_buf) orelse break).name), {});
-		try added(path, &known, home, sink, 0);
+		try diff(allocator, old, record, std.fmt.bufPrintSentinel(&z, "{s}", .{old.dirPath(at, &buffer)}, 0) catch continue, home, sink);
 	}
 	return changed;
+}
+
+pub fn apply(allocator: Allocator, old: *const index.Index, path: []const u8, home: []const u8, sink: anytype) !void {
+	if (old.dirs.len == 0 or old.dirs[0].id != 0) return;
+	var buffer: [std.fs.max_path_bytes]u8 = undefined;
+	const root = old.dirPath(0, &buffer);
+	if (!within(path, root)) return;
+	const rel = if (std.mem.eql(u8, root, "/")) path else path[root.len..];
+	var parts = std.mem.tokenizeScalar(u8, rel, '/');
+	var depth: usize = 0;
+	while (parts.next()) |part| : (depth += 1) {
+		const end = @intFromPtr(part.ptr) - @intFromPtr(path.ptr) + part.len;
+		if (skipName(part) or (depth <= 3 and skipPath(path[0..end]))) return;
+		if (part[0] == '.' and !(std.mem.eql(u8, part, ".config") and std.mem.eql(u8, path[0 .. end - part.len - 1], home))) return;
+	}
+	var z: [std.fs.max_path_bytes + 1]u8 = undefined;
+	const zpath = std.fmt.bufPrintSentinel(&z, "{s}", .{path}, 0) catch return;
+	const id = old.find(rel);
+	if (id != none) if (old.dirOf(id)) |record| return diff(allocator, old, record, zpath, home, sink);
+	try added(zpath, null, home, sink, 0);
+}
+
+fn diff(allocator: Allocator, old: *const index.Index, record: index.DirRecord, path: [:0]const u8, home: []const u8, sink: anytype) !void {
+	var arena = std.heap.ArenaAllocator.init(allocator);
+	defer arena.deinit();
+	var known: std.StringHashMapUnmanaged(void) = .empty;
+	var range = old.children(record.first);
+	var name_buf: [256]u8 = undefined;
+	for (0..record.count) |_| try known.put(arena.allocator(), try arena.allocator().dupe(u8, (range.next(&name_buf) orelse break).name), {});
+	try added(path, &known, home, sink, 0);
+}
+
+pub fn followedMounts(io: Io, allocator: Allocator, root: []const u8, home: []const u8) !std.ArrayList([]const u8) {
+	var kept: std.ArrayList([]const u8) = .empty;
+	errdefer freePaths(allocator, &kept);
+	const body = proc.readFile(io, allocator, "/proc/self/mountinfo") catch return kept;
+	defer allocator.free(body);
+	var blocked = try blockedMounts(io, allocator, root, home);
+	defer freePaths(allocator, &blocked);
+	var lines = std.mem.splitScalar(u8, body, '\n');
+	while (lines.next()) |line| {
+		const dash = std.mem.indexOf(u8, line, " - ") orelse continue;
+		var head = std.mem.tokenizeScalar(u8, line[0..dash], ' ');
+		for (0..4) |_| _ = head.next();
+		const point = try guard.unescape(allocator, head.next() orelse continue);
+		if (!within(point, root) or contains(blocked.items, point) or contains(kept.items, point) or skipPath(point)) {
+			allocator.free(point);
+			continue;
+		}
+		try kept.append(allocator, point);
+	}
+	return kept;
 }
 
 fn check(old: *const index.Index, stale: []bool, from: usize, to: usize) void {
@@ -783,8 +829,12 @@ fn devOf(path: [*:0]const u8) u64 {
 }
 
 pub fn mtimeOf(path: [*:0]const u8) i64 {
+	return mtimeAt(linux.AT.FDCWD, path, linux.AT.SYMLINK_NOFOLLOW);
+}
+
+fn mtimeAt(dir: i32, path: [*:0]const u8, flags: u32) i64 {
 	var st: linux.Statx = undefined;
-	if (linux.errno(linux.statx(linux.AT.FDCWD, path, linux.AT.SYMLINK_NOFOLLOW, .{ .MTIME = true }, &st)) != .SUCCESS) return -1;
+	if (linux.errno(linux.statx(dir, path, flags, .{ .MTIME = true }, &st)) != .SUCCESS) return -1;
 	return st.mtime.sec * std.time.ns_per_s + st.mtime.nsec;
 }
 
@@ -1035,4 +1085,37 @@ test "the change scan reports only what the index does not have" {
 	try std.testing.expectEqual(@as(usize, 2), try changes(allocator, &built, root, &seen));
 	try std.testing.expectEqual(@as(usize, 4), seen.paths.items.len);
 	for ([_][]const u8{ "/a/b/three.txt", "/z/fresh", "/z/fresh/inner", "/z/fresh/inner/leaf.txt" }) |suffix| try std.testing.expect(seen.has(suffix));
+}
+
+test "applying a reported folder adds what the index does not have" {
+	const io = std.testing.io;
+	const allocator = std.testing.allocator;
+	var tmp = std.testing.tmpDir(.{});
+	defer tmp.cleanup();
+	const base = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+	defer allocator.free(base);
+	const root = try std.Io.Dir.cwd().realPathFileAlloc(io, base, allocator);
+	defer allocator.free(root);
+	const index_path = try std.fmt.allocPrint(allocator, "{s}.idx", .{root});
+	defer allocator.free(index_path);
+	defer std.Io.Dir.cwd().deleteFile(io, index_path) catch {};
+
+	try touch(io, root, "a/b", true);
+	try touch(io, root, "a/b/old.txt", false);
+	try build(io, allocator, root, root, index_path, 1);
+	var built = try index.load(io, index_path);
+	defer built.deinit();
+
+	try touch(io, root, "a/b/new.txt", false);
+	try touch(io, root, ".hidden/secret.txt", true);
+	var seen: Collect = .{ .allocator = allocator };
+	defer {
+		for (seen.paths.items) |path| allocator.free(path);
+		seen.paths.deinit(allocator);
+	}
+	var buf: [std.fs.max_path_bytes]u8 = undefined;
+	try apply(allocator, &built, try std.fmt.bufPrint(&buf, "{s}/a/b", .{root}), root, &seen);
+	try apply(allocator, &built, try std.fmt.bufPrint(&buf, "{s}/.hidden", .{root}), root, &seen);
+	try std.testing.expectEqual(@as(usize, 1), seen.paths.items.len);
+	try std.testing.expect(seen.has("/a/b/new.txt"));
 }
