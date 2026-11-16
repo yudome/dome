@@ -5,7 +5,7 @@ const build = @import("build.zig");
 const proc = @import("../../primitives/proc.zig");
 
 const Allocator = std.mem.Allocator;
-const recent_cap = 512;
+pub const recent_cap = 20000;
 const watch_cap = 2048;
 const watch_depth = 2;
 
@@ -28,6 +28,7 @@ pub const Recent = struct {
 	log_fd: i32 = -1,
 	mutex: std.Io.Mutex = .init,
 	paths: std.ArrayList(Fresh) = .empty,
+	known: std.StringHashMapUnmanaged(void) = .empty,
 	dirs: std.AutoHashMapUnmanaged(i32, Watched) = .empty,
 
 	pub fn create(allocator: Allocator, io: std.Io, home: []const u8, log: []const u8) !*Recent {
@@ -47,6 +48,7 @@ pub const Recent = struct {
 		self.dirs.deinit(self.allocator);
 		for (self.paths.items) |fresh| self.allocator.free(fresh.path);
 		self.paths.deinit(self.allocator);
+		self.known.deinit(self.allocator);
 		self.allocator.free(self.home);
 	}
 
@@ -71,10 +73,28 @@ pub const Recent = struct {
 		self.rewrite();
 	}
 
+	pub fn found(self: *Recent, path: []const u8) !bool {
+		self.mutex.lockUncancelable(self.io);
+		defer self.mutex.unlock(self.io);
+		self.remember(path, std.Io.Clock.real.now(self.io).toMilliseconds(), true);
+		return self.paths.items.len < recent_cap;
+	}
+
+	fn drop(self: *Recent, at: usize) void {
+		const gone = self.paths.orderedRemove(at);
+		_ = self.known.remove(gone.path);
+		self.allocator.free(gone.path);
+	}
+
 	fn remember(self: *Recent, path: []const u8, at: i64, append: bool) void {
+		if (self.known.contains(path)) return;
 		const owned = self.allocator.dupe(u8, path) catch return;
-		if (self.paths.items.len >= recent_cap) self.allocator.free(self.paths.orderedRemove(0).path);
-		self.paths.append(self.allocator, .{ .path = owned, .at = at }) catch return self.allocator.free(owned);
+		if (self.paths.items.len >= recent_cap) self.drop(0);
+		self.known.put(self.allocator, owned, {}) catch return self.allocator.free(owned);
+		self.paths.append(self.allocator, .{ .path = owned, .at = at }) catch {
+			_ = self.known.remove(owned);
+			return self.allocator.free(owned);
+		};
 		if (!append) return;
 		var buf: [std.fs.max_path_bytes + 32]u8 = undefined;
 		const line = std.fmt.bufPrint(&buf, "{d} {s}\n", .{ at, path }) catch return;
@@ -180,10 +200,17 @@ pub const Recent = struct {
 	pub fn prune(self: *Recent, before: i64) void {
 		self.mutex.lockUncancelable(self.io);
 		defer self.mutex.unlock(self.io);
-		var at: usize = 0;
-		while (at < self.paths.items.len) {
-			if (self.paths.items[at].at >= before) at += 1 else self.allocator.free(self.paths.orderedRemove(at).path);
+		var kept: usize = 0;
+		for (self.paths.items) |fresh| {
+			if (fresh.at >= before) {
+				self.paths.items[kept] = fresh;
+				kept += 1;
+				continue;
+			}
+			_ = self.known.remove(fresh.path);
+			self.allocator.free(fresh.path);
 		}
+		self.paths.shrinkRetainingCapacity(kept);
 		self.rewrite();
 	}
 };
