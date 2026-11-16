@@ -49,6 +49,15 @@ Provider code lives in `src/providers/vms/`: `qmp.zig`, `vsock.zig`, `budget.zig
 
 A governor loop every 5s steps idle VMs hot to warm (5 min), warm to parked (15 min), parked to off (60 min, disk kept). Past the idle destroy budget (default 24h, `YUDAE_VM_IDLE_DESTROY_MS`) it removes the VM and deletes its run dir. Scenario runs delete their VM on success and keep their screenshots.
 
+## File search
+
+`providers/files.zig` is the launcher's file and folder name index, Spotlight style. The launcher appends up to 8 `file` rows under the ranked results for any home search; activating one runs `xdg-open`.
+
+- Built by `yudaemond files-index <root> <home> <out>`, a short-lived child at nice 19, so its memory goes back to the OS. It runs as the user, so only readable paths are indexed and no root-only name leaks. One thread per core walks `/` with `getdents64` only (no stat per entry). Hidden entries are never indexed. Skipped: the disk guard's protected paths, `/tmp /var/tmp /var/cache /var/log /lost+found`, and `node_modules`, `__pycache__`, `zig-out`.
+- File `shell/cache/launcher/files.idx`, written to a temp file and renamed, read through `mmap` so idle RAM is the page cache only. Entries are sorted by rank (depth, outside `$HOME` pushed down), then parent, then name, and packed in blocks of 64: front-coded names plus a zigzag varint parent delta and dir bit. Each 1, 2 and 3 letter gram keeps a varint list of the blocks it appears in.
+- A query intersects up to 8 of its rarest gram lists, decodes only the matching blocks and stops at 200 hits. Hits are reordered exact, prefix, word start, substring and checked with `faccessat` so deleted files never show.
+- Rebuilt in the background when older than 10 minutes and a search arrives. There is no live fanotify patching yet.
+
 ## Disk provider
 
 `providers/disk/` owns `disk`. A scan runs only when `disk.scan` is called; nothing scans on open, on a timer or in the background.
