@@ -229,6 +229,8 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 
 		if (json.flag(l_cmd, "opened")) context.launcher.opened();
 
+		if (json.flag(l_cmd, "rebuildFiles")) context.launcher.rebuildFiles();
+
 		if (json.flag(l_cmd, "clipMore")) context.launcher.moreClip();
 
 		const power = json.integer(json.field(l_cmd, "power"));
@@ -491,6 +493,7 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "spawn-check")) return cli.spawnCheck(io, args);
 
 	if (std.mem.eql(u8, command, "logout")) return cli.logout(io);
+	if (std.mem.eql(u8, command, "files")) return cli.files(io, args);
 	if (std.mem.eql(u8, command, "doctor")) return cli.doctor(io);
 	if (std.mem.eql(u8, command, "bench")) return cli.bench(io, args);
 	if (std.mem.eql(u8, command, "parity")) return cli.parity(io, args);
@@ -499,7 +502,7 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "files-index")) return files.command(io, args);
 
 	if (!std.mem.eql(u8, command, "run")) {
-		std.debug.print("usage: yudae [run|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|ui|spawn-check|logout]\n", .{});
+		std.debug.print("usage: yudae [run|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|ui|spawn-check|logout|files rebuild]\n", .{});
 		return;
 	}
 

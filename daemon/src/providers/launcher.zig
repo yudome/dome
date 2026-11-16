@@ -240,6 +240,7 @@ pub const Launcher = struct {
 	files_building: std.atomic.Value(bool) = .init(false),
 	files_scanned: std.atomic.Value(i64) = .init(0),
 	following: std.atomic.Value(bool) = .init(false),
+	files_fresh: std.atomic.Value(bool) = .init(false),
 	recent: ?*recentmod.Recent = null,
 	pins: std.ArrayListUnmanaged([]u8) = .empty,
 	saved: std.ArrayListUnmanaged(Saved) = .empty,
@@ -1439,11 +1440,23 @@ pub const Launcher = struct {
 		}
 	}
 
+	pub fn rebuildFiles(self: *Launcher) void {
+		if (std.Thread.spawn(.{}, rebuildThread, .{self})) |thread| thread.detach() else |_| {}
+	}
+
+	fn rebuildThread(self: *Launcher) void {
+		while (self.files_building.swap(true, .acq_rel)) sleep.ms(50);
+		defer self.files_building.store(false, .release);
+		self.files_fresh.store(true, .release);
+		self.buildFiles();
+	}
+
 	fn buildFiles(self: *Launcher) void {
 		const path = self.cacheFile(self.allocator, "files.idx") catch return;
 		defer self.allocator.free(path);
 		const started = fmt.nowMs(self.io);
-		const result = exec.run(self.io, self.allocator, &.{ "/proc/self/exe", "files-index", "/", proc.home(self.io, self.allocator), path }) catch return;
+		const mode = if (self.files_fresh.swap(false, .acq_rel)) "fresh" else "reuse";
+		const result = exec.run(self.io, self.allocator, &.{ "/proc/self/exe", "files-index", "/", proc.home(self.io, self.allocator), path, mode }) catch return;
 		result.deinit(self.allocator);
 
 		self.loadFiles();

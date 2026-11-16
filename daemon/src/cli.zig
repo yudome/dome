@@ -49,6 +49,22 @@ pub fn fetch(io: Io) ![]u8 {
 	return std.heap.smp_allocator.dupe(u8, message);
 }
 
+pub fn files(io: Io, args: []const []const u8) !void {
+	if (args.len < 3 or !std.mem.eql(u8, args[2], "rebuild")) {
+		std.debug.print("usage: yudae files rebuild\n", .{});
+		std.process.exit(2);
+	}
+	const path = try proc.socketPath(io, std.heap.smp_allocator);
+	defer std.heap.smp_allocator.free(path);
+	var read_buffer: [4096]u8 = undefined;
+	var connection = sock.Connection.connect(path, &read_buffer) catch {
+		std.debug.print("yudaemond is not running\n", .{});
+		std.process.exit(2);
+	};
+	defer connection.close();
+	try connection.writeLine("{\"cmd\":{\"launcher\":{\"rebuildFiles\":true}}}");
+}
+
 pub fn logout(io: Io) !void {
 	const path = try proc.socketPath(io, std.heap.smp_allocator);
 	defer std.heap.smp_allocator.free(path);

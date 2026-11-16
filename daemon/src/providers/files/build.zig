@@ -841,6 +841,7 @@ fn mtimeAt(dir: i32, path: [*:0]const u8, flags: u32) i64 {
 pub fn command(io: Io, args: []const []const u8) !void {
 	if (args.len < 5) return error.Usage;
 	_ = linux.syscall3(.setpriority, 0, 0, 19);
+	if (args.len > 5 and std.mem.eql(u8, args[5], "fresh")) std.Io.Dir.cwd().deleteFile(io, args[4]) catch {};
 	try build(io, std.heap.smp_allocator, args[2], args[3], args[4], std.Io.Clock.real.now(io).toMilliseconds());
 }
 
