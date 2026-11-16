@@ -1,7 +1,7 @@
 const std = @import("std");
 
 pub const magic = "YUDFILE\x00";
-pub const version: u32 = 6;
+pub const version: u32 = 7;
 pub const dir_bit: u32 = 1 << 31;
 pub const none: u32 = dir_bit - 1;
 pub const block_size = 64;
@@ -25,6 +25,8 @@ pub const Header = extern struct {
 	keys_at: u64 = 0,
 	dirs_at: u64 = 0,
 	dirs: u64 = 0,
+	dir_names_at: u64 = 0,
+	dir_names_len: u64 = 0,
 	scope: u64 = 0,
 };
 
@@ -32,7 +34,10 @@ pub const DirRecord = extern struct {
 	id: u32,
 	first: u32,
 	count: u32,
-	partial: u32 = 0,
+	up: u32 = none,
+	name_off: u32 = 0,
+	name_len: u16 = 0,
+	partial: u16 = 0,
 	mtime: i64,
 };
 
@@ -92,6 +97,7 @@ pub const Index = struct {
 	names: []const u8,
 	post: []const u8,
 	dirs: []const DirRecord,
+	dir_names: []const u8,
 	count: u32,
 	built_ms: i64,
 	scope: u64,
@@ -125,6 +131,23 @@ pub const Index = struct {
 			}
 		}.order);
 		return if (at < self.dirs.len and self.dirs[at].id == id) self.dirs[at] else null;
+	}
+
+	pub fn dirPath(self: *const Index, at: usize, buffer: []u8) []const u8 {
+		var end = buffer.len;
+		var i = at;
+		while (true) {
+			const record = self.dirs[i];
+			const name = self.dir_names[record.name_off..][0..record.name_len];
+			if (end < name.len + 1) return "";
+			end -= name.len;
+			@memcpy(buffer[end .. end + name.len], name);
+			if (record.up == none) break;
+			end -= 1;
+			buffer[end] = '/';
+			i = record.up;
+		}
+		return if (end == buffer.len) "/" else buffer[end..];
 	}
 
 	pub fn find(self: *const Index, rel: []const u8) u32 {
@@ -266,7 +289,8 @@ pub fn load(io: std.Io, file_path: []const u8) !Index {
 	if (header.names_at + header.names_len > mapped.len or header.post_at + header.post_len > mapped.len) return error.BadIndex;
 	if (header.starts_at % 4 != 0 or header.starts_at + (@as(u64, header.blocks) + 1) * 4 > mapped.len) return error.BadIndex;
 	if (header.keys_at + @as(u64, header.keys) * @sizeOf(Key) > mapped.len) return error.BadIndex;
-	if (header.dirs_at % 8 != 0 or header.dirs_at + header.dirs * @sizeOf(DirRecord) != mapped.len) return error.BadIndex;
+	if (header.dirs_at % 8 != 0 or header.dirs_at + header.dirs * @sizeOf(DirRecord) > mapped.len) return error.BadIndex;
+	if (header.dir_names_at + header.dir_names_len != mapped.len) return error.BadIndex;
 
 	return .{
 		.mapped = mapped,
@@ -275,6 +299,7 @@ pub fn load(io: std.Io, file_path: []const u8) !Index {
 		.names = mapped[header.names_at..][0..header.names_len],
 		.post = mapped[header.post_at..][0..header.post_len],
 		.dirs = @as([*]const DirRecord, @ptrCast(@alignCast(mapped.ptr + header.dirs_at)))[0..header.dirs],
+		.dir_names = mapped[header.dir_names_at..][0..header.dir_names_len],
 		.count = header.count,
 		.built_ms = header.built_ms,
 		.scope = header.scope,
