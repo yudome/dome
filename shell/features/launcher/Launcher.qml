@@ -390,6 +390,7 @@ PanelWindow {
 		root.winIndex = root.windows ? 1 : 0;
 		root.grabbed = false;
 		root.push();
+		Yudae.cmd("launcher", { opened: true });
 
 		if (root.syncLive())
 			settleGuard.stop();

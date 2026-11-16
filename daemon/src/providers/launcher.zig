@@ -25,8 +25,9 @@ const usage_max = 10;
 const clip_limit = 5 * 1024 * 1024;
 const page_bytes = 8000;
 const file_results = 8;
-const file_candidates = 200;
-const file_stale_ms = 10 * 60 * 1000;
+const file_candidates = 64;
+const file_stale_ms = 5 * 60 * 1000;
+const file_after = 4;
 const first_pages = 2;
 const more_pages = 2;
 
@@ -233,6 +234,7 @@ pub const Launcher = struct {
 	files: ?filesmod.Index = null,
 	files_mutex: std.Io.Mutex = .init,
 	files_building: std.atomic.Value(bool) = .init(false),
+	recent: ?*filesmod.Recent = null,
 	pins: std.ArrayListUnmanaged([]u8) = .empty,
 	saved: std.ArrayListUnmanaged(Saved) = .empty,
 	clips: std.ArrayListUnmanaged(Clip) = .empty,
@@ -1323,42 +1325,61 @@ pub const Launcher = struct {
 	}
 
 	fn fileRows(self: *Launcher, arena: Allocator, ranked: []Row, search: []const u8) ![]Row {
-		self.refreshFiles();
+		var paths: std.ArrayList([]const u8) = .empty;
+		if (self.recent) |recent| try recent.search(arena, search, &paths);
+		const fresh = paths.items.len;
 
 		self.files_mutex.lockUncancelable(self.io);
-		defer self.files_mutex.unlock(self.io);
-		const index = if (self.files) |*loaded| loaded else return ranked;
+		if (self.files) |*index| {
+			var hits: [file_candidates]u32 = undefined;
+			var buffer: [std.fs.max_path_bytes]u8 = undefined;
+			for (hits[0..index.search(search, &hits)]) |id| try paths.append(arena, try arena.dupe(u8, index.path(&buffer, id)));
+		}
+		self.files_mutex.unlock(self.io);
 
-		const needle = try lowerAlloc(arena, search);
-		var hits: [file_candidates]u32 = undefined;
-		const found = hits[0..index.search(needle, &hits)];
-		var keyed: [file_candidates]u64 = undefined;
-		var name_buf: [256]u8 = undefined;
-		for (found, keyed[0..found.len]) |id, *slot| slot.* = @as(u64, fileQuality(index.item(id, &name_buf).name, needle)) << 32 | id;
-		std.mem.sort(u64, keyed[0..found.len], {}, std.sort.asc(u64));
+		var seen: std.StringHashMapUnmanaged(void) = .empty;
+		var found: std.ArrayList(FileHit) = .empty;
+		var needle_buf: [256]u8 = undefined;
+		const needle = filesmod.fold(&needle_buf, search);
+		const home = proc.home(self.io, arena);
+		for (paths.items, 0..) |path, order| {
+			if (path.len == 0 or (try seen.getOrPut(arena, path)).found_existing) continue;
+			const z = try arena.dupeSentinel(u8, path, 0);
+			var st: std.os.linux.Statx = undefined;
+			if (std.os.linux.errno(std.os.linux.statx(std.os.linux.AT.FDCWD, z, 0, .{ .TYPE = true, .MTIME = true }, &st)) != .SUCCESS) continue;
+			const id = try std.fmt.allocPrint(arena, "file:{s}", .{path});
+			const usage = self.usage.get(id) orelse Usage{};
+			try found.append(arena, .{
+				.path = path,
+				.id = id,
+				.dir = std.posix.S.ISDIR(st.mode),
+				.quality = fileQuality(path, needle),
+				.home = std.mem.startsWith(u8, path, home) and path.len > home.len and path[home.len] == '/',
+				.used = usage.last,
+				.mtime = st.mtime.sec,
+				.fresh = order < fresh,
+			});
+		}
+		std.mem.sort(FileHit, found.items, {}, FileHit.less);
 
 		var out: std.ArrayListUnmanaged(Row) = .empty;
-		try out.appendSlice(arena, ranked);
-		var buffer: [std.fs.max_path_bytes]u8 = undefined;
-		var added: usize = 0;
-
-		for (keyed[0..found.len]) |slot| {
-			const id: u32 = @truncate(slot);
-			if (added >= file_results) break;
-			const path = try arena.dupeSentinel(u8, index.path(&buffer, id), 0);
-			if (path.len == 0 or std.os.linux.errno(std.os.linux.faccessat(std.os.linux.AT.FDCWD, path, std.os.linux.F_OK, 0)) != .SUCCESS) continue;
-
+		const lead = @min(ranked.len, file_after);
+		try out.appendSlice(arena, ranked[0..lead]);
+		for (found.items[0..@min(found.items.len, file_results)]) |hit| {
 			try out.append(arena, .{
-				.id = try std.fmt.allocPrint(arena, "file:{s}", .{path}),
+				.id = hit.id,
 				.kind = "file",
-				.name = std.fs.path.basename(path),
-				.glyph = if (index.item(id, &name_buf).dir) glyph_folder else glyph_file,
-				.detail = std.fs.path.dirname(path) orelse "/",
+				.name = std.fs.path.basename(hit.path),
+				.glyph = if (hit.dir) glyph_folder else glyph_file,
+				.detail = std.fs.path.dirname(hit.path) orelse "/",
 			});
-			added += 1;
 		}
-
+		try out.appendSlice(arena, ranked[lead..]);
 		return out.items;
+	}
+
+	pub fn opened(self: *Launcher) void {
+		self.refreshFiles();
 	}
 
 	fn refreshFiles(self: *Launcher) void {
@@ -1396,10 +1417,12 @@ pub const Launcher = struct {
 
 		const path = self.statePath(self.allocator, "files.idx") catch return;
 		defer self.allocator.free(path);
+		const started = fmt.nowMs(self.io);
 		const result = exec.run(self.io, self.allocator, &.{ "/proc/self/exe", "files-index", "/", proc.home(self.io, self.allocator), path }) catch return;
 		result.deinit(self.allocator);
 
 		self.loadFiles();
+		if (self.recent) |recent| recent.prune(started);
 		self.hub.publish();
 	}
 
@@ -1643,10 +1666,32 @@ pub const Launcher = struct {
 	}
 };
 
-fn fileQuality(name: []const u8, needle: []const u8) u8 {
-	if (std.ascii.eqlIgnoreCase(name, needle)) return 0;
-	if (std.ascii.startsWithIgnoreCase(name, needle)) return 1;
-	const at = std.ascii.findIgnoreCase(name, needle) orelse return 3;
+const FileHit = struct {
+	path: []const u8,
+	id: []const u8,
+	dir: bool,
+	quality: u8,
+	home: bool,
+	used: i64,
+	mtime: i64,
+	fresh: bool,
+
+	fn less(_: void, a: FileHit, b: FileHit) bool {
+		if ((a.quality == 0) != (b.quality == 0)) return a.quality == 0;
+		if (a.used != b.used) return a.used > b.used;
+		if (a.quality != b.quality) return a.quality < b.quality;
+		if (a.home != b.home) return a.home;
+		if (a.fresh != b.fresh) return a.fresh;
+		return a.mtime > b.mtime;
+	}
+};
+
+fn fileQuality(path: []const u8, needle: []const u8) u8 {
+	var buf: [256]u8 = undefined;
+	const name = filesmod.fold(&buf, std.fs.path.basename(path));
+	if (std.mem.eql(u8, name, needle)) return 0;
+	if (std.mem.startsWith(u8, name, needle)) return 1;
+	const at = std.mem.indexOf(u8, name, needle) orelse return 3;
 	return if (std.mem.indexOfScalar(u8, " -_.", name[at - 1]) != null) 2 else 3;
 }
 
@@ -1654,6 +1699,9 @@ fn preloadIndex(self: *Launcher) void {
 	self.ensureIndex();
 	self.loadFiles();
 	self.refreshFiles();
+	const recent = filesmod.Recent.create(self.allocator, self.io, proc.home(self.io, self.allocator)) catch return;
+	recent.start() catch return;
+	self.recent = recent;
 }
 
 const Wake = struct {
@@ -1871,7 +1919,8 @@ fn rememberable(id: []const u8) bool {
 		std.mem.startsWith(u8, id, "saved:") or
 		std.mem.startsWith(u8, id, "cmd:") or
 		std.mem.startsWith(u8, id, "emoji:") or
-		std.mem.startsWith(u8, id, "wall:");
+		std.mem.startsWith(u8, id, "wall:") or
+		std.mem.startsWith(u8, id, "file:");
 }
 
 fn detailOf(arena: Allocator, row: Row) ![]const u8 {

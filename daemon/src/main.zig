@@ -227,6 +227,8 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 
 		if (json.flag(l_cmd, "clips")) context.launcher.refreshClips();
 
+		if (json.flag(l_cmd, "opened")) context.launcher.opened();
+
 		if (json.flag(l_cmd, "clipMore")) context.launcher.moreClip();
 
 		const power = json.integer(json.field(l_cmd, "power"));
