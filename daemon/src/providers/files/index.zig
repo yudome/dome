@@ -1,7 +1,7 @@
 const std = @import("std");
 
 pub const magic = "YUDFILE\x00";
-pub const version: u32 = 5;
+pub const version: u32 = 6;
 pub const dir_bit: u32 = 1 << 31;
 pub const none: u32 = dir_bit - 1;
 pub const block_size = 64;
@@ -23,6 +23,17 @@ pub const Header = extern struct {
 	post_len: u64 = 0,
 	starts_at: u64 = 0,
 	keys_at: u64 = 0,
+	dirs_at: u64 = 0,
+	dirs: u64 = 0,
+	scope: u64 = 0,
+};
+
+pub const DirRecord = extern struct {
+	id: u32,
+	first: u32,
+	count: u32,
+	partial: u32 = 0,
+	mtime: i64,
 };
 
 pub const Key = extern struct {
@@ -80,8 +91,10 @@ pub const Index = struct {
 	keys: []const Key,
 	names: []const u8,
 	post: []const u8,
+	dirs: []const DirRecord,
 	count: u32,
 	built_ms: i64,
+	scope: u64,
 
 	pub fn deinit(self: *Index) void {
 		std.posix.munmap(self.mapped);
@@ -96,6 +109,39 @@ pub const Index = struct {
 		var at = id - id % block_size;
 		while (walk.next(buf)) |entry| : (at += 1) if (at == id) return entry;
 		return .{ .name = "", .parent = none, .dir = false };
+	}
+
+	pub fn children(self: *const Index, first: u32) Range {
+		var range: Range = .{ .index = self, .block = first / block_size, .cursor = self.cursor(first / block_size) };
+		var buf: [256]u8 = undefined;
+		for (0..first % block_size) |_| _ = range.cursor.next(&buf);
+		return range;
+	}
+
+	pub fn dirOf(self: *const Index, id: u32) ?DirRecord {
+		const at = std.sort.lowerBound(DirRecord, self.dirs, id, struct {
+			fn order(target: u32, record: DirRecord) std.math.Order {
+				return std.math.order(target, record.id);
+			}
+		}.order);
+		return if (at < self.dirs.len and self.dirs[at].id == id) self.dirs[at] else null;
+	}
+
+	pub fn find(self: *const Index, rel: []const u8) u32 {
+		var id: u32 = 0;
+		var parts = std.mem.tokenizeScalar(u8, rel, '/');
+		var buf: [256]u8 = undefined;
+		next: while (parts.next()) |part| {
+			const record = self.dirOf(id) orelse return none;
+			var range = self.children(record.first);
+			for (0..record.count) |at| {
+				if (!std.mem.eql(u8, range.next(&buf).?.name, part)) continue;
+				id = record.first + @as(u32, @intCast(at));
+				continue :next;
+			}
+			return none;
+		}
+		return id;
 	}
 
 	pub fn path(self: *const Index, buffer: []u8, id: u32) []const u8 {
@@ -192,6 +238,21 @@ pub const Index = struct {
 	}
 };
 
+pub const Range = struct {
+	index: *const Index,
+	block: usize,
+	cursor: Cursor,
+
+	pub fn next(self: *Range, buf: *[256]u8) ?Item {
+		while (true) {
+			if (self.cursor.next(buf)) |entry| return entry;
+			self.block += 1;
+			if (self.block + 1 >= self.index.starts.len) return null;
+			self.cursor = self.index.cursor(self.block);
+		}
+	}
+};
+
 pub fn load(io: std.Io, file_path: []const u8) !Index {
 	var file = try std.Io.Dir.cwd().openFile(io, file_path, .{});
 	defer file.close(io);
@@ -204,7 +265,8 @@ pub fn load(io: std.Io, file_path: []const u8) !Index {
 	if (!std.mem.eql(u8, &header.magic, magic) or header.version != version) return error.BadIndex;
 	if (header.names_at + header.names_len > mapped.len or header.post_at + header.post_len > mapped.len) return error.BadIndex;
 	if (header.starts_at % 4 != 0 or header.starts_at + (@as(u64, header.blocks) + 1) * 4 > mapped.len) return error.BadIndex;
-	if (header.keys_at + @as(u64, header.keys) * @sizeOf(Key) != mapped.len) return error.BadIndex;
+	if (header.keys_at + @as(u64, header.keys) * @sizeOf(Key) > mapped.len) return error.BadIndex;
+	if (header.dirs_at % 8 != 0 or header.dirs_at + header.dirs * @sizeOf(DirRecord) != mapped.len) return error.BadIndex;
 
 	return .{
 		.mapped = mapped,
@@ -212,8 +274,10 @@ pub fn load(io: std.Io, file_path: []const u8) !Index {
 		.keys = @as([*]const Key, @ptrCast(@alignCast(mapped.ptr + header.keys_at)))[0..header.keys],
 		.names = mapped[header.names_at..][0..header.names_len],
 		.post = mapped[header.post_at..][0..header.post_len],
+		.dirs = @as([*]const DirRecord, @ptrCast(@alignCast(mapped.ptr + header.dirs_at)))[0..header.dirs],
 		.count = header.count,
 		.built_ms = header.built_ms,
+		.scope = header.scope,
 	};
 }
 

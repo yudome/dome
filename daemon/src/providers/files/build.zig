@@ -318,6 +318,7 @@ const Dir = struct {
 	path: []u8,
 	id: u32,
 	depth: u16,
+	old: u32 = none,
 };
 
 const Child = struct {
@@ -325,18 +326,22 @@ const Child = struct {
 	off: u32,
 	len: u8,
 	dir: bool,
+	old: u32 = none,
 };
 
 const Listing = struct {
 	lister: u8,
 	from: u32,
 	to: u32,
+	mtime: i64 = 0,
+	ok: bool = false,
 };
 
 const Lister = struct {
 	allocator: Allocator,
 	index: u8,
 	home: []const u8,
+	old: ?*const index.Index,
 	children: std.ArrayList(Child) = .empty,
 	names: std.ArrayList(u8) = .empty,
 	path: std.ArrayList(u8) = .empty,
@@ -363,36 +368,71 @@ const Lister = struct {
 
 	fn list(self: *Lister, dir: Dir) !Listing {
 		const from: u32 = @intCast(self.children.items.len);
-		_ = try self.setPath(&.{ if (dir.path.len == 0) "/" else dir.path, "\x00" });
-		var entries = Entries.open(@ptrCast(self.path.items.ptr)) orelse return .{ .lister = self.index, .from = from, .to = from };
-		defer entries.close();
+		var listing: Listing = .{ .lister = self.index, .from = from, .to = from };
+		const z: [*:0]const u8 = @ptrCast((try self.setPath(&.{ if (dir.path.len == 0) "/" else dir.path, "\x00" })).ptr);
+		var st: linux.Statx = undefined;
+		if (linux.errno(linux.statx(linux.AT.FDCWD, z, linux.AT.SYMLINK_NOFOLLOW, .{ .MTIME = true }, &st)) != .SUCCESS) return listing;
+		listing.mtime = st.mtime.sec * std.time.ns_per_s + st.mtime.nsec;
+		const record = if (self.old != null and dir.old != none) self.old.?.dirOf(dir.old) else null;
+		if (record != null and record.?.partial == 0 and record.?.mtime == listing.mtime) {
+			try self.reuse(record.?);
+		} else {
+			var entries = Entries.open(z) orelse return listing;
+			defer entries.close();
+			try self.read(dir, &entries);
+		}
+		listing.to = @intCast(self.children.items.len);
+		listing.ok = true;
+		const fresh = self.children.items[from..listing.to];
+		if (record == null or (record.?.partial == 0 and record.?.mtime == listing.mtime)) return listing;
+		var range = self.old.?.children(record.?.first);
+		var buf: [256]u8 = undefined;
+		var at: usize = 0;
+		for (0..record.?.count) |i| {
+			const old = range.next(&buf) orelse break;
+			while (at < fresh.len and std.mem.order(u8, self.names.items[fresh[at].off..][0..fresh[at].len], old.name) == .lt) at += 1;
+			if (at < fresh.len and old.dir and std.mem.eql(u8, self.names.items[fresh[at].off..][0..fresh[at].len], old.name)) fresh[at].old = record.?.first + @as(u32, @intCast(i));
+		}
+		return listing;
+	}
 
+	fn reuse(self: *Lister, record: index.DirRecord) !void {
+		var range = self.old.?.children(record.first);
+		var buf: [256]u8 = undefined;
+		for (0..record.count) |i| {
+			const item = range.next(&buf) orelse return;
+			try self.push(item.name, item.dir, if (item.dir) record.first + @as(u32, @intCast(i)) else none);
+		}
+	}
+
+	fn read(self: *Lister, dir: Dir, entries: *Entries) !void {
+		const from = self.children.items.len;
 		while (entries.next()) |entry| {
 			const name = nameOf(entry);
 			if (name.len == 0 or name.len > 255 or skipName(name)) continue;
 			if (name[0] == '.' and !(std.mem.eql(u8, name, ".config") and std.mem.eql(u8, dir.path, self.home))) continue;
 			if (dir.depth <= 2 and skipPath(try self.setPath(&.{ dir.path, "/", name }))) continue;
-
 			var is_dir = entry.type == linux.DT.DIR;
 			if (entry.type == linux.DT.UNKNOWN) {
 				var st: linux.Statx = undefined;
 				if (linux.errno(linux.statx(entries.fd, @ptrCast(&entry.name), linux.AT.SYMLINK_NOFOLLOW, .{ .TYPE = true }, &st)) != .SUCCESS) continue;
 				is_dir = std.posix.S.ISDIR(st.mode);
 			}
-			var prefix: [8]u8 = @splat(0);
-			@memcpy(prefix[0..@min(8, name.len)], name[0..@min(8, name.len)]);
-			try self.children.append(self.allocator, .{ .key = std.mem.readInt(u64, &prefix, .big), .off = @intCast(self.names.items.len), .len = @intCast(name.len), .dir = is_dir });
-			try self.names.appendSlice(self.allocator, name);
+			try self.push(name, is_dir, none);
 		}
-
-		const to: u32 = @intCast(self.children.items.len);
-		std.sort.pdq(Child, self.children.items[from..to], self.names.items, struct {
+		std.sort.pdq(Child, self.children.items[from..], self.names.items, struct {
 			fn less(names: []const u8, a: Child, b: Child) bool {
 				if (a.key != b.key) return a.key < b.key;
 				return std.mem.lessThan(u8, names[a.off..][0..a.len], names[b.off..][0..b.len]);
 			}
 		}.less);
-		return .{ .lister = self.index, .from = from, .to = to };
+	}
+
+	fn push(self: *Lister, name: []const u8, dir: bool, old: u32) !void {
+		var prefix: [8]u8 = @splat(0);
+		@memcpy(prefix[0..@min(8, name.len)], name[0..@min(8, name.len)]);
+		try self.children.append(self.allocator, .{ .key = std.mem.readInt(u64, &prefix, .big), .off = @intCast(self.names.items.len), .len = @intCast(name.len), .dir = dir, .old = old });
+		try self.names.appendSlice(self.allocator, name);
 	}
 };
 
@@ -431,13 +471,14 @@ const Walker = struct {
 	encoder: *Encoder,
 	pool: *Pool,
 	blocked: []const []const u8,
+	records: *std.ArrayList(index.DirRecord),
 	exclude: []const u8 = "",
 	ancestors: []const Dir = &.{},
 
 	fn walk(self: *Walker, start: Dir) !void {
 		var level: std.ArrayList(Dir) = .empty;
 		defer freeDirs(self.allocator, &level);
-		try level.append(self.allocator, .{ .path = try self.allocator.dupe(u8, start.path), .id = start.id, .depth = start.depth });
+		try level.append(self.allocator, .{ .path = try self.allocator.dupe(u8, start.path), .id = start.id, .depth = start.depth, .old = start.old });
 		defer self.pool.crew.wait() catch {};
 
 		while (level.items.len > 0) {
@@ -450,7 +491,9 @@ const Walker = struct {
 				try self.pool.crew.wait();
 				if (b + 1 < batches) try self.pool.list(self.allocator, &self.pool.batches[(b + 1) % 2], level.items, (b + 1) * batch_dirs);
 				for (level.items[batch.from..batch.to], batch.results.items) |*dir, listing| {
-					try self.emit(dir.*, &batch.listers[listing.lister], listing, &next);
+					const first = self.encoder.count;
+					const whole = try self.emit(dir.*, &batch.listers[listing.lister], listing, &next);
+					if (listing.ok) try self.records.append(self.allocator, .{ .id = dir.id, .first = first, .count = self.encoder.count - first, .partial = @intFromBool(!whole), .mtime = listing.mtime });
 					self.allocator.free(dir.path);
 					dir.path = &.{};
 				}
@@ -465,27 +508,33 @@ const Walker = struct {
 		}
 	}
 
-	fn emit(self: *Walker, dir: Dir, lister: *Lister, listing: Listing, next: *std.ArrayList(Dir)) !void {
+	fn emit(self: *Walker, dir: Dir, lister: *Lister, listing: Listing, next: *std.ArrayList(Dir)) !bool {
+		var whole = true;
 		for (lister.children.items[listing.from..listing.to]) |child| {
 			const name = lister.names.items[child.off..][0..child.len];
 			const path = if (child.dir) try std.mem.concat(self.allocator, u8, &.{ dir.path, "/", name }) else "";
 			var keep = false;
 			defer if (!keep) self.allocator.free(path);
 			if (child.dir and dir.depth <= 2) {
-				if (std.mem.eql(u8, path, self.exclude)) continue;
+				if (std.mem.eql(u8, path, self.exclude)) {
+					whole = false;
+					continue;
+				}
 				if (for (self.ancestors) |ancestor| {
 					if (std.mem.eql(u8, path, ancestor.path)) break ancestor;
 				} else null) |ancestor| {
-					try next.append(self.allocator, .{ .path = @constCast(path), .id = ancestor.id, .depth = dir.depth +| 1 });
+					try next.append(self.allocator, .{ .path = @constCast(path), .id = ancestor.id, .depth = dir.depth +| 1, .old = ancestor.old });
 					keep = true;
+					whole = false;
 					continue;
 				}
 			}
 			const id = try self.encoder.add(name, dir.id, child.dir);
 			if (!child.dir or contains(self.blocked, path)) continue;
-			try next.append(self.allocator, .{ .path = @constCast(path), .id = id, .depth = dir.depth +| 1 });
+			try next.append(self.allocator, .{ .path = @constCast(path), .id = id, .depth = dir.depth +| 1, .old = child.old });
 			keep = true;
 		}
+		return whole;
 	}
 };
 
@@ -500,6 +549,22 @@ pub fn build(io: Io, allocator: Allocator, root: []const u8, home: []const u8, o
 	const home_path = std.mem.trimEnd(u8, home, "/");
 	if (root_name.len > 255) return error.RootTooLong;
 
+	const scope = std.hash.Wyhash.hash(index.version, root_name) ^ std.hash.Wyhash.hash(1, home_path);
+	var previous: ?index.Index = index.load(io, out_path) catch null;
+	defer if (previous) |*loaded| loaded.deinit();
+	if (previous != null and previous.?.scope != scope) {
+		previous.?.deinit();
+		previous = null;
+	}
+	const old: ?*const index.Index = if (previous) |*loaded| loaded else null;
+	if (old != null and try unchanged(allocator, old.?, if (root_name.len == 0) "/" else root_name)) {
+		var file = try std.Io.Dir.cwd().openFile(io, out_path, .{ .mode = .read_write });
+		defer file.close(io);
+		const stamp = std.mem.asBytes(&built_ms);
+		if (linux.errno(linux.pwrite(file.handle, stamp, stamp.len, @offsetOf(index.Header, "built_ms"))) != .SUCCESS) return error.WriteFailed;
+		return;
+	}
+
 	const temp = try std.fmt.allocPrint(allocator, "{s}/.{s}.{d}", .{ std.fs.path.dirname(out_path) orelse ".", std.fs.path.basename(out_path), linux.getpid() });
 	defer allocator.free(temp);
 	if (std.fs.path.dirname(out_path)) |parent_dir| try std.Io.Dir.cwd().createDirPath(io, parent_dir);
@@ -511,7 +576,7 @@ pub fn build(io: Io, allocator: Allocator, root: []const u8, home: []const u8, o
 	var buffer: [64 * 1024]u8 = undefined;
 	var writer = file.writer(io, &buffer);
 	const w = &writer.interface;
-	var header: index.Header = .{ .built_ms = built_ms, .names_at = @sizeOf(index.Header) };
+	var header: index.Header = .{ .built_ms = built_ms, .names_at = @sizeOf(index.Header), .scope = scope };
 	try w.writeAll(std.mem.asBytes(&header));
 
 	const posters = try allocator.create(Posters);
@@ -531,7 +596,7 @@ pub fn build(io: Io, allocator: Allocator, root: []const u8, home: []const u8, o
 	var listers: [2][max_threads]Lister = undefined;
 	var pool: Pool = .{ .crew = .{ .io = io, .job = Pool.job, .size = threads }, .batches = undefined };
 	for (&listers, &pool.batches) |*set, *batch| {
-		for (set[0..threads], 0..) |*lister, i| lister.* = .{ .allocator = allocator, .index = @intCast(i), .home = home_path };
+		for (set[0..threads], 0..) |*lister, i| lister.* = .{ .allocator = allocator, .index = @intCast(i), .home = home_path, .old = old };
 		batch.* = .{ .listers = set[0..threads] };
 	}
 	defer for (&listers, &pool.batches) |*set, *batch| {
@@ -549,22 +614,25 @@ pub fn build(io: Io, allocator: Allocator, root: []const u8, home: []const u8, o
 	defer freePaths(allocator, &blocked);
 	var ancestors: std.ArrayList(Dir) = .empty;
 	defer freeDirs(allocator, &ancestors);
-	var walker: Walker = .{ .allocator = allocator, .encoder = &encoder, .pool = &pool, .blocked = blocked.items };
+	var records: std.ArrayList(index.DirRecord) = .empty;
+	defer records.deinit(allocator);
+	var walker: Walker = .{ .allocator = allocator, .encoder = &encoder, .pool = &pool, .blocked = blocked.items, .records = &records };
 
 	if (home_path.len > root_name.len and within(home_path, root_name) and !hidden(home_path[root_name.len..])) {
 		var parts = std.mem.tokenizeScalar(u8, home_path[root_name.len..], '/');
 		while (parts.next()) |part| {
 			const parent = if (ancestors.items.len == 0) 0 else ancestors.items[ancestors.items.len - 1].id;
 			const end = @intFromPtr(part.ptr) - @intFromPtr(home_path.ptr) + part.len;
-			try ancestors.append(allocator, .{ .path = try allocator.dupe(u8, home_path[0..end]), .id = try encoder.add(part, parent, true), .depth = 0 });
+			const was = if (old) |o| o.find(home_path[root_name.len..end]) else none;
+			try ancestors.append(allocator, .{ .path = try allocator.dupe(u8, home_path[0..end]), .id = try encoder.add(part, parent, true), .depth = 0, .old = was });
 		}
 		const top = ancestors.pop().?;
 		defer allocator.free(top.path);
-		try walker.walk(.{ .path = top.path, .id = top.id, .depth = 3 });
+		try walker.walk(.{ .path = top.path, .id = top.id, .depth = 3, .old = top.old });
 		walker.exclude = home_path;
 		walker.ancestors = ancestors.items;
 	}
-	try walker.walk(.{ .path = @constCast(root_name), .id = 0, .depth = 0 });
+	try walker.walk(.{ .path = @constCast(root_name), .id = 0, .depth = 0, .old = if (old != null) 0 else none });
 	try posters.finish();
 	try encoder.starts.append(allocator, @intCast(encoder.names_len));
 
@@ -582,12 +650,44 @@ pub fn build(io: Io, allocator: Allocator, root: []const u8, home: []const u8, o
 	header.keys_at = header.starts_at + encoder.starts.items.len * 4;
 	try w.writeAll(std.mem.sliceAsBytes(encoder.starts.items));
 	try w.writeAll(std.mem.sliceAsBytes(keys.items));
+	std.sort.pdq(index.DirRecord, records.items, {}, struct {
+		fn less(_: void, a: index.DirRecord, b: index.DirRecord) bool {
+			return a.id < b.id;
+		}
+	}.less);
+	const end = header.keys_at + keys.items.len * @sizeOf(index.Key);
+	try w.splatByteAll(0, (8 - end % 8) % 8);
+	header.dirs_at = end + (8 - end % 8) % 8;
+	header.dirs = records.items.len;
+	try w.writeAll(std.mem.sliceAsBytes(records.items));
 	try w.flush();
 
 	if (linux.errno(linux.pwrite(file.handle, std.mem.asBytes(&header), @sizeOf(index.Header), 0)) != .SUCCESS) return error.WriteFailed;
 	file.close(io);
 	closed = true;
 	try std.Io.Dir.cwd().rename(temp, std.Io.Dir.cwd(), out_path, io);
+}
+
+fn unchanged(allocator: Allocator, old: *const index.Index, root: []const u8) !bool {
+	var arena = std.heap.ArenaAllocator.init(allocator);
+	defer arena.deinit();
+	var paths: std.AutoHashMapUnmanaged(u32, []const u8) = .empty;
+	try paths.put(arena.allocator(), 0, root);
+	var buffer: [std.fs.max_path_bytes]u8 = undefined;
+	var buf: [256]u8 = undefined;
+	for (old.dirs) |record| {
+		const path = paths.get(record.id) orelse old.path(&buffer, record.id);
+		const z = try arena.allocator().dupeSentinel(u8, path, 0);
+		var st: linux.Statx = undefined;
+		if (linux.errno(linux.statx(linux.AT.FDCWD, z, linux.AT.SYMLINK_NOFOLLOW, .{ .MTIME = true }, &st)) != .SUCCESS) return false;
+		if (st.mtime.sec * std.time.ns_per_s + st.mtime.nsec != record.mtime) return false;
+		var range = old.children(record.first);
+		for (0..record.count) |i| {
+			const item = range.next(&buf) orelse break;
+			if (item.dir) try paths.put(arena.allocator(), record.first + @as(u32, @intCast(i)), try std.mem.concat(arena.allocator(), u8, &.{ path, "/", item.name }));
+		}
+	}
+	return true;
 }
 
 pub fn command(io: Io, args: []const []const u8) !void {
@@ -739,4 +839,49 @@ test "mounts on another device are blocked, the root and home devices are kept" 
 	try std.testing.expect(within("/mnt", "/"));
 	try std.testing.expect(within("/home/me", "/home"));
 	try std.testing.expect(!within("/homes", "/home"));
+}
+
+test "a rebuild reuses unchanged folders and picks up changed ones" {
+	const io = std.testing.io;
+	const allocator = std.testing.allocator;
+	var tmp = std.testing.tmpDir(.{});
+	defer tmp.cleanup();
+	const base = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+	defer allocator.free(base);
+	const root = try std.Io.Dir.cwd().realPathFileAlloc(io, base, allocator);
+	defer allocator.free(root);
+	const index_path = try std.fmt.allocPrint(allocator, "{s}.idx", .{root});
+	defer allocator.free(index_path);
+	defer std.Io.Dir.cwd().deleteFile(io, index_path) catch {};
+
+	for ([_][]const u8{ "a/b/c", "z" }) |sub| try touch(io, root, sub, true);
+	for ([_][]const u8{ "a/old.txt", "a/b/keep.txt", "a/b/c/deep.txt", "z/zed.txt" }) |sub| try touch(io, root, sub, false);
+	try build(io, allocator, root, root, index_path, 1);
+	try build(io, allocator, root, root, index_path, 2);
+	var hits: [8]u32 = undefined;
+	var buffer: [4096]u8 = undefined;
+	{
+		var same = try index.load(io, index_path);
+		defer same.deinit();
+		try std.testing.expectEqual(@as(usize, 1), same.search("deep", &hits));
+		try std.testing.expect(std.mem.endsWith(u8, same.path(&buffer, hits[0]), "/a/b/c/deep.txt"));
+		try std.testing.expect(same.dirs.len >= 4);
+	}
+
+	try touch(io, root, "a/b/new-file.txt", false);
+	try touch(io, root, "z/fresh-dir", true);
+	const gone = try std.fmt.allocPrint(allocator, "{s}/a/old.txt", .{root});
+	defer allocator.free(gone);
+	try std.Io.Dir.cwd().deleteFile(io, gone);
+	try build(io, allocator, root, root, index_path, 3);
+
+	var changed = try index.load(io, index_path);
+	defer changed.deinit();
+	try std.testing.expectEqual(@as(usize, 1), changed.search("new-file", &hits));
+	try std.testing.expect(std.mem.endsWith(u8, changed.path(&buffer, hits[0]), "/a/b/new-file.txt"));
+	try std.testing.expectEqual(@as(usize, 0), changed.search("old.txt", &hits));
+	try std.testing.expectEqual(@as(usize, 1), changed.search("fresh-dir", &hits));
+	try std.testing.expectEqual(@as(usize, 1), changed.search("deep", &hits));
+	try std.testing.expect(std.mem.endsWith(u8, changed.path(&buffer, hits[0]), "/a/b/c/deep.txt"));
+	try std.testing.expectEqual(@as(usize, 1), changed.search("zed", &hits));
 }
