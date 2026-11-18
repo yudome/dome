@@ -185,9 +185,10 @@ const Worker = struct {
 		return true;
 	}
 
-	fn run(self: *Worker, scanner: index.Scanner, next: *std.atomic.Value(u32), chunk: u32, groups: u32) void {
+	fn run(self: *Worker, scanner: index.Scanner, next: *std.atomic.Value(u32), chunk: u32, groups: u32, stop: ?*const std.atomic.Value(u32)) void {
 		var walk = scanner;
 		while (true) {
+			if (stop) |flag| if (flag.load(.acquire) > 0) return;
 			const at = next.fetchAdd(1, .monotonic);
 			const from = at * chunk;
 			if (from >= groups) return;
@@ -197,6 +198,7 @@ const Worker = struct {
 };
 
 const Job = struct {
+	stop: ?*const std.atomic.Value(u32),
 	workers: []Worker,
 	scanner: index.Scanner,
 	next: *std.atomic.Value(u32),
@@ -204,7 +206,7 @@ const Job = struct {
 	groups: u32,
 
 	fn work(self: *const Job, slot: usize) void {
-		if (slot < self.workers.len) self.workers[slot].run(self.scanner, self.next, self.chunk, self.groups);
+		if (slot < self.workers.len) self.workers[slot].run(self.scanner, self.next, self.chunk, self.groups, self.stop);
 	}
 };
 
@@ -262,6 +264,10 @@ pub const Result = struct {
 };
 
 pub fn top(allocator: Allocator, pool: *Pool, idx: *const index.Index, dirs: *const Dirs, query: []const u8, limit: usize) !Result {
+	return topUnless(allocator, pool, idx, dirs, query, limit, null);
+}
+
+pub fn topUnless(allocator: Allocator, pool: *Pool, idx: *const index.Index, dirs: *const Dirs, query: []const u8, limit: usize, stop: ?*const std.atomic.Value(u32)) !Result {
 	const empty: Result = .{ .distinct = &.{}, .all = &.{}, .matched = 0 };
 	if (limit == 0 or query.len == 0 or query.len > 255) return empty;
 	var needle_buf: [256]u8 = undefined;
@@ -285,8 +291,9 @@ pub fn top(allocator: Allocator, pool: *Pool, idx: *const index.Index, dirs: *co
 	const scanner = idx.scanner(query);
 	const chunk: u32 = @intCast(@max(1, groups / (count * chunks_per_thread)));
 	var next: std.atomic.Value(u32) = .init(0);
-	const job: Job = .{ .workers = workers, .scanner = scanner, .next = &next, .chunk = chunk, .groups = groups };
+	const job: Job = .{ .stop = stop, .workers = workers, .scanner = scanner, .next = &next, .chunk = chunk, .groups = groups };
 	pool.run(&job);
+	if (stop) |flag| if (flag.load(.acquire) > 0) return error.Canceled;
 
 	var all: std.ArrayList(Hit) = .empty;
 	var distinct: std.ArrayList(Hit) = .empty;
