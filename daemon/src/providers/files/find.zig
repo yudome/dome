@@ -4,7 +4,7 @@ const index = @import("index.zig");
 const Allocator = std.mem.Allocator;
 
 const max_threads = 16;
-const work_per_thread = 16384;
+const work_per_thread = 4096;
 const chunks_per_thread = 16;
 
 pub const Dirs = struct {
@@ -195,21 +195,79 @@ const Worker = struct {
 	}
 };
 
+const Job = struct {
+	workers: []Worker,
+	scanner: index.Scanner,
+	next: *std.atomic.Value(u32),
+	chunk: u32,
+	groups: u32,
+
+	fn work(self: *const Job, slot: usize) void {
+		if (slot < self.workers.len) self.workers[slot].run(self.scanner, self.next, self.chunk, self.groups);
+	}
+};
+
+pub const Pool = struct {
+	io: std.Io,
+	threads: []std.Thread,
+	mutex: std.Io.Mutex = .init,
+	epoch: std.atomic.Value(u32) = .init(0),
+	left: std.atomic.Value(u32) = .init(0),
+	job: ?*const Job = null,
+
+	pub fn create(allocator: Allocator, io: std.Io) !*Pool {
+		const cpus = std.Thread.getCpuCount() catch 1;
+		const self = try allocator.create(Pool);
+		self.* = .{ .io = io, .threads = try allocator.alloc(std.Thread, @min(cpus, max_threads) - 1) };
+		for (self.threads, 1..) |*thread, slot| thread.* = try std.Thread.spawn(.{}, loop, .{ self, slot });
+		return self;
+	}
+
+	pub fn size(self: *const Pool) usize {
+		return self.threads.len + 1;
+	}
+
+	fn loop(self: *Pool, slot: usize) void {
+		var seen: u32 = 0;
+		while (true) {
+			while (self.epoch.load(.acquire) == seen) self.io.futexWaitUncancelable(u32, &self.epoch.raw, seen);
+			seen = self.epoch.load(.acquire);
+			self.job.?.work(slot);
+			if (self.left.fetchSub(1, .acq_rel) == 1) self.io.futexWake(u32, &self.left.raw, 1);
+		}
+	}
+
+	fn run(self: *Pool, job: *const Job) void {
+		self.mutex.lockUncancelable(self.io);
+		defer self.mutex.unlock(self.io);
+		if (job.workers.len == 1 or self.threads.len == 0) return job.work(0);
+		self.job = job;
+		self.left.store(@intCast(self.threads.len), .release);
+		_ = self.epoch.fetchAdd(1, .release);
+		self.io.futexWake(u32, &self.epoch.raw, std.math.maxInt(u32));
+		job.work(0);
+		while (true) {
+			const left = self.left.load(.acquire);
+			if (left == 0) break;
+			self.io.futexWaitUncancelable(u32, &self.left.raw, left);
+		}
+	}
+};
+
 pub const Result = struct {
 	distinct: []Hit,
 	all: []Hit,
 	matched: usize,
 };
 
-pub fn top(allocator: Allocator, idx: *const index.Index, dirs: *const Dirs, query: []const u8, limit: usize) !Result {
+pub fn top(allocator: Allocator, pool: *Pool, idx: *const index.Index, dirs: *const Dirs, query: []const u8, limit: usize) !Result {
 	const empty: Result = .{ .distinct = &.{}, .all = &.{}, .matched = 0 };
 	if (limit == 0 or query.len == 0 or query.len > 255) return empty;
 	var needle_buf: [256]u8 = undefined;
 	const needle = index.fold(&needle_buf, query);
 	const groups = idx.groups(query.len);
 	if (groups == 0) return empty;
-	const cpus = std.Thread.getCpuCount() catch 1;
-	const count = std.math.clamp(idx.estimate(query) / work_per_thread, 1, @min(cpus, max_threads, groups));
+	const count = std.math.clamp(idx.estimate(query) / work_per_thread, 1, @min(pool.size(), groups));
 
 	const workers = try allocator.alloc(Worker, count);
 	for (workers) |*worker| {
@@ -226,10 +284,8 @@ pub fn top(allocator: Allocator, idx: *const index.Index, dirs: *const Dirs, que
 	const scanner = idx.scanner(query);
 	const chunk: u32 = @intCast(@max(1, groups / (count * chunks_per_thread)));
 	var next: std.atomic.Value(u32) = .init(0);
-	var threads: [max_threads]?std.Thread = @splat(null);
-	for (workers[1..], 1..) |*worker, at| threads[at] = std.Thread.spawn(.{}, Worker.run, .{ worker, scanner, &next, chunk, groups }) catch null;
-	workers[0].run(scanner, &next, chunk, groups);
-	for (threads[1..count]) |thread| if (thread) |running| running.join();
+	const job: Job = .{ .workers = workers, .scanner = scanner, .next = &next, .chunk = chunk, .groups = groups };
+	pool.run(&job);
 
 	var all: std.ArrayList(Hit) = .empty;
 	var distinct: std.ArrayList(Hit) = .empty;

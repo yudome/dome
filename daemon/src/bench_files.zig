@@ -188,6 +188,7 @@ fn live(io: Io, allocator: Allocator) !void {
 	var dirs = try find.Dirs.init(allocator, &loaded, proc.home(io, allocator));
 	defer dirs.deinit(allocator);
 	const dirs_ns = nowNs() - dirs_started;
+	const pool = try find.Pool.create(std.heap.smp_allocator, io);
 
 	var buffer: [8192]u8 = undefined;
 	var writer = std.Io.File.stdout().writer(io, &buffer);
@@ -201,7 +202,7 @@ fn live(io: Io, allocator: Allocator) !void {
 			var scratch = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
 			defer scratch.deinit();
 			const started = nowNs();
-			const result = try find.top(scratch.allocator(), &loaded, &dirs, query, 24);
+			const result = try find.top(scratch.allocator(), pool, &loaded, &dirs, query, 24);
 			sample.* = @as(f64, @floatFromInt(nowNs() - started)) / 1000.0;
 			matched = result.matched;
 		}

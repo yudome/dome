@@ -244,6 +244,7 @@ pub const Launcher = struct {
 	files_fresh: std.atomic.Value(bool) = .init(false),
 	recent: ?*recentmod.Recent = null,
 	file_dirs: ?findmod.Dirs = null,
+	file_pool: ?*findmod.Pool = null,
 	files_gen: std.atomic.Value(u64) = .init(0),
 	file_cache: std.heap.ArenaAllocator,
 	file_query: []const u8 = "",
@@ -297,6 +298,7 @@ pub const Launcher = struct {
 		self.watch = try clipwatch.Watch.create(self.allocator, self.io, self, clipsChanged);
 		try self.watch.?.start();
 
+		self.file_pool = findmod.Pool.create(self.allocator, self.io) catch null;
 		const thread = std.Thread.spawn(.{}, preloadIndex, .{self}) catch return;
 		thread.detach();
 	}
@@ -1420,8 +1422,9 @@ pub const Launcher = struct {
 
 		self.files_mutex.lockUncancelable(self.io);
 		defer self.files_mutex.unlock(self.io);
-		if (self.files) |*index| if (self.file_dirs) |*dirs| {
-			const found = try findmod.top(arena, index, dirs, search, limit);
+		if (self.files) |*index| if (self.file_dirs) |*dirs| if (self.file_pool != null) {
+			const pool = self.file_pool.?;
+			const found = try findmod.top(arena, pool, index, dirs, search, limit);
 			var buffer: [std.fs.max_path_bytes]u8 = undefined;
 			for ([_][]const findmod.Hit{ found.distinct, found.all }, [_]*std.ArrayList(FileHit){ &first, &second }) |hits, list| {
 				for (hits) |hit| {
