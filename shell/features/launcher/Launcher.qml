@@ -1204,7 +1204,7 @@ PanelWindow {
 								width: row.wide ? root.kaomojiSlot : root.iconSlot
 								height: root.iconSlot
 
-							readonly property string icon: row.modelData.kind === "proc" ? AppIcons.iconOfPid(row.modelData.pid) : (row.modelData.appId ? AppIcons.iconOf(row.modelData.appId) : "")
+							readonly property string icon: row.modelData.icons && row.modelData.icons.length > 0 ? AppIcons.themed(row.modelData.icons) : row.modelData.kind === "proc" ? AppIcons.iconOfPid(row.modelData.pid) : (row.modelData.appId ? AppIcons.iconOf(row.modelData.appId) : "")
 
 							Text {
 								visible: row.modelData.kind !== "app" && (rowIcon.icon === "" || rowIconImage.status === Image.Error)

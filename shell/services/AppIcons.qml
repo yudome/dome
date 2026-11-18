@@ -1,6 +1,7 @@
 pragma Singleton
 
 import QtQuick
+import Quickshell
 import qs
 import qs.services
 
@@ -28,6 +29,15 @@ Item {
 		}
 
 		root.ask(names);
+
+		return "";
+	}
+
+	function themed(names) {
+		for (let i = 0; i < names.length; i++) {
+			if (Quickshell.hasThemeIcon(names[i]))
+				return Quickshell.iconPath(names[i]);
+		}
 
 		return "";
 	}
