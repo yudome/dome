@@ -208,13 +208,22 @@ pub const Icons = struct {
 		}
 	}
 
+	pub const Found = struct {
+		name: []const u8 = "",
+		path: []const u8 = "",
+	};
+
 	pub fn resolve(self: *Icons, name: []const u8) []const u8 {
-		if (name.len == 0) return "";
+		return self.lookup(name).path;
+	}
+
+	pub fn lookup(self: *Icons, name: []const u8) Found {
+		if (name.len == 0) return .{};
 
 		self.ensure();
 
 		if (std.mem.indexOfScalar(u8, name, '/') != null) {
-			return if (proc.exists(self.io, name)) name else "";
+			return if (proc.exists(self.io, name)) .{ .path = name } else .{};
 		}
 
 		var lower_buf: [160]u8 = undefined;
@@ -224,37 +233,42 @@ pub const Icons = struct {
 		self.mutex.lockUncancelable(self.io);
 		defer self.mutex.unlock(self.io);
 
-		if (self.files.get(name)) |path| return path;
+		if (self.found(name)) |hit| return hit;
 
 		if (self.desktop.get(name)) |icon| {
-			if (self.files.get(icon)) |path| return path;
-			if (self.fallback(icon)) |path| return path;
+			if (self.found(icon)) |hit| return hit;
+			if (self.fallback(icon)) |hit| return hit;
 		}
 
-		if (self.fallback(name)) |path| return path;
+		if (self.fallback(name)) |hit| return hit;
 
 		if (!std.mem.eql(u8, lower, name)) {
-			if (self.files.get(lower)) |path| return path;
+			if (self.found(lower)) |hit| return hit;
 
 			if (self.desktop.get(lower)) |icon| {
-				if (self.files.get(icon)) |path| return path;
-				if (self.fallback(icon)) |path| return path;
+				if (self.found(icon)) |hit| return hit;
+				if (self.fallback(icon)) |hit| return hit;
 			}
 
-			if (self.fallback(lower)) |path| return path;
+			if (self.fallback(lower)) |hit| return hit;
 		}
 
-		return "";
+		return .{};
 	}
 
-	fn fallback(self: *Icons, name: []const u8) ?[]const u8 {
+	fn found(self: *Icons, name: []const u8) ?Found {
+		const entry = self.files.getEntry(name) orelse return null;
+		return .{ .name = entry.key_ptr.*, .path = entry.value_ptr.* };
+	}
+
+	fn fallback(self: *Icons, name: []const u8) ?Found {
 		var current = name;
 		var trimmed: [128]u8 = undefined;
 
 		if (std.mem.endsWith(u8, current, "-symbolic") and current.len - "-symbolic".len < trimmed.len) {
 			@memcpy(trimmed[0 .. current.len - "-symbolic".len], current[0 .. current.len - "-symbolic".len]);
 			current = trimmed[0 .. current.len - "-symbolic".len];
-			if (self.files.get(current)) |path| return path;
+			if (self.found(current)) |hit| return hit;
 		}
 
 		var attempts: usize = 0;
@@ -263,20 +277,24 @@ pub const Icons = struct {
 			const dash = std.mem.lastIndexOfScalar(u8, current, '-') orelse return null;
 			current = current[0..dash];
 
-			if (self.files.get(current)) |path| return path;
+			if (self.found(current)) |hit| return hit;
 		}
 
 		return null;
 	}
 
 	pub fn resolvePid(self: *Icons, pid: i64) []const u8 {
-		if (pid <= 0) return "";
+		return self.lookupPid(pid).path;
+	}
+
+	pub fn lookupPid(self: *Icons, pid: i64) Found {
+		if (pid <= 0) return .{};
 
 		var current = pid;
 		var hops: usize = 0;
 
 		while (current > 1 and hops < 8) : (hops += 1) {
-			const comm_path = std.fmt.allocPrint(self.allocator, "/proc/{d}/comm", .{current}) catch return "";
+			const comm_path = std.fmt.allocPrint(self.allocator, "/proc/{d}/comm", .{current}) catch return .{};
 			defer self.allocator.free(comm_path);
 
 			const comm = proc.readFile(self.io, self.allocator, comm_path) catch "";
@@ -285,20 +303,20 @@ pub const Icons = struct {
 			const name = std.mem.trim(u8, comm, " \n\r");
 
 			if (name.len > 0) {
-				const path = self.resolve(name);
-				if (path.len > 0) return path;
+				const hit = self.lookup(name);
+				if (hit.path.len > 0) return hit;
 			}
 
-			const stat_path = std.fmt.allocPrint(self.allocator, "/proc/{d}/stat", .{current}) catch return "";
+			const stat_path = std.fmt.allocPrint(self.allocator, "/proc/{d}/stat", .{current}) catch return .{};
 			defer self.allocator.free(stat_path);
 
-			const stat = proc.readFile(self.io, self.allocator, stat_path) catch return "";
+			const stat = proc.readFile(self.io, self.allocator, stat_path) catch return .{};
 			defer self.allocator.free(stat);
 
-			current = parentOf(stat) orelse return "";
+			current = parentOf(stat) orelse return .{};
 		}
 
-		return "";
+		return .{};
 	}
 };
 
@@ -455,6 +473,28 @@ test "a desktop entry gives up its icon" {
 	try std.testing.expectEqualStrings("helium-browser", entryIcon(body).?);
 	try std.testing.expect(entryIcon("[Desktop Entry]\nName=x\nHidden=true\nIcon=y\n") == null);
 	try std.testing.expect(entryIcon("[Desktop Entry]\nName=x\n") == null);
+}
+
+test "a lookup reports the theme name it matched on" {
+	const io = std.Io.Threaded.global_single_threaded.io();
+	const allocator = std.testing.allocator;
+	const self = try Icons.create(allocator, io);
+	defer {
+		self.clearMap(&self.files);
+		self.clearMap(&self.desktop);
+		allocator.destroy(self);
+	}
+	self.scanned_at = 1;
+	try self.files.put(allocator, try allocator.dupe(u8, "org.kde.dolphin"), try allocator.dupe(u8, "/icons/dolphin.svg"));
+	try self.files.put(allocator, try allocator.dupe(u8, "steam"), try allocator.dupe(u8, "/icons/steam.png"));
+	try self.desktop.put(allocator, try allocator.dupe(u8, "dolphin"), try allocator.dupe(u8, "org.kde.dolphin"));
+
+	const desk = self.lookup("dolphin");
+	try std.testing.expectEqualStrings("org.kde.dolphin", desk.name);
+	try std.testing.expectEqualStrings("/icons/dolphin.svg", desk.path);
+	try std.testing.expectEqualStrings("steam", self.lookup("steam-runtime").name);
+	try std.testing.expectEqualStrings("steam", self.lookup("Steam").name);
+	try std.testing.expectEqualStrings("", self.lookup("nothing").path);
 }
 
 test "the parent pid is read out of stat" {

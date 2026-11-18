@@ -23,6 +23,7 @@ pub const Icons = struct {
 	scratch: std.heap.ArenaAllocator,
 	resolver: *iconsmod.Icons,
 	asked: std.StringHashMapUnmanaged([]u8) = .empty,
+	names: std.StringHashMapUnmanaged([]u8) = .empty,
 	apps: ?*appsmod.Apps = null,
 
 	pub fn create(allocator: Allocator, io: Io, hub: *Hub, resolver: *iconsmod.Icons) !*Icons {
@@ -112,7 +113,10 @@ pub const Icons = struct {
 			urls[index] = null;
 			if (entry.id.len == 0) continue;
 
-			const path = self.resolver.resolve(entry.id);
+			const hit = self.resolver.lookup(entry.id);
+			self.remember(entry.id, hit.name);
+			self.remember(entry.name, hit.name);
+			const path = hit.path;
 			urls[index] = if (path.len > 0)
 				std.fmt.allocPrint(self.allocator, "file://{s}", .{path}) catch continue
 			else
@@ -225,7 +229,9 @@ pub const Icons = struct {
 
 		if (self.known(key)) return;
 
-		const path = self.resolver.resolvePid(pid);
+		const hit = self.resolver.lookupPid(pid);
+		self.remember(key, hit.name);
+		const path = hit.path;
 		const url = if (path.len > 0) std.fmt.allocPrint(self.allocator, "file://{s}", .{path}) catch "" else "";
 		defer if (url.len > 0) self.allocator.free(url);
 
@@ -233,7 +239,11 @@ pub const Icons = struct {
 	}
 
 	fn resolveName(self: *Icons, raw: []const u8, name: []const u8) void {
-		const path = self.resolver.resolve(name);
+		const hit = self.resolver.lookup(name);
+		self.remember(name, hit.name);
+		const alias_name = std.mem.trim(u8, raw, " \t\r\n");
+		if (!std.mem.eql(u8, alias_name, name)) self.remember(alias_name, hit.name);
+		const path = hit.path;
 		const url = if (path.len > 0) std.fmt.allocPrint(self.allocator, "file://{s}", .{path}) catch "" else "";
 		defer if (url.len > 0) self.allocator.free(url);
 
@@ -241,6 +251,32 @@ pub const Icons = struct {
 
 		const alias = std.mem.trim(u8, raw, " \t\r\n");
 		if (!std.mem.eql(u8, alias, name)) self.store(alias, url);
+	}
+
+	fn remember(self: *Icons, key: []const u8, icon: []const u8) void {
+		const cleaned = cleanName(key);
+		if (cleaned.len == 0 or icon.len == 0) return;
+
+		self.mutex.lockUncancelable(self.io);
+		defer self.mutex.unlock(self.io);
+
+		if (self.names.getPtr(cleaned)) |value| {
+			if (std.mem.eql(u8, value.*, icon)) return;
+			const copy = self.allocator.dupe(u8, icon) catch return;
+			self.allocator.free(value.*);
+			value.* = copy;
+			return;
+		}
+
+		const key_copy = self.allocator.dupe(u8, cleaned) catch return;
+		const value_copy = self.allocator.dupe(u8, icon) catch {
+			self.allocator.free(key_copy);
+			return;
+		};
+		self.names.put(self.allocator, key_copy, value_copy) catch {
+			self.allocator.free(key_copy);
+			self.allocator.free(value_copy);
+		};
 	}
 
 	fn store(self: *Icons, key: []const u8, value: []const u8) void {
@@ -302,6 +338,20 @@ pub const Icons = struct {
 			try json.write(writer, entry.value_ptr.*);
 		}
 
+		try writer.writeAll("},\"names\":{");
+
+		var names = self.names.iterator();
+		first = true;
+
+		while (names.next()) |entry| {
+			if (!first) try writer.writeAll(",");
+			first = false;
+
+			try json.write(writer, entry.key_ptr.*);
+			try writer.writeAll(":");
+			try json.write(writer, entry.value_ptr.*);
+		}
+
 		try writer.writeAll("}}");
 
 		_ = arena;
@@ -351,6 +401,12 @@ test "every app entry is resolved before the map is ever asked" {
 			allocator.free(entry.value_ptr.*);
 		}
 		self.asked.deinit(allocator);
+		var names = self.names.iterator();
+		while (names.next()) |entry| {
+			allocator.free(entry.key_ptr.*);
+			allocator.free(entry.value_ptr.*);
+		}
+		self.names.deinit(allocator);
 		self.scratch.deinit();
 		allocator.destroy(self);
 	}
@@ -377,6 +433,9 @@ test "every app entry is resolved before the map is ever asked" {
 	try std.testing.expectEqualStrings("file:///icons/top.svg", self.asked.get("Top").?);
 	try std.testing.expectEqualStrings("", self.asked.get("missing").?);
 	try std.testing.expectEqualStrings("", self.asked.get("Missing").?);
+	try std.testing.expectEqualStrings("top", self.names.get("top").?);
+	try std.testing.expectEqualStrings("top", self.names.get("Top").?);
+	try std.testing.expect(self.names.get("missing") == null);
 
 	var again: std.ArrayListUnmanaged(Pending) = .empty;
 	defer again.deinit(allocator);
