@@ -34,6 +34,7 @@ test {
 	_ = @import("providers/bar.zig");
 	_ = @import("providers/launcher.zig");
 	_ = @import("providers/files/index.zig");
+	_ = @import("providers/files/find.zig");
 	_ = @import("providers/files/build.zig");
 	_ = @import("providers/files/recent.zig");
 	_ = @import("providers/files/follow.zig");
