@@ -36,17 +36,22 @@ ShellRoot {
 
 		locked: true
 
-		Stage {
-			source: auth
-			focusIndex: lockRoot.focusIndex
-			reveal: lockRoot.reveal
+		WlSessionLockSurface {
+			color: Config.surface
 
-			onFocusPicked: function (index) {
-				lockRoot.focusIndex = index;
-			}
+			Stage {
+				anchors.fill: parent
+				source: auth
+				focusIndex: lockRoot.focusIndex
+				reveal: lockRoot.reveal
 
-			onRevealPicked: function (shown) {
-				lockRoot.reveal = shown;
+				onFocusPicked: function (index) {
+					lockRoot.focusIndex = index;
+				}
+
+				onRevealPicked: function (shown) {
+					lockRoot.reveal = shown;
+				}
 			}
 		}
 	}

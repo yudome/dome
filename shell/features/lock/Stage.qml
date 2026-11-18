@@ -1,12 +1,11 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import qs
 import qs.services
 import qs.ui
 
-WlSessionLockSurface {
+Rectangle {
 	id: root
 
 	property var source
@@ -24,6 +23,14 @@ WlSessionLockSurface {
 		{ glyph: Config.iconPowerOff, command: ["systemctl", "poweroff"] },
 		{ glyph: Config.iconReboot, command: ["systemctl", "reboot"] }
 	]
+	readonly property bool switchable: !!root.source && !!root.source.switchable
+	readonly property int slotCount: 2 + root.actions.length + (root.switchable ? 1 : 0)
+	readonly property int switchSlot: 2 + root.actions.length
+	property bool choiceOpen: false
+	property int choiceRow: 0
+	readonly property int panelWidth: Math.min(30, root.cols - 2)
+	readonly property int panelCol: root.centerCol(root.panelWidth)
+	readonly property int panelRow: Math.floor((root.rows - 5) / 2)
 
 	readonly property int boxWidth: {
 		const need = Math.max(14, root.filled + 9);
@@ -39,10 +46,10 @@ WlSessionLockSurface {
 	readonly property real cellHeight: Math.max(1, Math.ceil(cell.height))
 	readonly property int cols: Math.floor(root.width / root.cellWidth)
 	readonly property int rows: Math.floor(root.height / root.cellHeight)
-	readonly property int top: Math.max(0, Math.floor((root.rows - 11) / 2))
+	readonly property int topRow: Math.max(0, Math.floor((root.rows - 11) / 2))
 	readonly property int boxCol: root.centerCol(root.boxWidth)
 	readonly property var clockRows: root.blockRows(Qt.formatTime(stamp.date, Config.lockClockFormat))
-	readonly property int powerCol: root.centerCol(5)
+	readonly property int powerCol: root.centerCol((root.slotCount - 2) * 4 - 1)
 	readonly property int powerRow: Math.max(0, root.rows - 2)
 	readonly property string field: {
 		const text = root.reveal && root.source ? root.source.password : "●".repeat(root.filled);
@@ -78,6 +85,8 @@ WlSessionLockSurface {
 	function activate(index) {
 		if (index === 1)
 			root.revealPicked(!root.reveal);
+		else if (root.switchable && index === root.switchSlot)
+			root.choiceOpen = !root.choiceOpen;
 		else if (index >= 2)
 			Quickshell.execDetached(root.actions[index - 2].command);
 	}
@@ -169,7 +178,7 @@ WlSessionLockSurface {
 
 					visible: line.bits[index] === "█"
 					x: (line.start + index) * root.cellWidth
-					y: (root.top + line.index) * root.cellHeight
+					y: (root.topRow + line.index) * root.cellHeight
 					width: Math.ceil(root.cellWidth)
 					height: root.cellHeight
 					color: Config.foreground
@@ -179,7 +188,7 @@ WlSessionLockSurface {
 
 		Rectangle {
 			x: (root.boxCol + 0.5) * root.cellWidth
-			y: (root.top + 6.5) * root.cellHeight
+			y: (root.topRow + 6.5) * root.cellHeight
 			width: (root.boxWidth - 1) * root.cellWidth
 			height: 2 * root.cellHeight
 			radius: 0
@@ -190,7 +199,7 @@ WlSessionLockSurface {
 
 		Cell {
 			col: root.boxCol + 2
-			row: root.top + 7
+			row: root.topRow + 7
 			slotIndex: 0
 			glyph: Config.iconLock
 			ink: root.mode === "checking" ? Config.dim : Config.foreground
@@ -199,7 +208,7 @@ WlSessionLockSurface {
 
 		Text {
 			x: (root.boxCol + 4) * root.cellWidth
-			y: (root.top + 7) * root.cellHeight
+			y: (root.topRow + 7) * root.cellHeight
 			width: root.fieldWidth * root.cellWidth
 			height: root.cellHeight
 			horizontalAlignment: Text.AlignHCenter
@@ -213,7 +222,7 @@ WlSessionLockSurface {
 		Rectangle {
 			visible: root.focusIndex === 0 && root.blink
 			x: (root.boxCol + 4 + root.fieldOffset + root.field.length) * root.cellWidth
-			y: (root.top + 7) * root.cellHeight
+			y: (root.topRow + 7) * root.cellHeight
 			width: Math.ceil(root.cellWidth)
 			height: root.cellHeight
 			color: Config.foreground
@@ -221,7 +230,7 @@ WlSessionLockSurface {
 
 		Cell {
 			col: root.boxCol + root.boxWidth - 4
-			row: root.top + 7
+			row: root.topRow + 7
 			span: 3
 			slotIndex: 1
 			glyph: root.reveal ? Config.iconEyeOff : Config.iconEye
@@ -231,7 +240,7 @@ WlSessionLockSurface {
 			readonly property string line: root.message.slice(0, root.cols)
 
 			x: root.centerCol(line.length) * root.cellWidth
-			y: (root.top + 10) * root.cellHeight
+			y: (root.topRow + 10) * root.cellHeight
 			width: line.length * root.cellWidth
 			height: root.cellHeight
 			verticalAlignment: Text.AlignVCenter
@@ -242,16 +251,95 @@ WlSessionLockSurface {
 		}
 
 		Repeater {
-			model: root.actions.length
+			model: root.slotCount - 2
 
 			Cell {
 				required property int index
 
-				col: root.powerCol + index * 4 - 1
+				col: root.powerCol + index * 4
 				row: root.powerRow
 				span: 3
 				slotIndex: index + 2
-				glyph: root.actions[index].glyph
+				glyph: index < root.actions.length ? root.actions[index].glyph : Config.iconUser
+			}
+		}
+
+		Rectangle {
+			visible: root.choiceOpen
+			anchors.fill: parent
+			color: Config.surface
+			opacity: 0.85
+
+			MouseArea {
+				anchors.fill: parent
+				onClicked: root.choiceOpen = false
+			}
+		}
+
+		Rectangle {
+			visible: root.choiceOpen
+			x: root.panelCol * root.cellWidth
+			y: root.panelRow * root.cellHeight
+			width: root.panelWidth * root.cellWidth
+			height: 5 * root.cellHeight
+			color: Config.surface
+		}
+
+		Repeater {
+			model: root.choiceOpen ? 2 : 0
+
+			Item {
+				id: choice
+
+				required property int index
+
+				readonly property bool picked: root.choiceRow === choice.index
+				readonly property color ink: choice.picked ? Config.foreground : Config.dim
+				readonly property string name: root.source ? root.source.choiceName(choice.index) : ""
+
+				x: root.panelCol * root.cellWidth
+				y: (root.panelRow + 1 + choice.index * 2) * root.cellHeight
+				width: root.panelWidth * root.cellWidth
+				height: root.cellHeight
+
+				Glyph {
+					x: 2 * root.cellWidth
+					width: root.cellWidth
+					height: root.cellHeight
+					size: root.fontPixels
+					glyph: Config.iconChevron
+					color: choice.ink
+				}
+
+				Text {
+					x: 4 * root.cellWidth
+					width: (root.panelWidth - 8) * root.cellWidth
+					height: root.cellHeight
+					horizontalAlignment: Text.AlignHCenter
+					verticalAlignment: Text.AlignVCenter
+					elide: Text.ElideRight
+					font: cell.font
+					color: choice.ink
+					text: choice.name
+				}
+
+				Glyph {
+					x: (root.panelWidth - 3) * root.cellWidth
+					width: root.cellWidth
+					height: root.cellHeight
+					size: root.fontPixels
+					glyph: Config.iconRight
+					color: choice.ink
+				}
+
+				MouseArea {
+					anchors.fill: parent
+					hoverEnabled: true
+					onEntered: root.choiceRow = choice.index
+					onClicked: function (mouse) {
+						root.source.step(choice.index, mouse.x < width / 2 ? -1 : 1);
+					}
+				}
 			}
 		}
 
@@ -259,14 +347,25 @@ WlSessionLockSurface {
 			if (root.source === null)
 				return;
 
+			if (root.choiceOpen) {
+				if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab || event.key === Qt.Key_Up || event.key === Qt.Key_Down)
+					root.choiceRow = 1 - root.choiceRow;
+				else if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
+					root.source.step(root.choiceRow, event.key === Qt.Key_Left ? -1 : 1);
+				else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Escape)
+					root.choiceOpen = false;
+				event.accepted = true;
+				return;
+			}
+
 			if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
-				root.focusPicked((root.focusIndex + (event.key === Qt.Key_Backtab ? 3 : 1)) % 4);
+				root.focusPicked((root.focusIndex + (event.key === Qt.Key_Backtab ? root.slotCount - 1 : 1)) % root.slotCount);
 				event.accepted = true;
 				return;
 			}
 
 			if (root.focusIndex > 0 && (event.key === Qt.Key_Left || event.key === Qt.Key_Right)) {
-				root.focusPicked(Math.max(1, Math.min(3, root.focusIndex + (event.key === Qt.Key_Left ? -1 : 1))));
+				root.focusPicked(Math.max(1, Math.min(root.slotCount - 1, root.focusIndex + (event.key === Qt.Key_Left ? -1 : 1))));
 				event.accepted = true;
 				return;
 			}

@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
+export HOME=/var/lib/greetd
+export XDG_CACHE_HOME=/var/lib/greetd/cache
+export XDG_STATE_HOME=/var/lib/greetd/state
+export QS_GREETER_USER=${1:-}
+
+printf '\033[2J\033[H\033[?25l' || true
+
+exec cage -d -s -- quickshell -p "$dir/../../greeterShell.qml" >/var/lib/greetd/greeter.log 2>&1
