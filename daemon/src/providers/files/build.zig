@@ -742,6 +742,17 @@ pub fn apply(allocator: Allocator, old: *const index.Index, path: []const u8, ho
 	const zpath = std.fmt.bufPrintSentinel(&z, "{s}", .{path}, 0) catch return;
 	const id = old.find(rel);
 	if (id != none) if (old.dirOf(id)) |record| return diff(allocator, old, record, zpath, home, sink);
+	const prefix = path.len - rel.len;
+	var cursor = rel;
+	while (std.fs.path.dirname(cursor)) |parent| {
+		cursor = parent;
+		const pid = old.find(parent);
+		if (pid == none) continue;
+		const record = old.dirOf(pid) orelse continue;
+		var parent_buf: [std.fs.max_path_bytes + 1]u8 = undefined;
+		const zparent = std.fmt.bufPrintSentinel(&parent_buf, "{s}", .{path[0 .. prefix + parent.len]}, 0) catch return;
+		return diff(allocator, old, record, zparent, home, sink);
+	}
 	try added(zpath, null, home, sink, 0);
 }
 
@@ -1088,6 +1099,32 @@ test "the change scan reports only what the index does not have" {
 	for ([_][]const u8{ "/a/b/three.txt", "/z/fresh", "/z/fresh/inner", "/z/fresh/inner/leaf.txt" }) |suffix| try std.testing.expect(seen.has(suffix));
 }
 
+test "find walks the prewalked home path" {
+	const io = std.testing.io;
+	const allocator = std.testing.allocator;
+	var tmp = std.testing.tmpDir(.{});
+	defer tmp.cleanup();
+	const base = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+	defer allocator.free(base);
+	const root = try std.Io.Dir.cwd().realPathFileAlloc(io, base, allocator);
+	defer allocator.free(root);
+	const index_path = try std.fmt.allocPrint(allocator, "{s}.idx", .{root});
+	defer allocator.free(index_path);
+	defer std.Io.Dir.cwd().deleteFile(io, index_path) catch {};
+
+	try touch(io, root, "home/user/notes", true);
+	try touch(io, root, "home/user/notes/hello.txt", false);
+	const home = try std.fmt.allocPrint(allocator, "{s}/home/user", .{root});
+	defer allocator.free(home);
+	try build(io, allocator, root, home, index_path, 1);
+	var built = try index.load(io, index_path);
+	defer built.deinit();
+
+	try std.testing.expect(built.find("/home") != index.none);
+	try std.testing.expect(built.find("/home/user") != index.none);
+	try std.testing.expect(built.find("/home/user/notes/hello.txt") != index.none);
+}
+
 test "applying a reported folder adds what the index does not have" {
 	const io = std.testing.io;
 	const allocator = std.testing.allocator;
@@ -1119,4 +1156,10 @@ test "applying a reported folder adds what the index does not have" {
 	try apply(allocator, &built, try std.fmt.bufPrint(&buf, "{s}/.hidden", .{root}), root, &seen);
 	try std.testing.expectEqual(@as(usize, 1), seen.paths.items.len);
 	try std.testing.expect(seen.has("/a/b/new.txt"));
+
+	try touch(io, root, "a/b/newdir", true);
+	try touch(io, root, "a/b/newdir/deep.txt", false);
+	try apply(allocator, &built, try std.fmt.bufPrint(&buf, "{s}/a/b/newdir", .{root}), root, &seen);
+	try std.testing.expect(seen.has("/a/b/newdir"));
+	try std.testing.expect(seen.has("/a/b/newdir/deep.txt"));
 }

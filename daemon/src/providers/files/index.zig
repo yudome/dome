@@ -124,13 +124,18 @@ pub const Index = struct {
 		return range;
 	}
 
-	pub fn dirOf(self: *const Index, id: u32) ?DirRecord {
+	pub fn dirIndex(self: *const Index, id: u32) ?usize {
 		const at = std.sort.lowerBound(DirRecord, self.dirs, id, struct {
 			fn order(target: u32, record: DirRecord) std.math.Order {
 				return std.math.order(target, record.id);
 			}
 		}.order);
-		return if (at < self.dirs.len and self.dirs[at].id == id) self.dirs[at] else null;
+		return if (at < self.dirs.len and self.dirs[at].id == id) at else null;
+	}
+
+	pub fn dirOf(self: *const Index, id: u32) ?DirRecord {
+		const at = self.dirIndex(id) orelse return null;
+		return self.dirs[at];
 	}
 
 	pub fn dirPath(self: *const Index, at: usize, buffer: []u8) []const u8 {
@@ -152,14 +157,25 @@ pub const Index = struct {
 
 	pub fn find(self: *const Index, rel: []const u8) u32 {
 		var id: u32 = 0;
+		var record_index: ?usize = 0;
 		var parts = std.mem.tokenizeScalar(u8, rel, '/');
 		var buf: [256]u8 = undefined;
 		next: while (parts.next()) |part| {
-			const record = self.dirOf(id) orelse return none;
+			const at = record_index orelse return none;
+			const record = self.dirs[at];
 			var range = self.children(record.first);
-			for (0..record.count) |at| {
+			for (0..record.count) |child| {
 				if (!std.mem.eql(u8, range.next(&buf).?.name, part)) continue;
-				id = record.first + @as(u32, @intCast(at));
+				id = record.first + @as(u32, @intCast(child));
+				record_index = self.dirIndex(id);
+				continue :next;
+			}
+			for (self.dirs, 0..) |candidate, index| {
+				if (candidate.up != at) continue;
+				const name = self.dir_names[candidate.name_off..][0..candidate.name_len];
+				if (!std.mem.eql(u8, name, part)) continue;
+				id = candidate.id;
+				record_index = index;
 				continue :next;
 			}
 			return none;
