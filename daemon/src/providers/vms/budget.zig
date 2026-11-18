@@ -20,14 +20,17 @@ pub fn detect(io: Io, allocator: Allocator) Budget {
 	// VMs reserve their full memory up front. Budget against what the host can
 	// actually give today (three quarters of MemAvailable), not half of the
 	// installed RAM: a 1 GB host reserve is kept for the daemon and the desktop.
-	const floor = @min(total_mb, @max(total_mb / 2, 1024));
-	const usable = if (available_mb > 0) available_mb * 3 / 4 else total_mb / 2;
-	const cap = if (total_mb > 1024) total_mb - 1024 else total_mb;
-
 	return .{
-		.mem_mb = std.math.clamp(usable, floor, cap),
+		.mem_mb = memMb(total_mb, available_mb),
 		.cores = @max(@as(u32, @intCast(cpus)), 1),
 	};
+}
+
+fn memMb(total_mb: u32, available_mb: u32) u32 {
+	const floor = @min(total_mb, @max(total_mb / 2, 1024));
+	const usable = if (available_mb > 0) available_mb * 3 / 4 else total_mb / 2;
+	const cap = @max(floor, if (total_mb > 1024) total_mb - 1024 else total_mb);
+	return std.math.clamp(usable, floor, cap);
 }
 
 fn fieldMb(body: []const u8, name: []const u8) u32 {
@@ -47,4 +50,10 @@ test "the memory budget follows available memory" {
 	try std.testing.expectEqual(@as(u32, 15945), total);
 	try std.testing.expectEqual(@as(u32, 12402), available);
 	try std.testing.expect(available * 3 / 4 > total / 2);
+}
+
+test "a small guest still gets a budget" {
+	try std.testing.expectEqual(@as(u32, 1024), memMb(1900, 1500));
+	try std.testing.expectEqual(@as(u32, 512), memMb(512, 400));
+	try std.testing.expectEqual(@as(u32, 9301), memMb(15945, 12402));
 }
