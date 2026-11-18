@@ -1,4 +1,4 @@
--- xmake tasks: greeter link lint bench hypr vm doctor (see scripts/tasks.sh)
+-- xmake tasks: link lint bench hypr vm doctor (see scripts/tasks.sh)
 
 target("checks")
     set_kind("phony")
@@ -6,7 +6,6 @@ target("checks")
     add_tests("qml")
     add_tests("plugins")
     add_tests("idle-spawn")
-    add_tests("greeter")
     on_test(function (target, opt)
         local name = opt.name:match("/(.+)$")
 
@@ -20,10 +19,6 @@ target("checks")
 
         if name == "plugins" then
             return os.execv("sh", {"-c", "scripts/plugin-check"}, {try = true}) == 0
-        end
-
-        if name == "greeter" then
-            return os.execv("sh", {"-c", "cargo test --quiet --manifest-path greeter/Cargo.toml"}, {try = true}) == 0
         end
 
         if name == "idle-spawn" then

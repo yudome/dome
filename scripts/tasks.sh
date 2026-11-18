@@ -72,12 +72,6 @@ task_plugin() {
 	build_plugins
 }
 
-task_greeter() {
-	cargo build --release --manifest-path "$ROOT/greeter/Cargo.toml"
-	install -Dm755 "$ROOT/greeter/target/release/greeter" "$ROOT/greeter/bin/greeter"
-	echo "built $ROOT/greeter/bin/greeter"
-}
-
 task_lint() {
 	mkdir -p /tmp/qmlimport
 	ln -sfn "$ROOT/shell" /tmp/qmlimport/qs
@@ -165,7 +159,7 @@ task_doctor() {
 }
 
 usage() {
-	echo "usage: xmake build|plugin|greeter|link|lint|bench|vm|doctor" >&2
+	echo "usage: xmake build|plugin|link|lint|bench|vm|doctor" >&2
 	exit 2
 }
 
@@ -175,7 +169,6 @@ shift || true
 case "$command" in
 	build) task_build ;;
 	plugin) task_plugin ;;
-	greeter) task_greeter ;;
 	link) task_link ;;
 	lint) task_lint ;;
 	bench) task_bench "$@" ;;
