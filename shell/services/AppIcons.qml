@@ -11,6 +11,7 @@ Item {
 	visible: false
 
 	readonly property var resolved: Yudae.icons.map || ({})
+	readonly property var names: Yudae.icons.names || ({})
 	readonly property var glyphs: ({ "com.yudae.vms": "\uDB80\uDF79", "com.yudae.disk": "\uF0A0" })
 	property var asked: ({})
 
@@ -25,12 +26,18 @@ Item {
 			const path = root.resolved[names[i]];
 
 			if (path)
-				return path;
+				return root.fromTheme(names[i], path);
 		}
 
 		root.ask(names);
 
 		return "";
+	}
+
+	function fromTheme(key, path) {
+		const name = root.names[key];
+
+		return name && Quickshell.hasThemeIcon(name) ? Quickshell.iconPath(name) : path;
 	}
 
 	function themed(names) {
@@ -39,7 +46,7 @@ Item {
 				return Quickshell.iconPath(names[i]);
 		}
 
-		return "";
+		return names.length > 0 ? root.iconOf(names[0], names.slice(1)) : "";
 	}
 
 	function iconOfPid(pid) {
@@ -50,7 +57,7 @@ Item {
 		const path = root.resolved[key];
 
 		if (path !== undefined)
-			return path;
+			return path ? root.fromTheme(key, path) : path;
 
 		root.askPid(pid);
 
