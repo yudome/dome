@@ -6,8 +6,8 @@ const proc = @import("../../primitives/proc.zig");
 
 const Allocator = std.mem.Allocator;
 pub const recent_cap = 20000;
-const watch_cap = 2048;
-const watch_depth = 2;
+const watch_cap = 32768;
+const watch_depth = 8;
 
 const Fresh = struct {
 	path: []u8,
@@ -224,7 +224,7 @@ test "recent files show up from inotify before the next rebuild" {
 	defer allocator.free(base);
 	const root = try std.Io.Dir.cwd().realPathFileAlloc(io, base, allocator);
 	defer allocator.free(root);
-	const file = try std.fmt.allocPrint(allocator, "{s}/Downloads/Fresh-Invoice.pdf", .{root});
+	const file = try std.fmt.allocPrint(allocator, "{s}/a/b/c/d/e/f/Fresh-Invoice.pdf", .{root});
 	defer allocator.free(file);
 	try std.Io.Dir.cwd().createDirPath(io, std.fs.path.dirname(file).?);
 
@@ -235,7 +235,7 @@ test "recent files show up from inotify before the next rebuild" {
 	recent.fd = @intCast(linux.inotify_init1(linux.IN.CLOEXEC | linux.IN.NONBLOCK));
 	recent.load();
 	recent.watchTree(recent.home, 0);
-	try std.testing.expectEqual(@as(u32, 2), recent.dirs.count());
+	try std.testing.expectEqual(@as(u32, 7), recent.dirs.count());
 
 	var created = try std.Io.Dir.cwd().createFile(io, file, .{});
 	created.close(io);
