@@ -4,6 +4,7 @@ const proc = @import("primitives/proc.zig");
 const fmt = @import("primitives/fmt.zig");
 const index = @import("providers/files/index.zig");
 const files = @import("providers/files/build.zig");
+const find = @import("providers/files/find.zig");
 const disk = @import("bench_disk.zig");
 
 const Allocator = std.mem.Allocator;
@@ -48,6 +49,7 @@ pub fn run(io: Io, args: []const []const u8) !void {
 	var real = true;
 
 	for (args) |arg| {
+		if (std.mem.eql(u8, arg, "--live")) return live(io, allocator);
 		if (std.mem.eql(u8, arg, "--json")) as_json = true;
 		if (std.mem.eql(u8, arg, "--cold")) cold = true;
 		if (std.mem.eql(u8, arg, "--synthetic")) {
@@ -171,6 +173,42 @@ fn queryTimes(allocator: Allocator, loaded: *const index.Index) !struct { p50: f
 		.p99 = samples.items[@min(samples.items.len - 1, samples.items.len * 99 / 100)],
 		.hit = hit,
 	};
+}
+
+const live_queries = [_][]const u8{ "a", "c", "re", "png", "conf", "config", "main", "readme", "dotfiles", "zzzq" };
+const live_runs = 20;
+
+fn live(io: Io, allocator: Allocator) !void {
+	const cache_home = proc.env(io, allocator, "XDG_CACHE_HOME") orelse try std.fmt.allocPrint(allocator, "{s}/.cache", .{proc.home(io, allocator)});
+	const path = try std.fmt.allocPrint(allocator, "{s}/yudae/files.idx", .{cache_home});
+	var loaded = try index.load(io, path);
+	defer loaded.deinit();
+
+	const dirs_started = nowNs();
+	var dirs = try find.Dirs.init(allocator, &loaded, proc.home(io, allocator));
+	defer dirs.deinit(allocator);
+	const dirs_ns = nowNs() - dirs_started;
+
+	var buffer: [8192]u8 = undefined;
+	var writer = std.Io.File.stdout().writer(io, &buffer);
+	const w = &writer.interface;
+	try w.print("live index {d} entries  {d} folders  folder table {d:.2}ms\n", .{ loaded.count, loaded.dirs.len, @as(f64, @floatFromInt(dirs_ns)) / 1e6 });
+
+	for (live_queries) |query| {
+		var samples: [live_runs]f64 = undefined;
+		var matched: usize = 0;
+		for (&samples) |*sample| {
+			var scratch = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
+			defer scratch.deinit();
+			const started = nowNs();
+			const result = try find.top(scratch.allocator(), &loaded, &dirs, query, 24);
+			sample.* = @as(f64, @floatFromInt(nowNs() - started)) / 1000.0;
+			matched = result.matched;
+		}
+		std.mem.sort(f64, &samples, {}, std.sort.asc(f64));
+		try w.print("  {s:<10} {d:>8} matches  p50 {d:>8.0}us  max {d:>8.0}us\n", .{ query, matched, samples[live_runs / 2], samples[live_runs - 1] });
+	}
+	try w.flush();
 }
 
 fn nowNs() i128 {
