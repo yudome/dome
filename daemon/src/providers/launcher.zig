@@ -528,7 +528,7 @@ pub const Launcher = struct {
 		self.setStr(&self.group, group);
 		self.mutex.unlock(self.io);
 
-		self.hub.publishNow();
+		self.hub.publishOne("launcher");
 	}
 
 	pub fn togglePin(self: *Launcher, id: []const u8) void {
@@ -771,7 +771,7 @@ pub const Launcher = struct {
 
 		self.mutex.unlock(self.io);
 
-		if (more) self.hub.publishNow();
+		if (more) self.hub.publishOne("launcher");
 	}
 
 	pub fn copyClip(self: *Launcher, id: []const u8) void {
@@ -1465,7 +1465,7 @@ pub const Launcher = struct {
 		const more = self.file_valid and self.file_rows.len == self.file_limit;
 		if (more) self.file_pages += 1;
 		self.mutex.unlock(self.io);
-		if (more) self.hub.publishNow();
+		if (more) self.hub.publishOne("launcher");
 	}
 
 	pub fn opened(self: *Launcher) void {

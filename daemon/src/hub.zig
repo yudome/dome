@@ -118,6 +118,29 @@ pub const Hub = struct {
 		if (self.ipc) |server| server.broadcast(body);
 	}
 
+	pub fn publishOne(self: *Hub, key: []const u8) void {
+		self.publish_mutex.lockUncancelable(self.io);
+		defer self.publish_mutex.unlock(self.io);
+
+		const body = self.part(self.allocator, key) catch return;
+		defer self.allocator.free(body);
+
+		if (self.ipc) |server| server.broadcast(body);
+	}
+
+	pub fn part(self: *Hub, allocator: Allocator, key: []const u8) ![]u8 {
+		for (self.providers.items) |provider| {
+			if (!std.mem.eql(u8, provider.key, key)) continue;
+			var out: Writer.Allocating = .init(allocator);
+			errdefer out.deinit();
+			try out.writer.print("{{\"t\":\"part\",\"key\":\"{s}\",\"value\":", .{key});
+			provider.render(provider.ctx, &out.writer) catch try out.writer.writeAll("{}");
+			try out.writer.writeAll("}");
+			return out.toOwnedSlice();
+		}
+		return error.UnknownProvider;
+	}
+
 	pub fn publishGaze(self: *Hub, x: f64, y: f64) void {
 		const server = self.ipc orelse return;
 		server.broadcastGaze(x, y);
@@ -150,6 +173,20 @@ test "providerBody drops the header and keeps the providers" {
 	try std.testing.expectEqualStrings(",\"system\":{\"cpu\":1}}", providerBody(a));
 	try std.testing.expect(std.mem.eql(u8, providerBody(a), providerBody(b)));
 	try std.testing.expect(!std.mem.eql(u8, providerBody(a), providerBody(c)));
+}
+
+test "a part carries one provider under its key" {
+	var hub: Hub = .{ .allocator = std.testing.allocator, .io = std.testing.io };
+	defer hub.providers.deinit(std.testing.allocator);
+	var probe: Probe = .{};
+	try hub.add(.{ .key = "a", .ctx = &probe, .render = probeThunk });
+	try hub.add(.{ .key = "launcher", .ctx = &probe, .render = probeThunk });
+
+	const body = try hub.part(std.testing.allocator, "launcher");
+	defer std.testing.allocator.free(body);
+	try std.testing.expectEqualStrings("{\"t\":\"part\",\"key\":\"launcher\",\"value\":{}}", body);
+	try std.testing.expectEqual(@as(usize, 1), probe.count);
+	try std.testing.expectError(error.UnknownProvider, hub.part(std.testing.allocator, "nope"));
 }
 
 const Probe = struct {
