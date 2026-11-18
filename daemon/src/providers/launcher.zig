@@ -29,8 +29,8 @@ const max_results = 60;
 const usage_max = 10;
 const clip_limit = 5 * 1024 * 1024;
 const page_bytes = 8000;
-const file_results = 8;
-const file_candidates = 64;
+const file_results = 24;
+const file_candidates = 4096;
 const file_scan_ms = 10 * 1000;
 const file_after = 4;
 const first_pages = 2;
@@ -1359,19 +1359,15 @@ pub const Launcher = struct {
 		const home = proc.home(self.io, arena);
 		for (paths.items, 0..) |path, order| {
 			if (path.len == 0 or (try seen.getOrPut(arena, path)).found_existing) continue;
-			const z = try arena.dupeSentinel(u8, path, 0);
-			var st: std.os.linux.Statx = undefined;
-			if (std.os.linux.errno(std.os.linux.statx(std.os.linux.AT.FDCWD, z, 0, .{ .TYPE = true, .MTIME = true }, &st)) != .SUCCESS) continue;
 			const id = try std.fmt.allocPrint(arena, "file:{s}", .{path});
 			const usage = self.usage.get(id) orelse Usage{};
 			try found.append(arena, .{
 				.path = path,
 				.id = id,
-				.dir = std.posix.S.ISDIR(st.mode),
 				.quality = fileQuality(path, needle),
 				.home = std.mem.startsWith(u8, path, home) and path.len > home.len and path[home.len] == '/',
 				.used = usage.last,
-				.mtime = st.mtime.sec,
+				.depth = std.mem.count(u8, path, "/"),
 				.fresh = order < fresh,
 			});
 		}
@@ -1380,15 +1376,30 @@ pub const Launcher = struct {
 		var out: std.ArrayListUnmanaged(Row) = .empty;
 		const lead = @min(ranked.len, file_after);
 		try out.appendSlice(arena, ranked[0..lead]);
-		for (found.items[0..@min(found.items.len, file_results)]) |hit| {
-			try out.append(arena, .{
-				.id = hit.id,
-				.kind = "file",
-				.name = std.fs.path.basename(hit.path),
-				.glyph = "",
-				.icons = self.mime.icons(arena, hit.path, hit.dir),
-				.detail = std.fs.path.dirname(hit.path) orelse "/",
-			});
+		var names: std.StringHashMapUnmanaged(void) = .empty;
+		var taken = try arena.alloc(bool, found.items.len);
+		@memset(taken, false);
+		var shown: usize = 0;
+		for ([_]bool{ true, false }) |distinct| {
+			for (found.items, 0..) |hit, index| {
+				if (shown == file_results) break;
+				if (taken[index]) continue;
+				const name = std.fs.path.basename(hit.path);
+				if (distinct and (try names.getOrPut(arena, name)).found_existing) continue;
+				taken[index] = true;
+				const z = try arena.dupeSentinel(u8, hit.path, 0);
+				var st: std.os.linux.Statx = undefined;
+				if (std.os.linux.errno(std.os.linux.statx(std.os.linux.AT.FDCWD, z, 0, .{ .TYPE = true }, &st)) != .SUCCESS) continue;
+				try out.append(arena, .{
+					.id = hit.id,
+					.kind = "file",
+					.name = name,
+					.glyph = "",
+					.icons = self.mime.icons(arena, hit.path, std.posix.S.ISDIR(st.mode)),
+					.detail = std.fs.path.dirname(hit.path) orelse "/",
+				});
+				shown += 1;
+			}
 		}
 		try out.appendSlice(arena, ranked[lead..]);
 		return out.items;
@@ -1713,11 +1724,10 @@ pub const Launcher = struct {
 const FileHit = struct {
 	path: []const u8,
 	id: []const u8,
-	dir: bool,
 	quality: u8,
 	home: bool,
 	used: i64,
-	mtime: i64,
+	depth: usize,
 	fresh: bool,
 
 	fn less(_: void, a: FileHit, b: FileHit) bool {
@@ -1726,7 +1736,8 @@ const FileHit = struct {
 		if (a.quality != b.quality) return a.quality < b.quality;
 		if (a.home != b.home) return a.home;
 		if (a.fresh != b.fresh) return a.fresh;
-		return a.mtime > b.mtime;
+		if (a.depth != b.depth) return a.depth < b.depth;
+		return std.mem.lessThan(u8, a.path, b.path);
 	}
 };
 
