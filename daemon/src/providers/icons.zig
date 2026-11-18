@@ -4,6 +4,8 @@ const appsmod = @import("apps.zig");
 const iconsmod = @import("../primitives/icons.zig");
 const json = @import("../primitives/json.zig");
 const sleep = @import("../primitives/sleep.zig");
+const proc = @import("../primitives/proc.zig");
+const linux = std.os.linux;
 
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
@@ -14,6 +16,7 @@ const Pending = struct { key: []u8, value: []u8 };
 
 const max_asked = 4000;
 const rescan_ms = 300_000;
+const theme_settle_ms = 300;
 
 pub const Icons = struct {
 	allocator: Allocator,
@@ -24,6 +27,8 @@ pub const Icons = struct {
 	resolver: *iconsmod.Icons,
 	asked: std.StringHashMapUnmanaged([]u8) = .empty,
 	names: std.StringHashMapUnmanaged([]u8) = .empty,
+	theme_buf: [128]u8 = undefined,
+	theme_len: usize = 0,
 	apps: ?*appsmod.Apps = null,
 
 	pub fn create(allocator: Allocator, io: Io, hub: *Hub, resolver: *iconsmod.Icons) !*Icons {
@@ -55,10 +60,55 @@ pub const Icons = struct {
 
 	pub fn start(self: *Icons) !void {
 		self.resolver.scan();
+		_ = self.readTheme();
 		self.warm(true);
 
 		const thread = try std.Thread.spawn(.{}, loop, .{self});
 		thread.detach();
+		if (std.Thread.spawn(.{}, watchTheme, .{self})) |watcher| watcher.detach() else |_| {}
+	}
+
+	fn configDir(self: *Icons, buf: []u8) ![]const u8 {
+		if (proc.env(self.io, self.allocator, "XDG_CONFIG_HOME")) |dir| return std.fmt.bufPrint(buf, "{s}", .{dir});
+		return std.fmt.bufPrint(buf, "{s}/.config", .{proc.home(self.io, self.allocator)});
+	}
+
+	fn readTheme(self: *Icons) bool {
+		var dir_buf: [std.fs.max_path_bytes]u8 = undefined;
+		var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+		const dir = self.configDir(&dir_buf) catch return false;
+		const path = std.fmt.bufPrint(&path_buf, "{s}/kdeglobals", .{dir}) catch return false;
+		const body = proc.readFile(self.io, self.allocator, path) catch "";
+		defer if (body.len > 0) self.allocator.free(body);
+		const theme = themeOf(body);
+
+		self.mutex.lockUncancelable(self.io);
+		defer self.mutex.unlock(self.io);
+		if (theme.len > self.theme_buf.len or std.mem.eql(u8, theme, self.theme_buf[0..self.theme_len])) return false;
+		@memcpy(self.theme_buf[0..theme.len], theme);
+		self.theme_len = theme.len;
+		return true;
+	}
+
+	fn watchTheme(self: *Icons) void {
+		var dir_buf: [std.fs.max_path_bytes + 1]u8 = undefined;
+		const dir = self.configDir(dir_buf[0..std.fs.max_path_bytes]) catch return;
+		dir_buf[dir.len] = 0;
+		const fd = linux.inotify_init1(linux.IN.CLOEXEC);
+		if (linux.errno(fd) != .SUCCESS) return;
+		const watch = linux.inotify_add_watch(@intCast(fd), dir_buf[0..dir.len :0], linux.IN.CLOSE_WRITE | linux.IN.MOVED_TO | linux.IN.CREATE);
+		if (linux.errno(watch) != .SUCCESS) return;
+
+		var buffer: [4096]u8 align(@alignOf(linux.inotify_event)) = undefined;
+		while (true) {
+			const read = linux.read(@intCast(fd), &buffer, buffer.len);
+			if (linux.errno(read) == .INTR) continue;
+			if (linux.errno(read) != .SUCCESS or read == 0) return;
+			if (!mentions(buffer[0..read], "kdeglobals")) continue;
+			// ponytail: a fixed settle delay so KDE's own icon reload lands before the shell asks again; an explicit KIconLoader dbus hook would be exact
+			sleep.ms(theme_settle_ms);
+			if (self.readTheme()) self.hub.publish();
+		}
 	}
 
 	fn appsChanged(ctx: *anyopaque) void {
@@ -338,7 +388,9 @@ pub const Icons = struct {
 			try json.write(writer, entry.value_ptr.*);
 		}
 
-		try writer.writeAll("},\"names\":{");
+		try writer.writeAll("},\"theme\":");
+		try json.write(writer, self.theme_buf[0..self.theme_len]);
+		try writer.writeAll(",\"names\":{");
 
 		var names = self.names.iterator();
 		first = true;
@@ -357,6 +409,40 @@ pub const Icons = struct {
 		_ = arena;
 	}
 };
+
+fn mentions(bytes: []const u8, wanted: []const u8) bool {
+	var offset: usize = 0;
+	while (offset + @sizeOf(linux.inotify_event) <= bytes.len) {
+		const event: *align(1) const linux.inotify_event = @ptrCast(&bytes[offset]);
+		const start = offset + @sizeOf(linux.inotify_event);
+		offset = start + event.len;
+		const name = std.mem.sliceTo(bytes[start..@min(offset, bytes.len)], 0);
+		if (std.mem.eql(u8, name, wanted)) return true;
+	}
+	return false;
+}
+
+fn themeOf(body: []const u8) []const u8 {
+	var in_icons = false;
+	var lines = std.mem.splitScalar(u8, body, '\n');
+	while (lines.next()) |raw| {
+		const line = std.mem.trim(u8, raw, " \t\r");
+		if (line.len > 0 and line[0] == '[') {
+			in_icons = std.mem.eql(u8, line, "[Icons]");
+			continue;
+		}
+		if (!in_icons) continue;
+		const split = std.mem.indexOfScalar(u8, line, '=') orelse continue;
+		if (std.mem.eql(u8, std.mem.trim(u8, line[0..split], " \t"), "Theme")) return std.mem.trim(u8, line[split + 1 ..], " \t");
+	}
+	return "";
+}
+
+test "the icon theme is read from the Icons group only" {
+	try std.testing.expectEqualStrings("Papirus", themeOf("[General]\nTheme=nope\n\n[Icons]\nTheme = Papirus\n[KDE]\nTheme=other\n"));
+	try std.testing.expectEqualStrings("", themeOf("[General]\nTheme=nope\n"));
+	try std.testing.expectEqualStrings("", themeOf(""));
+}
 
 pub fn cleanName(name: []const u8) []const u8 {
 	const trimmed = std.mem.trim(u8, name, " \t\r\n");
