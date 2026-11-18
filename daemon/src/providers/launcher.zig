@@ -18,6 +18,7 @@ const config = @import("../primitives/config.zig");
 const environ = @import("../primitives/environ.zig");
 const proc = @import("../primitives/proc.zig");
 const fmt = @import("../primitives/fmt.zig");
+const mimemod = @import("../primitives/mime.zig");
 
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
@@ -39,8 +40,6 @@ const glyph_command = "\u{f018c}";
 const glyph_calc = "\u{f00ec}";
 const glyph_clip = "\u{f07f}";
 const glyph_image = "\u{f03e}";
-const glyph_file = "\u{f15b}";
-const glyph_folder = "\u{f07b}";
 const glyph_apps = "\u{f0c9}";
 const glyph_wallpaper = "\u{f0e09}";
 const glyph_process = "\u{f0874}";
@@ -138,6 +137,7 @@ const Row = struct {
 	name: []const u8,
 	glyph: []const u8,
 	app_id: []const u8 = "",
+	icons: []const []const u8 = &.{},
 	command: []const u8 = "",
 	mode: []const u8 = "",
 	group: []const u8 = "",
@@ -161,6 +161,7 @@ const RowOut = struct {
 	name: []const u8,
 	glyph: []const u8,
 	appId: []const u8,
+	icons: []const []const u8,
 	command: []const u8,
 	mode: []const u8,
 	group: []const u8,
@@ -242,6 +243,7 @@ pub const Launcher = struct {
 	following: std.atomic.Value(bool) = .init(false),
 	files_fresh: std.atomic.Value(bool) = .init(false),
 	recent: ?*recentmod.Recent = null,
+	mime: mimemod.Mime,
 	pins: std.ArrayListUnmanaged([]u8) = .empty,
 	saved: std.ArrayListUnmanaged(Saved) = .empty,
 	clips: std.ArrayListUnmanaged(Clip) = .empty,
@@ -254,6 +256,7 @@ pub const Launcher = struct {
 			.io = io,
 			.hub = hub,
 			.scratch = std.heap.ArenaAllocator.init(allocator),
+			.mime = mimemod.Mime.init(allocator, io),
 		};
 
 		return self;
@@ -1382,7 +1385,8 @@ pub const Launcher = struct {
 				.id = hit.id,
 				.kind = "file",
 				.name = std.fs.path.basename(hit.path),
-				.glyph = if (hit.dir) glyph_folder else glyph_file,
+				.glyph = "",
+				.icons = self.mime.icons(arena, hit.path, hit.dir),
 				.detail = std.fs.path.dirname(hit.path) orelse "/",
 			});
 		}
@@ -1391,6 +1395,7 @@ pub const Launcher = struct {
 	}
 
 	pub fn opened(self: *Launcher) void {
+		self.mime.warm();
 		self.refreshFiles();
 	}
 
@@ -1665,6 +1670,7 @@ pub const Launcher = struct {
 				.name = row.name,
 				.glyph = row.glyph,
 				.appId = row.app_id,
+				.icons = row.icons,
 				.command = row.command,
 				.mode = row.mode,
 				.group = row.group,

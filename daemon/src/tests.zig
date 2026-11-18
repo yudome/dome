@@ -40,6 +40,7 @@ test {
 	_ = @import("providers/clipwatch.zig");
 	_ = @import("providers/icons.zig");
 	_ = @import("primitives/icons.zig");
+	_ = @import("primitives/mime.zig");
 	_ = @import("primitives/limits.zig");
 	_ = @import("providers/subscriptions.zig");
 	_ = @import("providers/supervisor.zig");
