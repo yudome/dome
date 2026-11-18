@@ -58,7 +58,7 @@ const Cursor = struct {
 	at: usize = 0,
 	parent: u32 = 0,
 
-	fn next(self: *Cursor, buf: *[256]u8) ?Item {
+	pub fn next(self: *Cursor, buf: *[256]u8) ?Item {
 		if (self.at >= self.bytes.len) return null;
 		const shared: usize = self.bytes[self.at];
 		const rest: usize = self.bytes[self.at + 1];
@@ -104,6 +104,10 @@ pub const Index = struct {
 
 	pub fn deinit(self: *Index) void {
 		std.posix.munmap(self.mapped);
+	}
+
+	pub fn cursorPub(self: *const Index, block: usize) Cursor {
+		return self.cursor(block);
 	}
 
 	fn cursor(self: *const Index, block: usize) Cursor {
@@ -202,41 +206,50 @@ pub const Index = struct {
 	}
 
 	pub fn search(self: *const Index, query: []const u8, out: []u32) usize {
-		if (query.len == 0 or query.len > 255 or out.len == 0) return 0;
-		var needle_buf: [256]u8 = undefined;
-		var folded: [256]u8 = undefined;
-		var buf: [256]u8 = undefined;
-		const needle = fold(&needle_buf, query);
-		const ascii = isAscii(needle);
-		var lists: [max_lists]Postings = undefined;
-		const used = self.gather(needle, &lists);
-		if (used == 0) return 0;
+		if (out.len == 0) return 0;
+		var sink: struct {
+			out: []u32,
+			found: usize = 0,
 
+			pub fn hit(sink: *@This(), id: u32, _: Item) bool {
+				sink.out[sink.found] = id;
+				sink.found += 1;
+				return sink.found < sink.out.len;
+			}
+		} = .{ .out = out };
+		self.scan(query, 0, std.math.maxInt(u32), &sink);
+		return sink.found;
+	}
+
+	pub fn groups(self: *const Index, query_len: usize) u32 {
+		const span: usize = if (query_len < 3) coarse else 1;
+		return @intCast((self.starts.len - 1 + span - 1) / span);
+	}
+
+	pub fn estimate(self: *const Index, query: []const u8) usize {
+		if (query.len == 0 or query.len > 255) return 0;
+		var needle_buf: [256]u8 = undefined;
+		const needle = fold(&needle_buf, query);
+		var lists: [max_lists]Postings = undefined;
+		if (self.gather(needle, &lists) == 0) return 0;
 		const span: usize = if (needle.len < 3) coarse else 1;
-		var found: usize = 0;
-		while (lists[0].next()) |first| {
-			var block = first;
-			agree: while (true) {
-				for (lists[1..used]) |*list| {
-					const at = list.seek(block) orelse return found;
-					if (at == block) continue;
-					block = lists[0].seek(at) orelse return found;
-					continue :agree;
-				}
-				break;
-			}
-			for (block * span..@min((block + 1) * span, self.starts.len - 1)) |at| {
-				var walk = self.cursor(at);
-				var id: u32 = @intCast(at * block_size);
-				while (walk.next(&buf)) |entry| : (id += 1) {
-					if (id == 0 or !matches(entry.name, needle, ascii, &folded)) continue;
-					out[found] = id;
-					found += 1;
-					if (found == out.len) return found;
-				}
-			}
-		}
-		return found;
+		return lists[0].left * span * block_size;
+	}
+
+	pub fn scan(self: *const Index, query: []const u8, from: u32, to: u32, ctx: anytype) void {
+		var walk = self.scanner(query);
+		_ = walk.run(from, to, ctx);
+	}
+
+	pub fn scanner(self: *const Index, query: []const u8) Scanner {
+		var out: Scanner = .{ .index = self };
+		if (query.len == 0 or query.len > 255) return out;
+		const needle = fold(&out.needle_buf, query);
+		out.needle_len = needle.len;
+		out.ascii = isAscii(needle);
+		out.used = self.gather(needle, &out.lists);
+		out.span = if (needle.len < 3) coarse else 1;
+		return out;
 	}
 
 	fn gather(self: *const Index, needle: []const u8, lists: *[max_lists]Postings) usize {
@@ -274,6 +287,54 @@ pub const Index = struct {
 			}
 		}.order);
 		return if (at < self.keys.len and self.keys[at].gram == gram) self.keys[at] else null;
+	}
+};
+
+pub const Scanner = struct {
+	index: *const Index,
+	needle_buf: [256]u8 = undefined,
+	needle_len: usize = 0,
+	ascii: bool = true,
+	lists: [max_lists]Postings = undefined,
+	used: usize = 0,
+	span: usize = 1,
+	done: bool = false,
+
+	pub fn run(self: *Scanner, from: u32, to: u32, ctx: anytype) bool {
+		if (self.used == 0 or self.done) return false;
+		const needle = self.needle_buf[0..self.needle_len];
+		const lists = self.lists[0..self.used];
+		var folded: [256]u8 = undefined;
+		var buf: [256]u8 = undefined;
+		var next = lists[0].seek(from);
+		while (next) |first| : (next = lists[0].next()) {
+			var block = first;
+			agree: while (true) {
+				for (lists[1..]) |*list| {
+					const at = list.seek(block) orelse return self.finish();
+					if (at == block) continue;
+					block = lists[0].seek(at) orelse return self.finish();
+					continue :agree;
+				}
+				break;
+			}
+			if (block >= to) return true;
+			for (block * self.span..@min((block + 1) * self.span, self.index.starts.len - 1)) |at| {
+				var walk = self.index.cursor(at);
+				var id: u32 = @intCast(at * block_size);
+				while (walk.next(&buf)) |entry| : (id += 1) {
+					const hit = if (self.ascii) contains(&buf, entry.name.len, needle) else matches(entry.name, needle, false, &folded);
+					if (id == 0 or !hit) continue;
+					if (!ctx.hit(id, entry)) return self.finish();
+				}
+			}
+		}
+		return self.finish();
+	}
+
+	fn finish(self: *Scanner) bool {
+		self.done = true;
+		return false;
 	}
 };
 
@@ -320,6 +381,44 @@ pub fn load(io: std.Io, file_path: []const u8) !Index {
 		.built_ms = header.built_ms,
 		.scope = header.scope,
 	};
+}
+
+const Lanes = @Vector(32, u8);
+
+pub inline fn lower(c: u8) u8 {
+	return c | @as(u8, @intFromBool(c -% 'A' < 26)) << 5;
+}
+
+inline fn lowerLanes(v: Lanes) Lanes {
+	const up = (v -% @as(Lanes, @splat('A'))) < @as(Lanes, @splat(26));
+	return v | @select(u8, up, @as(Lanes, @splat(0x20)), @as(Lanes, @splat(0)));
+}
+
+pub fn tailMatch(name: []const u8, at: usize, needle: []const u8) bool {
+	for (needle, 0..) |c, k| if (lower(name[at + k]) != c) return false;
+	return true;
+}
+
+pub fn contains(buf: *const [256]u8, len: usize, needle: []const u8) bool {
+	if (needle.len == 0) return true;
+	if (needle.len > len) return false;
+	const last = len - needle.len;
+	const first: Lanes = @splat(needle[0]);
+	const second: Lanes = @splat(if (needle.len > 1) needle[1] else 0);
+	var p: usize = 0;
+	while (p <= last) : (p += 32) {
+		if (p + 33 > buf.len) {
+			for (p..last + 1) |at| if (tailMatch(buf, at, needle)) return true;
+			return false;
+		}
+		var mask: u32 = @bitCast(lowerLanes(buf[p..][0..32].*) == first);
+		if (needle.len > 1) mask &= @as(u32, @bitCast(lowerLanes(buf[p + 1 ..][0..32].*) == second));
+		if (last - p < 31) mask &= (@as(u32, 1) << @intCast(last - p + 1)) - 1;
+		while (mask != 0) : (mask &= mask - 1) {
+			if (tailMatch(buf, p + @ctz(mask), needle)) return true;
+		}
+	}
+	return false;
 }
 
 pub fn matches(name: []const u8, needle: []const u8, ascii: bool, scratch: *[256]u8) bool {
@@ -415,6 +514,29 @@ fn readVarint(bytes: []const u8, at: *usize) u64 {
 		value |= @as(u64, byte & 0x7f) << shift;
 		if (byte & 0x80 == 0) return value;
 	}
+}
+
+test "contains finds a lowered needle anywhere in the name" {
+	var buf: [256]u8 = @splat('x');
+	const cases = [_]struct { name: []const u8, needle: []const u8, want: bool }{
+		.{ .name = "README.md", .needle = "readme", .want = true },
+		.{ .name = "README.md", .needle = "md", .want = true },
+		.{ .name = "README.md", .needle = "a", .want = true },
+		.{ .name = "README.md", .needle = "mdx", .want = false },
+		.{ .name = "ab", .needle = "abc", .want = false },
+		.{ .name = "a-much-longer-name-than-one-vector-of-32-bytes-ends-in-Config", .needle = "config", .want = true },
+		.{ .name = "a-much-longer-name-than-one-vector-of-32-bytes-ends-in-Confi", .needle = "config", .want = false },
+	};
+	for (cases) |case| {
+		@memset(&buf, 'x');
+		@memcpy(buf[0..case.name.len], case.name);
+		try std.testing.expectEqual(case.want, contains(&buf, case.name.len, case.needle));
+	}
+	@memset(&buf, 'c');
+	try std.testing.expect(contains(&buf, 256, "cc"));
+	try std.testing.expect(!contains(&buf, 256, "cd"));
+	buf[255] = 'd';
+	try std.testing.expect(contains(&buf, 256, "cd"));
 }
 
 test "fold lowers ascii, latin, greek and cyrillic in place" {
