@@ -242,6 +242,7 @@ QtObject {
 	readonly property var launcherSearchBox: settings.launcherSearchBox !== undefined ? settings.launcherSearchBox : "#1f1f1f"
 	readonly property var launcherHighlight: settings.launcherHighlight !== undefined ? settings.launcherHighlight : "#2f2f2f"
 	readonly property var launcherHighlightText: settings.launcherHighlightText !== undefined ? settings.launcherHighlightText : "#ffffff"
+	readonly property var launcherDetailText: settings.launcherDetailText !== undefined ? settings.launcherDetailText : "#8a8a8a"
 	readonly property var launcherPrompt: settings.launcherPrompt !== undefined ? settings.launcherPrompt : "\uea6d"
 	readonly property var launcherMaxRows: settings.launcherMaxRows !== undefined ? settings.launcherMaxRows : 12
 	readonly property var launcherIconPin: settings.launcherIconPin !== undefined ? settings.launcherIconPin : "\ueba0"

@@ -1272,7 +1272,7 @@ PanelWindow {
 									elide: Text.ElideMiddle
 									font.family: Config.fontFamily
 									font.pixelSize: Math.round(root.fontSize * 0.72)
-									color: Config.muted
+									color: row.modelData.kind === "file" ? Config.launcherDetailText : Config.muted
 									text: row.modelData.kind === "file" ? row.modelData.detail : "click to copy to clipboard"
 								}
 							}

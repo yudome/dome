@@ -223,6 +223,7 @@ launcherTextGap = 10
 launcherSearchBox = "#1f1f1f"
 launcherHighlight = "#2f2f2f"
 launcherHighlightText = "#ffffff"  # same as foreground
+launcherDetailText = "#8a8a8a"
 launcherPrompt = "\uEA6D"
 launcherMaxRows = 12
 launcherIconPin = "\uEBA0"
