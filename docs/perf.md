@@ -18,6 +18,7 @@ The gates are measured on the headless daemon, `zig build -Drelease=true -Dheadl
 ## Tools
 
 - `scripts/yubuild` wraps `zig build -Drelease=true`, prints build time and build-folder size, records `bench/build.jsonl`, and prunes the local cache over 300MB.
+- `xmake bench files` runs `yudaemond bench files`: it builds the synthetic file index, rebuilds it with the unchanged-folder reuse path, runs the folder stat scan, mmaps the index, and times name queries. `home` adds the real disk index build. It appends `bench/files.jsonl` and gates the synthetic throughput against `bench/baseline.json` (`files`).
 - `yudaemond bench` records binary size, start time, idle RSS, idle CPU over 60s, shell total RSS, and the top RAM/CPU hoggers with deltas against `bench/baseline.json`.
 - `xmake build` and `xmake bench` call the same tools and report the same numbers. Compilation is not reimplemented in Lua.
 - `xmake bench` builds the headless daemon with a clean cache, starts it on a temporary runtime dir, measures it, and exits nonzero if a gate fails.
@@ -36,6 +37,17 @@ Host: CachyOS, kernel 7.3.1, Zig 0.17.0.
 | steady-state spawns | 0 | 0 |
 
 The full desktop daemon over the 8MB RSS and 20s cold gates is not a regression hidden by the headless pass: `xmake bench` prints both numbers. The headless build is the profile that meets the budgets.
+
+## File index, measured 2026-11-16
+
+Host: CachyOS, kernel 7.3.4, Zig 0.17.1, btrfs root. `xmake bench files`.
+
+| fixture | entries | folders | index | build | reuse | stat scan | load | query p50 | query p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| synthetic | 20,114 | 44 | 227,204B | 10.7ms | 0.1ms | 0.7ms | 0.01ms | 6.87us | 35.72us |
+| home | 878,634 | 70,625 | 18.7MB | 298.8ms | 96.6ms | 20.1ms | 0.02ms | 45.30us | 265.82us |
+
+The home build is `2.94M` entries/s. Reuse rewrites the index from unchanged folder children; the stat scan walks every recorded folder. A cold first build measured separately was 3.0s, and a cold stat scan 48ms.
 
 ## VM viewer, measured 2026-11-03
 
