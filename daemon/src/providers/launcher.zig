@@ -245,6 +245,7 @@ pub const Launcher = struct {
 	recent: ?*recentmod.Recent = null,
 	file_dirs: ?findmod.Dirs = null,
 	file_pool: ?*findmod.Pool = null,
+	file_hits: ?findmod.Cache = null,
 	files_gen: std.atomic.Value(u64) = .init(0),
 	file_cache: std.heap.ArenaAllocator,
 	file_query: []const u8 = "",
@@ -1424,7 +1425,9 @@ pub const Launcher = struct {
 		defer self.files_mutex.unlock(self.io);
 		if (self.files) |*index| if (self.file_dirs) |*dirs| if (self.file_pool != null) {
 			const pool = self.file_pool.?;
-			const found = try findmod.top(arena, pool, index, dirs, search, limit);
+			const cached = if (limit == file_page and self.file_hits != null) self.file_hits.?.get(search) else null;
+			const found = cached orelse try findmod.top(arena, pool, index, dirs, search, limit);
+			if (cached == null and limit == file_page) if (self.file_hits) |*hits| hits.put(search, found) catch {};
 			var buffer: [std.fs.max_path_bytes]u8 = undefined;
 			for ([_][]const findmod.Hit{ found.distinct, found.all }, [_]*std.ArrayList(FileHit){ &first, &second }) |hits, list| {
 				for (hits) |hit| {
@@ -1492,16 +1495,20 @@ pub const Launcher = struct {
 		const path = self.cacheFile(self.allocator, "files.idx") catch return;
 		defer self.allocator.free(path);
 		var loaded = filesmod.load(self.io, path) catch return;
-		const dirs = findmod.Dirs.init(self.allocator, &loaded, proc.home(self.io, self.allocator)) catch {
+		var dirs = findmod.Dirs.init(self.allocator, &loaded, proc.home(self.io, self.allocator)) catch {
 			loaded.deinit();
 			return;
 		};
+		var hits = findmod.Cache.init(self.allocator);
+		if (self.file_pool) |pool| hits.fill(pool, &loaded, &dirs, file_page);
 
 		self.files_mutex.lockUncancelable(self.io);
 		const old = self.files;
 		const old_dirs = self.file_dirs;
+		const old_hits = self.file_hits;
 		self.files = loaded;
 		self.file_dirs = dirs;
+		self.file_hits = hits;
 		self.files_mutex.unlock(self.io);
 		_ = self.files_gen.fetchAdd(1, .release);
 		if (old) |stale| {
@@ -1511,6 +1518,10 @@ pub const Launcher = struct {
 		if (old_dirs) |stale| {
 			var gone = stale;
 			gone.deinit(self.allocator);
+		}
+		if (old_hits) |stale| {
+			var gone = stale;
+			gone.deinit();
 		}
 	}
 

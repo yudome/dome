@@ -309,6 +309,62 @@ pub fn top(allocator: Allocator, pool: *Pool, idx: *const index.Index, dirs: *co
 	return .{ .distinct = distinct.items[0..kept], .all = all.items[0..@min(all.items.len, limit)], .matched = matched };
 }
 
+pub const Cache = struct {
+	arena: std.heap.ArenaAllocator,
+	map: std.StringHashMapUnmanaged(Result) = .empty,
+
+	pub const max_entries = 4096;
+	pub const warm = "abcdefghijklmnopqrstuvwxyz0123456789._- ";
+
+	pub fn init(allocator: Allocator) Cache {
+		return .{ .arena = std.heap.ArenaAllocator.init(allocator) };
+	}
+
+	pub fn deinit(self: *Cache) void {
+		self.arena.deinit();
+	}
+
+	pub fn get(self: *const Cache, query: []const u8) ?Result {
+		var buf: [256]u8 = undefined;
+		if (query.len > buf.len) return null;
+		return self.map.get(index.fold(&buf, query));
+	}
+
+	pub fn put(self: *Cache, query: []const u8, result: Result) !void {
+		if (query.len > 256) return;
+		// ponytail: dropping everything at the cap instead of an LRU; fine while queries are short typed strings
+		if (self.map.count() >= max_entries) {
+			self.map = .empty;
+			_ = self.arena.reset(.retain_capacity);
+		}
+		const a = self.arena.allocator();
+		var buf: [256]u8 = undefined;
+		const key = try a.dupe(u8, index.fold(&buf, query));
+		try self.map.put(a, key, .{ .distinct = try a.dupe(Hit, result.distinct), .all = try a.dupe(Hit, result.all), .matched = result.matched });
+	}
+
+	pub fn fill(self: *Cache, pool: *Pool, idx: *const index.Index, dirs: *const Dirs, limit: usize) void {
+		for (warm) |char| {
+			var scratch = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
+			defer scratch.deinit();
+			const result = top(scratch.allocator(), pool, idx, dirs, &.{char}, limit) catch continue;
+			self.put(&.{char}, result) catch {};
+		}
+	}
+};
+
+test "the cache keys folded queries and copies results" {
+	var cache = Cache.init(std.testing.allocator);
+	defer cache.deinit();
+	var hits = [_]Hit{.{ .key = 1, .hash = 2 }};
+	try cache.put("ReadMe", .{ .distinct = &hits, .all = &hits, .matched = 7 });
+	hits[0].key = 9;
+	const found = cache.get("README").?;
+	try std.testing.expectEqual(@as(u64, 1), found.all[0].key);
+	try std.testing.expectEqual(@as(usize, 7), found.matched);
+	try std.testing.expect(cache.get("readm") == null);
+}
+
 test "quality ranks exact, prefix, word and inner matches" {
 	try std.testing.expectEqual(@as(u8, 0), quality("README", "readme"));
 	try std.testing.expectEqual(@as(u8, 1), quality("README.md", "readme"));
