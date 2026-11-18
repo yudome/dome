@@ -51,6 +51,7 @@ pub const Item = struct {
 	name: []const u8,
 	parent: u32,
 	dir: bool,
+	shared: usize = 0,
 };
 
 const Cursor = struct {
@@ -58,7 +59,7 @@ const Cursor = struct {
 	at: usize = 0,
 	parent: u32 = 0,
 
-	pub fn next(self: *Cursor, buf: *[256]u8) ?Item {
+	fn next(self: *Cursor, buf: *[256]u8) ?Item {
 		if (self.at >= self.bytes.len) return null;
 		const shared: usize = self.bytes[self.at];
 		const rest: usize = self.bytes[self.at + 1];
@@ -104,10 +105,6 @@ pub const Index = struct {
 
 	pub fn deinit(self: *Index) void {
 		std.posix.munmap(self.mapped);
-	}
-
-	pub fn cursorPub(self: *const Index, block: usize) Cursor {
-		return self.cursor(block);
 	}
 
 	fn cursor(self: *const Index, block: usize) Cursor {
@@ -306,6 +303,7 @@ pub const Scanner = struct {
 		const lists = self.lists[0..self.used];
 		var folded: [256]u8 = undefined;
 		var buf: [256]u8 = undefined;
+		const none_at = std.math.maxInt(usize);
 		var next = lists[0].seek(from);
 		while (next) |first| : (next = lists[0].next()) {
 			var block = first;
@@ -322,8 +320,14 @@ pub const Scanner = struct {
 			for (block * self.span..@min((block + 1) * self.span, self.index.starts.len - 1)) |at| {
 				var walk = self.index.cursor(at);
 				var id: u32 = @intCast(at * block_size);
+				var prev: usize = none_at;
 				while (walk.next(&buf)) |entry| : (id += 1) {
-					const hit = if (self.ascii) contains(&buf, entry.name.len, needle) else matches(entry.name, needle, false, &folded);
+					const hit = if (self.ascii) blk: {
+						if (prev != none_at and prev + needle.len <= entry.shared) break :blk true;
+						const start = if (entry.shared >= needle.len) entry.shared - needle.len + 1 else 0;
+						prev = firstFrom(&buf, entry.name.len, needle, start) orelse none_at;
+						break :blk prev != none_at;
+					} else matches(entry.name, needle, false, &folded);
 					if (id == 0 or !hit) continue;
 					if (!ctx.hit(id, entry)) return self.finish();
 				}
@@ -400,25 +404,30 @@ pub fn tailMatch(name: []const u8, at: usize, needle: []const u8) bool {
 }
 
 pub fn contains(buf: *const [256]u8, len: usize, needle: []const u8) bool {
-	if (needle.len == 0) return true;
-	if (needle.len > len) return false;
+	return firstFrom(buf, len, needle, 0) != null;
+}
+
+pub fn firstFrom(buf: *const [256]u8, len: usize, needle: []const u8, from: usize) ?usize {
+	if (needle.len == 0) return from;
+	if (needle.len > len) return null;
 	const last = len - needle.len;
 	const first: Lanes = @splat(needle[0]);
 	const second: Lanes = @splat(if (needle.len > 1) needle[1] else 0);
-	var p: usize = 0;
+	var p: usize = from;
 	while (p <= last) : (p += 32) {
 		if (p + 33 > buf.len) {
-			for (p..last + 1) |at| if (tailMatch(buf, at, needle)) return true;
-			return false;
+			for (p..last + 1) |at| if (tailMatch(buf, at, needle)) return at;
+			return null;
 		}
 		var mask: u32 = @bitCast(lowerLanes(buf[p..][0..32].*) == first);
 		if (needle.len > 1) mask &= @as(u32, @bitCast(lowerLanes(buf[p + 1 ..][0..32].*) == second));
 		if (last - p < 31) mask &= (@as(u32, 1) << @intCast(last - p + 1)) - 1;
 		while (mask != 0) : (mask &= mask - 1) {
-			if (tailMatch(buf, p + @ctz(mask), needle)) return true;
+			const at = p + @ctz(mask);
+			if (tailMatch(buf, at, needle)) return at;
 		}
 	}
-	return false;
+	return null;
 }
 
 pub fn matches(name: []const u8, needle: []const u8, ascii: bool, scratch: *[256]u8) bool {
