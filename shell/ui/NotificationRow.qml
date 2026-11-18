@@ -106,6 +106,7 @@ Item {
 			anchors.fill: parent
 			source: root.picture
 			sourceSize.width: Config.notifySlot * 3
+			sourceSize.height: Config.notifySlot * 3
 			cache: false
 			fillMode: Image.PreserveAspectCrop
 			visible: status === Image.Ready
