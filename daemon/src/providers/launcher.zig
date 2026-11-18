@@ -250,6 +250,11 @@ pub const Launcher = struct {
 	check_mutex: std.Io.Mutex = .init,
 	check_paths: std.ArrayList([]u8) = .empty,
 	check_epoch: std.atomic.Value(u32) = .init(0),
+	warm_mutex: std.Io.Mutex = .init,
+	warm_prefix: [2]u8 = undefined,
+	warm_len: usize = 0,
+	warm_epoch: std.atomic.Value(u32) = .init(0),
+	files_wanted: std.atomic.Value(u32) = .init(0),
 	files_gen: std.atomic.Value(u64) = .init(0),
 	file_cache: std.heap.ArenaAllocator,
 	file_query: []const u8 = "",
@@ -305,6 +310,7 @@ pub const Launcher = struct {
 
 		self.file_pool = findmod.Pool.create(self.allocator, self.io) catch null;
 		if (std.Thread.spawn(.{}, checkFiles, .{self})) |checker| checker.detach() else |_| {}
+		if (std.Thread.spawn(.{}, warmFiles, .{self})) |warmer| warmer.detach() else |_| {}
 		const thread = std.Thread.spawn(.{}, preloadIndex, .{self}) catch return;
 		thread.detach();
 	}
@@ -1426,7 +1432,9 @@ pub const Launcher = struct {
 		try first.appendSlice(arena, extras.items);
 		try second.appendSlice(arena, extras.items);
 
+		_ = self.files_wanted.fetchAdd(1, .acq_rel);
 		self.files_mutex.lockUncancelable(self.io);
+		_ = self.files_wanted.fetchSub(1, .acq_rel);
 		defer self.files_mutex.unlock(self.io);
 		if (self.files) |*index| if (self.file_dirs) |*dirs| if (self.file_pool != null) {
 			const pool = self.file_pool.?;
@@ -1468,7 +1476,51 @@ pub const Launcher = struct {
 			}
 		}
 		self.queueCheck(rows.items);
+		if (limit == file_page and search.len <= self.warm_prefix.len) self.queueWarm(search);
 		return rows.items;
+	}
+
+	fn queueWarm(self: *Launcher, prefix: []const u8) void {
+		self.warm_mutex.lockUncancelable(self.io);
+		@memcpy(self.warm_prefix[0..prefix.len], prefix);
+		self.warm_len = prefix.len;
+		self.warm_mutex.unlock(self.io);
+		_ = self.warm_epoch.fetchAdd(1, .release);
+		self.io.futexWake(u32, &self.warm_epoch.raw, 1);
+	}
+
+	fn warmFiles(self: *Launcher) void {
+		var seen: u32 = 0;
+		var query: [3]u8 = undefined;
+		outer: while (true) {
+			while (self.warm_epoch.load(.acquire) == seen) self.io.futexWaitUncancelable(u32, &self.warm_epoch.raw, seen);
+			seen = self.warm_epoch.load(.acquire);
+			self.warm_mutex.lockUncancelable(self.io);
+			const len = self.warm_len;
+			@memcpy(query[0..len], self.warm_prefix[0..len]);
+			self.warm_mutex.unlock(self.io);
+
+			for (findmod.Cache.warm) |char| {
+				if (self.warm_epoch.load(.acquire) != seen) continue :outer;
+				query[len] = char;
+				self.warmOne(query[0 .. len + 1]);
+			}
+		}
+	}
+
+	fn warmOne(self: *Launcher, query: []const u8) void {
+		while (self.files_wanted.load(.acquire) > 0) sleep.ms(1);
+		self.files_mutex.lockUncancelable(self.io);
+		defer self.files_mutex.unlock(self.io);
+		const index = if (self.files) |*found| found else return;
+		const dirs = if (self.file_dirs) |*found| found else return;
+		const pool = self.file_pool orelse return;
+		const hits = if (self.file_hits) |*found| found else return;
+		if (hits.get(query) != null) return;
+		var scratch = std.heap.ArenaAllocator.init(self.allocator);
+		defer scratch.deinit();
+		const result = findmod.topUnless(scratch.allocator(), pool, index, dirs, query, file_page, &self.files_wanted) catch return;
+		hits.put(query, result) catch {};
 	}
 
 	fn queueCheck(self: *Launcher, rows: []const Row) void {
