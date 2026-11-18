@@ -10,6 +10,7 @@ const Glob = struct { mime: []const u8, weight: u32, pattern: [:0]const u8 };
 extern "c" fn fnmatch(pattern: [*:0]const u8, string: [*:0]const u8, flags: c_int) c_int;
 
 const sniff_bytes = 512;
+const max_sniffed = 8192;
 
 const user_dirs = [_]struct { key: []const u8, icon: []const u8 }{
 	.{ .key = "XDG_DESKTOP_DIR", .icon = "user-desktop" },
@@ -32,6 +33,8 @@ pub const Mime = struct {
 	patterns: std.ArrayList(Glob) = .empty,
 	generic: Map = .empty,
 	places: Map = .empty,
+	sniffed: std.StringHashMapUnmanaged([]const u8) = .empty,
+	sniff_arena: ?std.heap.ArenaAllocator = null,
 
 	pub fn init(allocator: Allocator, io: Io) Mime {
 		return .{ .arena = std.heap.ArenaAllocator.init(allocator), .io = io };
@@ -70,7 +73,7 @@ pub const Mime = struct {
 			return out.items;
 		}
 
-		const mime = self.typeOf(arena, std.fs.path.basename(path)) orelse self.sniff(path);
+		const mime = self.typeOf(arena, std.fs.path.basename(path)) orelse self.sniffed.get(path) orelse "text/plain";
 		self.chain(arena, mime, &out) catch {};
 		return out.items;
 	}
@@ -83,6 +86,30 @@ pub const Mime = struct {
 		const slash = std.mem.indexOfScalar(u8, mime, '/') orelse mime.len;
 		try out.append(arena, try std.fmt.allocPrint(arena, "{s}-x-generic", .{mime[0..slash]}));
 		try out.append(arena, "unknown");
+	}
+
+	pub fn learn(self: *Mime, path: []const u8) bool {
+		var scratch: [256]u8 = undefined;
+		var fixed = std.heap.FixedBufferAllocator.init(&scratch);
+		self.mutex.lockUncancelable(self.io);
+		self.load();
+		const known = self.typeOf(fixed.allocator(), std.fs.path.basename(path)) != null or self.sniffed.contains(path);
+		self.mutex.unlock(self.io);
+		if (known) return false;
+
+		const mime = self.sniff(path);
+		self.mutex.lockUncancelable(self.io);
+		defer self.mutex.unlock(self.io);
+		if (self.sniff_arena == null) self.sniff_arena = std.heap.ArenaAllocator.init(self.arena.child_allocator);
+		// ponytail: the sniff cache is dropped whole at the cap instead of evicting old paths
+		if (self.sniffed.count() >= max_sniffed) {
+			self.sniffed = .empty;
+			_ = self.sniff_arena.?.reset(.retain_capacity);
+		}
+		const a = self.sniff_arena.?.allocator();
+		const key = a.dupe(u8, path) catch return false;
+		self.sniffed.put(a, key, mime) catch return false;
+		return !std.mem.eql(u8, mime, "text/plain");
 	}
 
 	fn sniff(self: *Mime, path: []const u8) []const u8 {
@@ -214,4 +241,32 @@ test "a file name finds its mime type and the icon names to try" {
 	try parseUserDirs(a, "XDG_DOWNLOAD_DIR=\"$HOME/Downloads\"\nXDG_DESKTOP_DIR=\"$HOME/\"\n", "/home/u", &mime.places);
 	try std.testing.expectEqualStrings("folder-download", mime.places.get("/home/u/Downloads").?);
 	try std.testing.expect(mime.places.get("/home/u") == null);
+}
+
+test "learning sniffs unknown files once and keeps the result" {
+	const io = std.testing.io;
+	var tmp = std.testing.tmpDir(.{});
+	defer tmp.cleanup();
+	try tmp.dir.writeFile(io, .{ .sub_path = "notes", .data = "plain words\n" });
+	try tmp.dir.writeFile(io, .{ .sub_path = "blob", .data = "\x7fELF\x00\x01" });
+	const base = try std.fmt.allocPrint(std.testing.allocator, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+	defer std.testing.allocator.free(base);
+	const notes = try std.fmt.allocPrint(std.testing.allocator, "{s}/notes", .{base});
+	defer std.testing.allocator.free(notes);
+	const blob = try std.fmt.allocPrint(std.testing.allocator, "{s}/blob", .{base});
+	defer std.testing.allocator.free(blob);
+
+	var mime = Mime.init(std.testing.allocator, io);
+	defer mime.arena.deinit();
+	defer if (mime.sniff_arena) |*arena| arena.deinit();
+	mime.loaded = true;
+	var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+	defer arena.deinit();
+
+	try std.testing.expectEqualStrings("text-plain", mime.icons(arena.allocator(), blob, false)[0]);
+	try std.testing.expect(!mime.learn(notes));
+	try std.testing.expect(mime.learn(blob));
+	try std.testing.expect(!mime.learn(blob));
+	try std.testing.expectEqualStrings("application-octet-stream", mime.icons(arena.allocator(), blob, false)[0]);
+	try std.testing.expectEqualStrings("text-plain", mime.icons(arena.allocator(), notes, false)[0]);
 }
