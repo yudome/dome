@@ -254,7 +254,8 @@ QtObject {
 	readonly property string screenRaw: root.screenState.raw || ""
 
 	readonly property var icons: root.snapshot.icons || ({})
-	readonly property var launcher: root.snapshot.launcher || ({})
+	property var launcherPart: null
+	readonly property var launcher: root.launcherPart || root.snapshot.launcher || ({})
 	readonly property var ink: root.snapshot.ink || ({})
 	readonly property var windows: root.snapshot.windows ? (root.snapshot.windows.list || []) : []
 	readonly property string windowsEmpty: root.snapshot.windows ? (root.snapshot.windows.empty || "") : ""
@@ -334,6 +335,13 @@ QtObject {
 			return;
 		}
 
+		if (message.t === "part") {
+			if (message.key === "launcher")
+				root.launcherPart = message.value;
+
+			return;
+		}
+
 		if (message.ok !== undefined) {
 			if (root.pending.length > 0) {
 				const callback = root.pending.shift();
@@ -345,6 +353,7 @@ QtObject {
 		}
 
 		root.snapshot = message;
+		root.launcherPart = null;
 	}
 
 	property Socket socket: Socket {
