@@ -1,4 +1,3 @@
-//@ pragma IconTheme breeze
 //@ pragma Env QML_IMPORT_PATH=/home/gabriel/.local/lib/yudae/qml:/home/gabriel/dotfiles/shell/native/qml
 //@ pragma Env QSG_RHI_BACKEND=opengl
 pragma ComponentBehavior: Bound
