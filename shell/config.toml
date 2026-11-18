@@ -307,7 +307,7 @@ powerAwakeTitle = "Keep awake"
 [lock]
 lockAfterMinutes = 10  # idle before the shell locks, 0 disables
 lockSleepAfterMinutes = 30  # idle while locked before suspend, 0 disables
-lockFontSize = 15  # foot font size, the greeter terminal uses the same
+lockFontSize = 15  # grid font size, the greeter uses the same
 lockClockFormat = "h:mm AP"  # Qt time format like clockFormat; HH H hh h mm ss AP, glyphs from lockDigits
 lockDigits = [  # block clock font: glyph, then 5 rows; each # is two cells
 	["0", "###", "# #", "# #", "# #", "###"],

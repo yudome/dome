@@ -15,26 +15,18 @@ fi
 
 home=$(getent passwd "$target" | cut -d: -f6)
 repo="$home/dotfiles"
-bin="$repo/greeter/bin/greeter"
-config="$repo/shell/config.toml"
+start="$repo/shell/features/greeter/start"
 
-if [ ! -x "$bin" ]; then
-	echo "missing $bin: run xmake greeter as $target first" >&2
-	exit 1
-fi
+for tool in cage quickshell; do
+	command -v "$tool" >/dev/null || { echo "missing $tool" >&2; exit 1; }
+done
 
 chmod o+x "$home"
 
-if ! runuser -u greeter -- test -x "$repo/greeter/start" || ! runuser -u greeter -- test -x "$bin" || ! runuser -u greeter -- test -r "$config"; then
-	echo "greeter cannot run $repo/greeter/start with $bin and $config" >&2
+if ! runuser -u greeter -- test -x "$start" || ! runuser -u greeter -- test -r "$repo/shell/greeterShell.qml"; then
+	echo "greeter cannot run $start" >&2
 	exit 1
 fi
-
-setting() {
-	sed -n "s/^$1[[:space:]]*=[[:space:]]*\"\{0,1\}\([^\"#]*[^\"#[:space:]]\)\"\{0,1\}.*/\1/p" "$config" | head -1
-}
-
-font="$(setting fontFamily):size=$(setting lockFontSize)"
 
 rm -rf /etc/greetd/quickshell /var/lib/quickshell/greeter
 rmdir /var/lib/quickshell 2>/dev/null || true
@@ -43,6 +35,7 @@ rm -f /etc/sudoers.d/greeter-power /etc/sudoers.d/greeter-logout /usr/local/bin/
 rm -f /etc/tmpfiles.d/greetd-greeter.conf
 
 usermod -aG video,render,input greeter
+install -d -m 700 -o greeter -g greeter /var/lib/greetd
 
 install -d -m 755 /etc/polkit-1/rules.d
 
@@ -89,7 +82,7 @@ vt = 1
 switch = false
 
 [default_session]
-command = "$repo/greeter/start 'font=$font' $target $config"
+command = "$start $target"
 user = "greeter"
 CFG
 
@@ -99,6 +92,5 @@ systemctl disable sddm >/dev/null 2>&1 || true
 systemctl enable greetd >/dev/null
 
 echo "greeter installed for $target"
-echo "font: $font"
 echo "your current session is untouched; reboot to test."
 echo "rollback: sudo $(dirname "$0")/greeter-uninstall"

@@ -13,8 +13,7 @@ dotfiles/
     features/<name>/ one folder per feature: Card.qml Widget.qml Service.qml feature.json
     ui/              primitives used twice or more; AppWindow is the xdg_toplevel primitive
     native/          Yudae.Native C++ QML module (VmDisplay) + yudae-pump
-    lib/ lock/ launcher/
-  greeter/           TUI greeter (Rust, ratatui); runs as cage + foot under greetd
+    lib/ lock/ launcher/ greeter/
   daemon/            yudaemond (Zig); src/providers/<name>.zig pairs with features/<name>
   systemd/ scripts/
   vm/                images, overlays, guest setup, scenarios
@@ -31,8 +30,8 @@ dotfiles/
 - `AGENTS.md` is an index. Procedure goes in `.agents/skills/`, reference in `docs/`.
 - Only `xmake link` writes into `~/.config`. It refuses to overwrite a real file and prints what it would replace.
 - The shell and greeter run from the repo path, never from `~/.config`.
-- The greeter and the lock draw the same terminal grid: font, `lockFontSize`, `lockDigits`, `lockClockFormat` and colors come from `shell/config.toml`.
-- The greeter starts the chosen session through `greeter/session`, which sends its output to `~/.local/state/session.log`, so nothing is printed on the VT between the greeter and the desktop.
+- The greeter is `shell/greeterShell.qml`, run by greetd as `cage -- quickshell` through `shell/features/greeter/start`. It and the lock draw the same `features/lock/Stage.qml`: font, `lockFontSize`, `lockDigits`, `lockClockFormat` and colors come from `shell/config.toml`.
+- The greeter starts the chosen session through `shell/features/greeter/session`, which sends its output to `~/.local/state/session.log`, so nothing is printed on the VT between the greeter and the desktop.
 - The greeter's third button opens the switch menu: one row for the session name and one for the user, arrows to change each, and that choice is used for the login. Sessions come from `/usr/share/wayland-sessions`.
 
 ## xmake
@@ -43,7 +42,6 @@ xmake orchestrates, it does not replace the real builders.
 | --- | --- |
 | `xmake build` | daemon (wraps `zig build`), cursor plugin, `Yudae.Native` QML module, `yudae-pump` (native C++ targets) |
 | `xmake plugin` | rebuild every `plugins/*/Makefile` into `~/.local/state/yudae/build/<id>` |
-| `xmake greeter` | `cargo build --release` in `greeter/`, binary placed at `greeter/bin/greeter` |
 | `xmake link` | symlink `config/*` and `hypr/` into `~/.config` |
 | `xmake lint` | qmllint on `shell/`, `node shell/lib/check.js` |
 | `xmake test` | daemon parsers/protocol tests, plugin conformance, qml fixtures, idle-spawn test |
@@ -53,4 +51,4 @@ xmake orchestrates, it does not replace the real builders.
 
 `zig build` stays underneath: the build budgets are measured on it and `scripts/yubuild` reports them. `zig build -Dheadless=true` builds `yudaemond-headless`, the minimal control-plane daemon that carries the performance gates.
 
-`scripts/xmake` is linked to `~/.local/bin/xmake`. Inside the repo it dispatches `build`, `plugin`, `greeter`, `link`, `lint`, `bench`, `hypr`, `vm` and `doctor` to `scripts/tasks.sh`; every other xmake command goes to the system xmake. `shell/native` builds the Quickshell app window and the VM display, including the in-process Conduit broker client; the daemon runs `qemu-system-x86_64` from `PATH`, or the NVIDIA path (`~/qemu-linux/install`, Conduit) when `backend=auto` selects it. `YUDAE_QEMU` and `YUDAE_NVIDIA_QEMU` override both.
+`scripts/xmake` is linked to `~/.local/bin/xmake`. Inside the repo it dispatches `build`, `plugin`, `link`, `lint`, `bench`, `hypr`, `vm` and `doctor` to `scripts/tasks.sh`; every other xmake command goes to the system xmake. `shell/native` builds the Quickshell app window and the VM display, including the in-process Conduit broker client; the daemon runs `qemu-system-x86_64` from `PATH`, or the NVIDIA path (`~/qemu-linux/install`, Conduit) when `backend=auto` selects it. `YUDAE_QEMU` and `YUDAE_NVIDIA_QEMU` override both.

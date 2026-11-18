@@ -12,12 +12,12 @@
     },
     {
       "do": "exec",
-      "cmd": "sudo pacman -S --noconfirm --needed greetd cage >/dev/null && echo gabriel:vmpass | sudo chpasswd && sudo ~/dotfiles/shell/scripts/greeter-install gabriel && sudo loginctl enable-linger gabriel && sudo systemctl disable --now yudae-desktop && rm -rf /run/user/1000/hypr/* && sudo systemctl start greetd",
+      "cmd": "sudo pacman -S --noconfirm --needed greetd cage quickshell >/dev/null && echo gabriel:vmpass | sudo chpasswd && sudo ~/dotfiles/shell/scripts/greeter-install gabriel && sudo loginctl enable-linger gabriel && sudo systemctl disable --now yudae-desktop && rm -rf /run/user/1000/hypr/* && sudo systemctl start greetd",
       "code": 0
     },
     {
       "do": "wait",
-      "until": "exec:pgrep -x greeter >/dev/null",
+      "until": "exec:pgrep -f [g]reeterShell >/dev/null",
       "timeout": 30000
     },
     {
@@ -102,10 +102,8 @@
       ]
     },
     {
-      "do": "key",
-      "keys": [
-        "tab"
-      ]
+      "do": "sleep",
+      "ms": 300
     },
     {
       "do": "key",
@@ -114,10 +112,28 @@
       ]
     },
     {
+      "do": "sleep",
+      "ms": 300
+    },
+    {
       "do": "key",
       "keys": [
         "tab"
       ]
+    },
+    {
+      "do": "sleep",
+      "ms": 300
+    },
+    {
+      "do": "key",
+      "keys": [
+        "tab"
+      ]
+    },
+    {
+      "do": "sleep",
+      "ms": 300
     },
     {
       "do": "key",
@@ -189,12 +205,12 @@
     },
     {
       "do": "wait",
-      "until": "exec:pgrep -x quickshell >/dev/null",
+      "until": "exec:! pgrep -f [g]reeterShell >/dev/null && pgrep -x quickshell >/dev/null",
       "timeout": 60000
     },
     {
       "do": "exec",
-      "cmd": "loginctl list-sessions --no-legend | grep -q gabriel && ! pgrep -x greeter",
+      "cmd": "loginctl list-sessions --no-legend | grep -q gabriel && ! pgrep -f [g]reeterShell",
       "code": 0
     },
     {
@@ -337,7 +353,7 @@
     },
     {
       "do": "wait",
-      "until": "exec:pgrep -x greeter >/dev/null",
+      "until": "exec:pgrep -f [g]reeterShell >/dev/null",
       "timeout": 30000
     },
     {
