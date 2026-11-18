@@ -110,7 +110,7 @@ Row {
 				const name = url.replace("image://icon/", "").split("?")[0];
 
 				if (url.indexOf("image://icon/") === 0 && Quickshell.hasThemeIcon(name))
-					return url;
+					return AppIcons.themeUrl(name);
 
 				return AppIcons.iconOf(slot.modelData.id, [slot.modelData.title]) || url;
 			}

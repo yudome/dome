@@ -12,6 +12,7 @@ Item {
 
 	readonly property var resolved: Yudae.icons.map || ({})
 	readonly property var names: Yudae.icons.names || ({})
+	readonly property string theme: Yudae.icons.theme || ""
 	readonly property var glyphs: ({ "com.yudae.vms": "\uDB80\uDF79", "com.yudae.disk": "\uF0A0" })
 	property var asked: ({})
 
@@ -34,16 +35,20 @@ Item {
 		return "";
 	}
 
+	function themeUrl(name) {
+		return Quickshell.iconPath(name, name) + "&theme=" + encodeURIComponent(root.theme);
+	}
+
 	function fromTheme(key, path) {
 		const name = root.names[key];
 
-		return name && Quickshell.hasThemeIcon(name) ? Quickshell.iconPath(name) : path;
+		return name && Quickshell.hasThemeIcon(name) ? root.themeUrl(name) : path;
 	}
 
 	function themed(names) {
 		for (let i = 0; i < names.length; i++) {
 			if (Quickshell.hasThemeIcon(names[i]))
-				return Quickshell.iconPath(names[i]);
+				return root.themeUrl(names[i]);
 		}
 
 		return names.length > 0 ? root.iconOf(names[0], names.slice(1)) : "";
