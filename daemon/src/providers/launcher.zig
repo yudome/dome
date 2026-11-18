@@ -246,6 +246,10 @@ pub const Launcher = struct {
 	file_dirs: ?findmod.Dirs = null,
 	file_pool: ?*findmod.Pool = null,
 	file_hits: ?findmod.Cache = null,
+	file_gone: std.StringHashMapUnmanaged(void) = .empty,
+	check_mutex: std.Io.Mutex = .init,
+	check_paths: std.ArrayList([]u8) = .empty,
+	check_epoch: std.atomic.Value(u32) = .init(0),
 	files_gen: std.atomic.Value(u64) = .init(0),
 	file_cache: std.heap.ArenaAllocator,
 	file_query: []const u8 = "",
@@ -300,6 +304,7 @@ pub const Launcher = struct {
 		try self.watch.?.start();
 
 		self.file_pool = findmod.Pool.create(self.allocator, self.io) catch null;
+		if (std.Thread.spawn(.{}, checkFiles, .{self})) |checker| checker.detach() else |_| {}
 		const thread = std.Thread.spawn(.{}, preloadIndex, .{self}) catch return;
 		thread.detach();
 	}
@@ -1433,7 +1438,7 @@ pub const Launcher = struct {
 				for (hits) |hit| {
 					const path = try arena.dupe(u8, index.path(&buffer, hit.id()));
 					const id = try std.fmt.allocPrint(arena, "file:{s}", .{path});
-					try list.append(arena, .{ .path = path, .id = id, .quality = hit.quality(), .home = hit.home(), .used = (self.usage.get(id) orelse Usage{}).last, .depth = hit.depth(), .fresh = false });
+					try list.append(arena, .{ .path = path, .id = id, .quality = hit.quality(), .home = hit.home(), .used = (self.usage.get(id) orelse Usage{}).last, .depth = hit.depth(), .fresh = false, .dir = hit.dir });
 				}
 			}
 		};
@@ -1448,22 +1453,71 @@ pub const Launcher = struct {
 				if (rows.items.len == limit) break;
 				const name = std.fs.path.basename(hit.path);
 				if (distinct and names.contains(name)) continue;
+				if (self.file_gone.contains(hit.path)) continue;
 				if ((try paths.getOrPut(arena, hit.path)).found_existing) continue;
-				const z = try arena.dupeSentinel(u8, hit.path, 0);
-				var st: std.os.linux.Statx = undefined;
-				if (std.os.linux.errno(std.os.linux.statx(std.os.linux.AT.FDCWD, z, 0, .{ .TYPE = true }, &st)) != .SUCCESS) continue;
+				const dir = hit.dir orelse (statDir(arena, hit.path) orelse continue);
 				try names.put(arena, name, {});
 				try rows.append(arena, .{
 					.id = hit.id,
 					.kind = "file",
 					.name = name,
 					.glyph = "",
-					.icons = self.mime.icons(arena, hit.path, std.posix.S.ISDIR(st.mode)),
+					.icons = self.mime.icons(arena, hit.path, dir),
 					.detail = std.fs.path.dirname(hit.path) orelse "/",
 				});
 			}
 		}
+		self.queueCheck(rows.items);
 		return rows.items;
+	}
+
+	fn queueCheck(self: *Launcher, rows: []const Row) void {
+		self.check_mutex.lockUncancelable(self.io);
+		for (self.check_paths.items) |path| self.allocator.free(path);
+		self.check_paths.clearRetainingCapacity();
+		for (rows) |row| {
+			const path = self.allocator.dupe(u8, row.id["file:".len..]) catch continue;
+			self.check_paths.append(self.allocator, path) catch self.allocator.free(path);
+		}
+		self.check_mutex.unlock(self.io);
+		_ = self.check_epoch.fetchAdd(1, .release);
+		self.io.futexWake(u32, &self.check_epoch.raw, 1);
+	}
+
+	fn checkFiles(self: *Launcher) void {
+		var seen: u32 = 0;
+		while (true) {
+			while (self.check_epoch.load(.acquire) == seen) self.io.futexWaitUncancelable(u32, &self.check_epoch.raw, seen);
+			seen = self.check_epoch.load(.acquire);
+
+			self.check_mutex.lockUncancelable(self.io);
+			var paths = self.check_paths;
+			self.check_paths = .empty;
+			self.check_mutex.unlock(self.io);
+			defer {
+				for (paths.items) |path| self.allocator.free(path);
+				paths.deinit(self.allocator);
+			}
+
+			var changed = false;
+			var scratch: [std.fs.max_path_bytes]u8 = undefined;
+			for (paths.items) |path| {
+				var fixed = std.heap.FixedBufferAllocator.init(&scratch);
+				const dir = statDir(fixed.allocator(), path) orelse {
+					const key = self.allocator.dupe(u8, path) catch continue;
+					self.mutex.lockUncancelable(self.io);
+					const entry = self.file_gone.getOrPut(self.allocator, key) catch null;
+					self.mutex.unlock(self.io);
+					if (entry == null or entry.?.found_existing) self.allocator.free(key);
+					changed = true;
+					continue;
+				};
+				if (!dir and self.mime.learn(path)) changed = true;
+			}
+			if (!changed) continue;
+			_ = self.files_gen.fetchAdd(1, .release);
+			self.hub.publishOne("launcher");
+		}
 	}
 
 	pub fn moreFiles(self: *Launcher) void {
@@ -1510,6 +1564,11 @@ pub const Launcher = struct {
 		self.file_dirs = dirs;
 		self.file_hits = hits;
 		self.files_mutex.unlock(self.io);
+		self.mutex.lockUncancelable(self.io);
+		var missing = self.file_gone.keyIterator();
+		while (missing.next()) |key| self.allocator.free(key.*);
+		self.file_gone.clearRetainingCapacity();
+		self.mutex.unlock(self.io);
 		_ = self.files_gen.fetchAdd(1, .release);
 		if (old) |stale| {
 			var gone = stale;
@@ -1809,7 +1868,15 @@ pub const Launcher = struct {
 	}
 };
 
+fn statDir(arena: Allocator, path: []const u8) ?bool {
+	const z = arena.dupeSentinel(u8, path, 0) catch return null;
+	var st: std.os.linux.Statx = undefined;
+	if (std.os.linux.errno(std.os.linux.statx(std.os.linux.AT.FDCWD, z, 0, .{ .TYPE = true }, &st)) != .SUCCESS) return null;
+	return std.posix.S.ISDIR(st.mode);
+}
+
 const FileHit = struct {
+	dir: ?bool = null,
 	path: []const u8,
 	id: []const u8,
 	quality: u8,

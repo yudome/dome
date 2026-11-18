@@ -34,6 +34,7 @@ pub const Dirs = struct {
 pub const Hit = struct {
 	key: u64,
 	hash: u64,
+	dir: bool = false,
 
 	pub fn id(self: Hit) u32 {
 		return @truncate(self.key);
@@ -178,7 +179,7 @@ const Worker = struct {
 		const keep_all = !self.all.full() or key < self.all.items[0].key;
 		const keep_distinct = !self.distinct.full() or key < self.distinct.items[self.distinct.worst].key;
 		if (!keep_all and !keep_distinct) return true;
-		const found: Hit = .{ .key = key, .hash = std.hash.Wyhash.hash(0, entry.name) };
+		const found: Hit = .{ .key = key, .hash = std.hash.Wyhash.hash(0, entry.name), .dir = entry.dir };
 		if (keep_all) self.all.push(found);
 		if (keep_distinct) self.distinct.push(found);
 		return true;
