@@ -63,9 +63,9 @@ pub const Access = struct {
 
 pub fn serve(allocator: Allocator, client: i32, access: Access, roots: []const []const u8, mounts: []const []const u8) !void {
 	const init_flags: linux.fanotify.InitFlags = .{ .CLOEXEC = true, .NONBLOCK = true, .CLASS = .NOTIF, .REPORT_DIR_FID = true, .REPORT_NAME = true };
-	const fan = linux.fanotify_init(init_flags, @bitCast(std.posix.O{ .ACCMODE = .RDONLY }));
-	if (linux.errno(fan) != .SUCCESS) return error.FanotifyUnavailable;
-	defer _ = linux.close(@intCast(fan));
+	var fan: i32 = @intCast(linux.fanotify_init(init_flags, @bitCast(std.posix.O{ .ACCMODE = .RDONLY })));
+	if (fan < 0) return error.FanotifyUnavailable;
+	defer _ = linux.close(fan);
 
 	var mount_fds: [16]i32 = undefined;
 	var marked: usize = 0;
@@ -77,14 +77,32 @@ pub fn serve(allocator: Allocator, client: i32, access: Access, roots: []const [
 		if (marked == mount_fds.len) break;
 		var buf: [std.fs.max_path_bytes + 1]u8 = undefined;
 		const z = std.fmt.bufPrintSentinel(&buf, "{s}", .{mount}, 0) catch continue;
-		if (linux.errno(linux.fanotify_mark(@intCast(fan), .{ .ADD = true, .FILESYSTEM = true }, mask, linux.AT.FDCWD, z)) != .SUCCESS) continue;
+		if (linux.errno(linux.fanotify_mark(fan, .{ .ADD = true, .FILESYSTEM = true }, mask, linux.AT.FDCWD, z)) != .SUCCESS) continue;
 		const fd = linux.open(z, .{ .ACCMODE = .RDONLY, .DIRECTORY = true, .CLOEXEC = true }, 0);
 		if (linux.errno(fd) != .SUCCESS) continue;
 		mount_fds[marked] = @intCast(fd);
 		marked += 1;
 	}
-	if (marked == 0) return error.MarkFailed;
-	try sock.writeAll(client, "R\n");
+	var partial = false;
+	if (marked == 0) {
+		_ = linux.close(fan);
+		fan = @intCast(linux.fanotify_init(.{ .CLOEXEC = true, .NONBLOCK = true, .CLASS = .NOTIF }, @bitCast(std.posix.O{ .ACCMODE = .RDONLY })));
+		if (fan < 0) return error.FanotifyUnavailable;
+		const fallback: linux.fanotify.MarkMask = .{ .CLOSE_WRITE = true };
+		for (mounts) |mount| {
+			if (marked == mount_fds.len) break;
+			var buf: [std.fs.max_path_bytes + 1]u8 = undefined;
+			const z = std.fmt.bufPrintSentinel(&buf, "{s}", .{mount}, 0) catch continue;
+			if (linux.errno(linux.fanotify_mark(fan, .{ .ADD = true, .FILESYSTEM = true }, fallback, linux.AT.FDCWD, z)) != .SUCCESS) continue;
+			const fd = linux.open(z, .{ .ACCMODE = .RDONLY, .DIRECTORY = true, .CLOEXEC = true }, 0);
+			if (linux.errno(fd) != .SUCCESS) continue;
+			mount_fds[marked] = @intCast(fd);
+			marked += 1;
+		}
+		if (marked == 0) return error.MarkFailed;
+		partial = true;
+	}
+	try sock.writeAll(client, if (partial) "P\n" else "R\n");
 
 	var pending: std.StringArrayHashMapUnmanaged(void) = .empty;
 	defer {
@@ -103,8 +121,11 @@ pub fn serve(allocator: Allocator, client: i32, access: Access, roots: []const [
 		_ = linux.poll(&fds, fds.len, if (waiting) @intCast(@max(0, since + flush_ms - nowMs())) else -1);
 		if (fds[0].revents != 0) return;
 		if (fds[1].revents & linux.POLL.IN != 0) {
-			const read = linux.read(@intCast(fan), &buffer, buffer.len);
-			if (linux.errno(read) == .SUCCESS) overflow = try collect(allocator, buffer[0..read], mount_fds[0..marked], access, roots, &pending) or overflow;
+			const read = linux.read(fan, &buffer, buffer.len);
+			if (linux.errno(read) == .SUCCESS) {
+				const bytes = buffer[0..read];
+				overflow = (if (partial) try collectFd(allocator, bytes, access, roots, &pending) else try collect(allocator, bytes, mount_fds[0..marked], access, roots, &pending)) or overflow;
+			}
 		}
 		if (!waiting and (pending.count() > 0 or overflow)) since = nowMs();
 		if (pending.count() == 0 and !overflow) continue;
@@ -138,6 +159,33 @@ fn collect(allocator: Allocator, bytes: []const u8, mount_fds: []const i32, acce
 			if (pending.contains(path) or !inside(path, roots) or !access.canList(path)) continue;
 			try pending.put(allocator, try allocator.dupe(u8, path), {});
 		}
+	}
+	return overflow;
+}
+
+fn collectFd(allocator: Allocator, bytes: []const u8, access: Access, roots: []const []const u8, pending: *std.StringArrayHashMapUnmanaged(void)) !bool {
+	var overflow = false;
+	var offset: usize = 0;
+	while (offset + @sizeOf(linux.fanotify.event_metadata) <= bytes.len) {
+		const meta: *align(1) const linux.fanotify.event_metadata = @ptrCast(&bytes[offset]);
+		if (meta.event_len < @sizeOf(linux.fanotify.event_metadata)) break;
+		offset += meta.event_len;
+		if (meta.mask.Q_OVERFLOW) {
+			overflow = true;
+			continue;
+		}
+		if (meta.fd < 0) continue;
+		defer _ = linux.close(meta.fd);
+		var link: [32]u8 = undefined;
+		const proc_path = std.fmt.bufPrintSentinel(&link, "/proc/self/fd/{d}", .{meta.fd}, 0) catch continue;
+		var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+		const len = linux.readlink(proc_path, &path_buf, path_buf.len);
+		if (linux.errno(len) != .SUCCESS) continue;
+		const raw = path_buf[0..len];
+		const full = if (std.mem.endsWith(u8, raw, " (deleted)")) raw[0 .. raw.len - " (deleted)".len] else raw;
+		const path = if (meta.mask.ONDIR) full else std.fs.path.dirname(full) orelse continue;
+		if (pending.contains(path) or !inside(path, roots) or !access.canList(path)) continue;
+		try pending.put(allocator, try allocator.dupe(u8, path), {});
 	}
 	return overflow;
 }
@@ -197,8 +245,48 @@ pub fn listen(roots: []const []const u8, ctx: anytype) !void {
 			ctx.overflow();
 		} else if (std.mem.eql(u8, line, "R")) {
 			ctx.ready();
+		} else if (std.mem.eql(u8, line, "P")) {
+			ctx.partial();
 		} else return error.Refused;
 	}
+}
+
+test "the no-fid fallback reports the folder of a closed write" {
+	const io = std.testing.io;
+	const allocator = std.testing.allocator;
+	var tmp = std.testing.tmpDir(.{});
+	defer tmp.cleanup();
+	const base = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+	defer allocator.free(base);
+	const root = try std.Io.Dir.cwd().realPathFileAlloc(io, base, allocator);
+	defer allocator.free(root);
+	const file = try std.fmt.allocPrint(allocator, "{s}/fresh.txt", .{root});
+	defer allocator.free(file);
+	var created = try std.Io.Dir.cwd().createFile(io, file, .{});
+	created.close(io);
+
+	var buf: [std.fs.max_path_bytes + 1]u8 = undefined;
+	const z = try std.fmt.bufPrintSentinel(&buf, "{s}", .{file}, 0);
+	const fd = linux.open(z, .{ .ACCMODE = .RDONLY, .CLOEXEC = true }, 0);
+	try std.testing.expect(linux.errno(fd) == .SUCCESS);
+
+	var meta: linux.fanotify.event_metadata = .{
+		.event_len = @intCast(@sizeOf(linux.fanotify.event_metadata)),
+		.vers = linux.fanotify.event_metadata.VERSION,
+		.reserved = 0,
+		.metadata_len = @intCast(@sizeOf(linux.fanotify.event_metadata)),
+		.mask = .{ .CLOSE_WRITE = true },
+		.fd = @intCast(fd),
+		.pid = 0,
+	};
+	var pending: std.StringArrayHashMapUnmanaged(void) = .empty;
+	defer {
+		for (pending.keys()) |key| allocator.free(key);
+		pending.deinit(allocator);
+	}
+	try std.testing.expect(!try collectFd(allocator, std.mem.asBytes(&meta), .{ .uid = @intCast(linux.geteuid()) }, &.{root}, &pending));
+	try std.testing.expectEqual(@as(usize, 1), pending.count());
+	try std.testing.expectEqualStrings(root, pending.keys()[0]);
 }
 
 test "access follows the permission bits of every folder on the path" {

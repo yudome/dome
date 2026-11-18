@@ -1754,6 +1754,11 @@ const Follower = struct {
 		self.launcher.following.store(true, .release);
 	}
 
+	pub fn partial(self: *Follower) void {
+		self.launcher.following.store(false, .release);
+		self.launcher.files_scanned.store(0, .release);
+	}
+
 	pub fn dir(self: *Follower, path: []const u8) void {
 		const copy = self.launcher.allocator.dupe(u8, path) catch return;
 		self.pending.append(self.launcher.allocator, copy) catch self.launcher.allocator.free(copy);
