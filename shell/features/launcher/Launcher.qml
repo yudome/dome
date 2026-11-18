@@ -182,7 +182,18 @@ PanelWindow {
 	readonly property bool revealed: root.grid || !root.spotlight || !root.home || (root.query !== "" && !!root.live.intent && root.live.intent.query !== "")
 	readonly property real fontSize: root.spotlight ? Config.launcherSpotlightFontSize : Config.launcherFontSize
 	readonly property real iconSize: root.spotlight ? Math.round(root.fontSize * 1.4) : Config.launcherIconSize
-	readonly property bool fileRows: (root.results || []).some(function (entry) { return entry.kind === "file"; })
+	readonly property bool fileRows: root.lastFile >= 0
+	readonly property int lastFile: {
+		const rows = root.results || [];
+
+		for (let i = rows.length - 1; i >= 0; i--) {
+			if (rows[i].kind === "file")
+				return i;
+		}
+
+		return -1;
+	}
+	property int filesAsked: -1
 	readonly property real fileRowHeight: Math.round(root.fontSize * 1.2) + Math.round(root.fontSize * 0.72 * 1.2) + 6
 	readonly property real baseRowHeight: root.spotlight
 		? (root.mode === "emoji" ? root.emojiRowHeight : root.iconSize + 12)
@@ -758,6 +769,17 @@ PanelWindow {
 		return out;
 	}
 
+	function moreFiles() {
+		if (root.lastFile < 0 || root.filesAsked === root.lastFile)
+			return;
+
+		if (list.firstVisible + root.rows * 2 < root.lastFile)
+			return;
+
+		root.filesAsked = root.lastFile;
+		Yudae.cmd("launcher", { filesMore: true });
+	}
+
 	function loadMore() {
 		if (!root.clipMore || root.moreAsked === root.clipPages.length)
 			return;
@@ -1181,6 +1203,9 @@ PanelWindow {
 						rowHeight: root.rowHeight
 						rowSpacing: root.rowGap
 						model: root.grid ? [] : root.results
+
+						onOffsetChanged: root.moreFiles()
+						onCurrentIndexChanged: root.moreFiles()
 
 						delegate: Item {
 							id: row
