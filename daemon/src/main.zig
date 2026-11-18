@@ -37,6 +37,7 @@ const media = @import("providers/media.zig");
 const calendar = @import("providers/calendar.zig");
 const vms = @import("providers/vms.zig");
 const fsd = @import("providers/disk/fsd.zig");
+const files = @import("providers/files/build.zig");
 const disk = @import("providers/disk/disk.zig");
 const iconsmod = @import("primitives/icons.zig");
 const cli = @import("cli.zig");
@@ -225,6 +226,10 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 		if (kill_vm.len > 0) context.launcher.killVm(kill_vm);
 
 		if (json.flag(l_cmd, "clips")) context.launcher.refreshClips();
+
+		if (json.flag(l_cmd, "opened")) context.launcher.opened();
+
+		if (json.flag(l_cmd, "rebuildFiles")) context.launcher.rebuildFiles();
 
 		if (json.flag(l_cmd, "clipMore")) context.launcher.moreClip();
 
@@ -488,14 +493,16 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "spawn-check")) return cli.spawnCheck(io, args);
 
 	if (std.mem.eql(u8, command, "logout")) return cli.logout(io);
+	if (std.mem.eql(u8, command, "files")) return cli.files(io, args);
 	if (std.mem.eql(u8, command, "doctor")) return cli.doctor(io);
 	if (std.mem.eql(u8, command, "bench")) return cli.bench(io, args);
 	if (std.mem.eql(u8, command, "parity")) return cli.parity(io, args);
 	if (std.mem.eql(u8, command, "mcp")) return cli.mcp(io, args);
 	if (std.mem.eql(u8, command, "fsd") or std.mem.eql(u8, command, "yudae-fsd")) return fsd.run(io);
+	if (std.mem.eql(u8, command, "files-index")) return files.command(io, args);
 
 	if (!std.mem.eql(u8, command, "run")) {
-		std.debug.print("usage: yudae [run|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|ui|spawn-check|logout]\n", .{});
+		std.debug.print("usage: yudae [run|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|ui|spawn-check|logout|files rebuild]\n", .{});
 		return;
 	}
 

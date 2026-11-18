@@ -39,5 +39,22 @@
     "reference": "ncdu, gdu, dua, hyperfine",
     "coldEntriesPerSecond": 544751,
     "coldVersion": "v2-uring"
+  },
+  "files": {
+    "cold": false,
+    "at": 1794870234564,
+    "fixture": "synthetic",
+    "entries": 20114,
+    "directories": 44,
+    "bytes": 227204,
+    "buildMs": 10.722603,
+    "incrementalMs": 0.095787,
+    "entriesPerSecond": 1875850.4814549228,
+    "scanMs": 0.720764,
+    "scanFolders": 44,
+    "loadMs": 0.011958,
+    "queryP50Us": 6.868,
+    "queryP99Us": 35.717,
+    "accuracy": true
   }
 }

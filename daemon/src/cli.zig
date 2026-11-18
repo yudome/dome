@@ -5,6 +5,7 @@ const sock = @import("primitives/sock.zig");
 const benchmod = @import("bench.zig");
 const bench_widgets = @import("bench_widgets.zig");
 const bench_disk = @import("bench_disk.zig");
+const bench_files = @import("bench_files.zig");
 const paritymod = @import("parity.zig");
 const mcpmod = @import("mcp.zig");
 const sleep = @import("primitives/sleep.zig");
@@ -47,6 +48,22 @@ pub fn fetch(io: Io) ![]u8 {
 	};
 
 	return std.heap.smp_allocator.dupe(u8, message);
+}
+
+pub fn files(io: Io, args: []const []const u8) !void {
+	if (args.len < 3 or !std.mem.eql(u8, args[2], "rebuild")) {
+		std.debug.print("usage: yudae files rebuild\n", .{});
+		std.process.exit(2);
+	}
+	const path = try proc.socketPath(io, std.heap.smp_allocator);
+	defer std.heap.smp_allocator.free(path);
+	var read_buffer: [4096]u8 = undefined;
+	var connection = sock.Connection.connect(path, &read_buffer) catch {
+		std.debug.print("yudaemond is not running\n", .{});
+		std.process.exit(2);
+	};
+	defer connection.close();
+	try connection.writeLine("{\"cmd\":{\"launcher\":{\"rebuildFiles\":true}}}");
 }
 
 pub fn logout(io: Io) !void {
@@ -116,6 +133,7 @@ pub fn doctor(io: Io) !void {
 pub fn bench(io: Io, args: []const []const u8) !void {
 	if (args.len > 2 and std.mem.eql(u8, args[2], "widgets")) return bench_widgets.run(io, args);
 	if (args.len > 2 and std.mem.eql(u8, args[2], "disk")) return bench_disk.run(io, args[2..]);
+	if (args.len > 2 and std.mem.eql(u8, args[2], "files")) return bench_files.run(io, args[2..]);
 
 	return benchmod.run(io, args);
 }

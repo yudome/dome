@@ -316,7 +316,7 @@ fn variantRow(io: Io, measured: Measure, expected: u64, fixture: []const u8, ref
 	};
 }
 
-fn dropCaches(io: Io, allocator: Allocator, path: []const u8) bool {
+pub fn dropCaches(io: Io, allocator: Allocator, path: []const u8) bool {
 	const socket_path = guardmod.fsdSocket();
 	if (!proc.exists(io, socket_path)) {
 		if (std.os.linux.geteuid() == 0) {
@@ -371,7 +371,7 @@ const VolArgs = extern struct {
 	name: [4088]u8 = @splat(0),
 };
 
-fn makeFixture(io: Io, allocator: Allocator, root: []const u8, files: usize) ![]const u8 {
+pub fn makeFixture(io: Io, allocator: Allocator, root: []const u8, files: usize) ![]const u8 {
 	const tree = try std.fmt.allocPrint(allocator, "{s}/tree", .{root});
 	try std.Io.Dir.cwd().createDirPath(io, root);
 	if (std.os.linux.geteuid() != 0 or !createSubvolume(io, root, "tree")) {
