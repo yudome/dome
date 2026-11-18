@@ -30,6 +30,7 @@ pub const Recent = struct {
 	paths: std.ArrayList(Fresh) = .empty,
 	known: std.StringHashMapUnmanaged(void) = .empty,
 	dirs: std.AutoHashMapUnmanaged(i32, Watched) = .empty,
+	version: std.atomic.Value(u64) = .init(0),
 
 	pub fn create(allocator: Allocator, io: std.Io, home: []const u8, log: []const u8) !*Recent {
 		const self = try allocator.create(Recent);
@@ -95,6 +96,7 @@ pub const Recent = struct {
 			_ = self.known.remove(owned);
 			return self.allocator.free(owned);
 		};
+		_ = self.version.fetchAdd(1, .release);
 		if (!append) return;
 		var buf: [std.fs.max_path_bytes + 32]u8 = undefined;
 		const line = std.fmt.bufPrint(&buf, "{d} {s}\n", .{ at, path }) catch return;
@@ -211,6 +213,7 @@ pub const Recent = struct {
 			self.allocator.free(fresh.path);
 		}
 		self.paths.shrinkRetainingCapacity(kept);
+		_ = self.version.fetchAdd(1, .release);
 		self.rewrite();
 	}
 };

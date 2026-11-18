@@ -233,6 +233,8 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 
 		if (json.flag(l_cmd, "clipMore")) context.launcher.moreClip();
 
+		if (json.flag(l_cmd, "filesMore")) context.launcher.moreFiles();
+
 		const power = json.integer(json.field(l_cmd, "power"));
 		if (json.field(l_cmd, "power") != null and power >= 0) context.launcher.power(@intCast(power));
 

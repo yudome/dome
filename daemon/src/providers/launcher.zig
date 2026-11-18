@@ -6,6 +6,7 @@ const windowsmod = @import("windows.zig");
 const vmsmod = @import("vms.zig");
 const clipwatch = @import("clipwatch.zig");
 const filesmod = @import("files/index.zig");
+const findmod = @import("files/find.zig");
 const recentmod = @import("files/recent.zig");
 const buildmod = @import("files/build.zig");
 const followmod = @import("files/follow.zig");
@@ -29,8 +30,7 @@ const max_results = 60;
 const usage_max = 10;
 const clip_limit = 5 * 1024 * 1024;
 const page_bytes = 8000;
-const file_results = 24;
-const file_candidates = 4096;
+const file_page = 24;
 const file_scan_ms = 10 * 1000;
 const file_after = 4;
 const first_pages = 2;
@@ -243,6 +243,15 @@ pub const Launcher = struct {
 	following: std.atomic.Value(bool) = .init(false),
 	files_fresh: std.atomic.Value(bool) = .init(false),
 	recent: ?*recentmod.Recent = null,
+	file_dirs: ?findmod.Dirs = null,
+	files_gen: std.atomic.Value(u64) = .init(0),
+	file_cache: std.heap.ArenaAllocator,
+	file_query: []const u8 = "",
+	file_rows: []const Row = &.{},
+	file_limit: usize = 0,
+	file_pages: usize = 1,
+	file_generation: u64 = 0,
+	file_valid: bool = false,
 	mime: mimemod.Mime,
 	pins: std.ArrayListUnmanaged([]u8) = .empty,
 	saved: std.ArrayListUnmanaged(Saved) = .empty,
@@ -256,6 +265,7 @@ pub const Launcher = struct {
 			.io = io,
 			.hub = hub,
 			.scratch = std.heap.ArenaAllocator.init(allocator),
+			.file_cache = std.heap.ArenaAllocator.init(allocator),
 			.mime = mimemod.Mime.init(allocator, io),
 		};
 
@@ -512,6 +522,7 @@ pub const Launcher = struct {
 	pub fn setQuery(self: *Launcher, query: []const u8, forced: []const u8, group: []const u8, all: bool) void {
 		self.mutex.lockUncancelable(self.io);
 		self.all = all;
+		if (!std.mem.eql(u8, self.query, query)) self.file_pages = 1;
 		self.setStr(&self.query, query);
 		self.setStr(&self.forced, forced);
 		self.setStr(&self.group, group);
@@ -583,6 +594,7 @@ pub const Launcher = struct {
 		}
 
 		self.mutex.unlock(self.io);
+		_ = self.files_gen.fetchAdd(1, .release);
 
 		self.saveUsage();
 	}
@@ -759,7 +771,7 @@ pub const Launcher = struct {
 
 		self.mutex.unlock(self.io);
 
-		if (more) self.hub.publish();
+		if (more) self.hub.publishNow();
 	}
 
 	pub fn copyClip(self: *Launcher, id: []const u8) void {
@@ -1340,57 +1352,102 @@ pub const Launcher = struct {
 	}
 
 	fn fileRows(self: *Launcher, arena: Allocator, ranked: []Row, search: []const u8) ![]Row {
-		var paths: std.ArrayList([]const u8) = .empty;
-		if (self.recent) |recent| try recent.search(arena, search, &paths);
-		const fresh = paths.items.len;
-
-		self.files_mutex.lockUncancelable(self.io);
-		if (self.files) |*index| {
-			var hits: [file_candidates]u32 = undefined;
-			var buffer: [std.fs.max_path_bytes]u8 = undefined;
-			for (hits[0..index.search(search, &hits)]) |id| try paths.append(arena, try arena.dupe(u8, index.path(&buffer, id)));
-		}
-		self.files_mutex.unlock(self.io);
-
-		var seen: std.StringHashMapUnmanaged(void) = .empty;
-		var found: std.ArrayList(FileHit) = .empty;
-		var needle_buf: [256]u8 = undefined;
-		const needle = filesmod.fold(&needle_buf, search);
-		const home = proc.home(self.io, arena);
-		for (paths.items, 0..) |path, order| {
-			if (path.len == 0 or (try seen.getOrPut(arena, path)).found_existing) continue;
-			const id = try std.fmt.allocPrint(arena, "file:{s}", .{path});
-			const usage = self.usage.get(id) orelse Usage{};
-			try found.append(arena, .{
-				.path = path,
-				.id = id,
-				.quality = fileQuality(path, needle),
-				.home = std.mem.startsWith(u8, path, home) and path.len > home.len and path[home.len] == '/',
-				.used = usage.last,
-				.depth = std.mem.count(u8, path, "/"),
-				.fresh = order < fresh,
-			});
-		}
-		std.mem.sort(FileHit, found.items, {}, FileHit.less);
-
+		const files = try self.cachedFiles(search);
 		var out: std.ArrayListUnmanaged(Row) = .empty;
 		const lead = @min(ranked.len, file_after);
 		try out.appendSlice(arena, ranked[0..lead]);
+		try out.appendSlice(arena, files);
+		try out.appendSlice(arena, ranked[lead..]);
+		return out.items;
+	}
+
+	fn fileGeneration(self: *Launcher) u64 {
+		const recent: u64 = if (self.recent) |found| found.version.load(.acquire) else 0;
+		return self.files_gen.load(.acquire) +% recent;
+	}
+
+	fn cachedFiles(self: *Launcher, search: []const u8) ![]const Row {
+		const limit = file_page * self.file_pages;
+		const generation = self.fileGeneration();
+		if (self.file_valid and generation == self.file_generation and limit == self.file_limit and std.mem.eql(u8, search, self.file_query)) return self.file_rows;
+		self.file_valid = false;
+		_ = self.file_cache.reset(.retain_capacity);
+		const cache = self.file_cache.allocator();
+		self.file_query = try cache.dupe(u8, search);
+		self.file_rows = try self.findFiles(cache, search, limit);
+		self.file_generation = generation;
+		self.file_limit = limit;
+		self.file_valid = true;
+		return self.file_rows;
+	}
+
+	fn pathHit(self: *Launcher, arena: Allocator, path: []const u8, needle: []const u8, home: []const u8, fresh: bool) !FileHit {
+		const id = try std.fmt.allocPrint(arena, "file:{s}", .{path});
+		return .{
+			.path = path,
+			.id = id,
+			.quality = findmod.quality(std.fs.path.basename(path), needle),
+			.home = std.mem.startsWith(u8, path, home) and path.len > home.len and path[home.len] == '/',
+			.used = (self.usage.get(id) orelse Usage{}).last,
+			.depth = std.mem.count(u8, path, "/"),
+			.fresh = fresh,
+		};
+	}
+
+	fn findFiles(self: *Launcher, arena: Allocator, search: []const u8, limit: usize) ![]Row {
+		var needle_buf: [256]u8 = undefined;
+		const needle = filesmod.fold(&needle_buf, search);
+		const ascii = filesmod.isAscii(needle);
+		const home = proc.home(self.io, arena);
+
+		var extras: std.ArrayList(FileHit) = .empty;
+		var fresh: std.ArrayList([]const u8) = .empty;
+		if (self.recent) |recent| try recent.search(arena, search, &fresh);
+		for (fresh.items) |path| try extras.append(arena, try self.pathHit(arena, path, needle, home, true));
+		var used = self.usage.keyIterator();
+		while (used.next()) |key| {
+			if (!std.mem.startsWith(u8, key.*, "file:")) continue;
+			const path = key.*["file:".len..];
+			var folded: [256]u8 = undefined;
+			if (!filesmod.matches(std.fs.path.basename(path), needle, ascii, &folded)) continue;
+			try extras.append(arena, try self.pathHit(arena, try arena.dupe(u8, path), needle, home, false));
+		}
+
+		var first: std.ArrayList(FileHit) = .empty;
+		var second: std.ArrayList(FileHit) = .empty;
+		try first.appendSlice(arena, extras.items);
+		try second.appendSlice(arena, extras.items);
+
+		self.files_mutex.lockUncancelable(self.io);
+		defer self.files_mutex.unlock(self.io);
+		if (self.files) |*index| if (self.file_dirs) |*dirs| {
+			const found = try findmod.top(arena, index, dirs, search, limit);
+			var buffer: [std.fs.max_path_bytes]u8 = undefined;
+			for ([_][]const findmod.Hit{ found.distinct, found.all }, [_]*std.ArrayList(FileHit){ &first, &second }) |hits, list| {
+				for (hits) |hit| {
+					const path = try arena.dupe(u8, index.path(&buffer, hit.id()));
+					const id = try std.fmt.allocPrint(arena, "file:{s}", .{path});
+					try list.append(arena, .{ .path = path, .id = id, .quality = hit.quality(), .home = hit.home(), .used = (self.usage.get(id) orelse Usage{}).last, .depth = hit.depth(), .fresh = false });
+				}
+			}
+		};
+		std.mem.sort(FileHit, first.items, {}, FileHit.less);
+		std.mem.sort(FileHit, second.items, {}, FileHit.less);
+
+		var rows: std.ArrayList(Row) = .empty;
 		var names: std.StringHashMapUnmanaged(void) = .empty;
-		var taken = try arena.alloc(bool, found.items.len);
-		@memset(taken, false);
-		var shown: usize = 0;
-		for ([_]bool{ true, false }) |distinct| {
-			for (found.items, 0..) |hit, index| {
-				if (shown == file_results) break;
-				if (taken[index]) continue;
+		var paths: std.StringHashMapUnmanaged(void) = .empty;
+		for ([_][]const FileHit{ first.items, second.items }, [_]bool{ true, false }) |list, distinct| {
+			for (list) |hit| {
+				if (rows.items.len == limit) break;
 				const name = std.fs.path.basename(hit.path);
-				if (distinct and (try names.getOrPut(arena, name)).found_existing) continue;
-				taken[index] = true;
+				if (distinct and names.contains(name)) continue;
+				if ((try paths.getOrPut(arena, hit.path)).found_existing) continue;
 				const z = try arena.dupeSentinel(u8, hit.path, 0);
 				var st: std.os.linux.Statx = undefined;
 				if (std.os.linux.errno(std.os.linux.statx(std.os.linux.AT.FDCWD, z, 0, .{ .TYPE = true }, &st)) != .SUCCESS) continue;
-				try out.append(arena, .{
+				try names.put(arena, name, {});
+				try rows.append(arena, .{
 					.id = hit.id,
 					.kind = "file",
 					.name = name,
@@ -1398,11 +1455,17 @@ pub const Launcher = struct {
 					.icons = self.mime.icons(arena, hit.path, std.posix.S.ISDIR(st.mode)),
 					.detail = std.fs.path.dirname(hit.path) orelse "/",
 				});
-				shown += 1;
 			}
 		}
-		try out.appendSlice(arena, ranked[lead..]);
-		return out.items;
+		return rows.items;
+	}
+
+	pub fn moreFiles(self: *Launcher) void {
+		self.mutex.lockUncancelable(self.io);
+		const more = self.file_valid and self.file_rows.len == self.file_limit;
+		if (more) self.file_pages += 1;
+		self.mutex.unlock(self.io);
+		if (more) self.hub.publishNow();
 	}
 
 	pub fn opened(self: *Launcher) void {
@@ -1425,15 +1488,26 @@ pub const Launcher = struct {
 	fn loadFiles(self: *Launcher) void {
 		const path = self.cacheFile(self.allocator, "files.idx") catch return;
 		defer self.allocator.free(path);
-		const loaded = filesmod.load(self.io, path) catch return;
+		var loaded = filesmod.load(self.io, path) catch return;
+		const dirs = findmod.Dirs.init(self.allocator, &loaded, proc.home(self.io, self.allocator)) catch {
+			loaded.deinit();
+			return;
+		};
 
 		self.files_mutex.lockUncancelable(self.io);
 		const old = self.files;
+		const old_dirs = self.file_dirs;
 		self.files = loaded;
+		self.file_dirs = dirs;
 		self.files_mutex.unlock(self.io);
+		_ = self.files_gen.fetchAdd(1, .release);
 		if (old) |stale| {
 			var gone = stale;
 			gone.deinit();
+		}
+		if (old_dirs) |stale| {
+			var gone = stale;
+			gone.deinit(self.allocator);
 		}
 	}
 
@@ -1740,15 +1814,6 @@ const FileHit = struct {
 		return std.mem.lessThan(u8, a.path, b.path);
 	}
 };
-
-fn fileQuality(path: []const u8, needle: []const u8) u8 {
-	var buf: [256]u8 = undefined;
-	const name = filesmod.fold(&buf, std.fs.path.basename(path));
-	if (std.mem.eql(u8, name, needle)) return 0;
-	if (std.mem.startsWith(u8, name, needle)) return 1;
-	const at = std.mem.indexOf(u8, name, needle) orelse return 3;
-	return if (std.mem.indexOfScalar(u8, " -_.", name[at - 1]) != null) 2 else 3;
-}
 
 fn preloadIndex(self: *Launcher) void {
 	self.ensureIndex();
