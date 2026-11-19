@@ -1005,6 +1005,7 @@ PanelWindow {
 				size: root.spotlight ? Config.launcherSpotlightQuerySize : root.fontSize
 				glyph: root.spotlight ? "" : root.prompt
 				boxColor: root.spotlight ? "transparent" : Config.launcherSearchBox
+				candidate: root.live.intent && root.live.intent.query === root.query && root.results.length > 0 && root.results[0].name ? String(root.results[0].name) : ""
 
 				onEdited: {
 					root.query = field.text;
