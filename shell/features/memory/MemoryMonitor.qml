@@ -37,8 +37,8 @@ ProcessPanel {
 			{ label: "buffers", text: m.buffersText, color: root.buffersInk }
 		];
 
-		if (m.swapTotal > 0)
-			rows.push({ label: "swap", text: m.swapUsedText + " of " + m.swapTotalText, color: Config.memorySwap });
+		if (m.swapUsed > 0)
+			rows.push({ label: "swap", text: m.swapUsedText + " of " + m.swapTotalText });
 
 		rows.push({ label: "free", text: m.freeText, color: Config.foreground });
 
@@ -117,7 +117,7 @@ ProcessPanel {
 
 					font.family: Config.fontFamily
 					font.pixelSize: Settings.fontSize
-					color: modelData.color
+					color: modelData.color || root.accentInk
 					text: modelData.label
 				}
 
@@ -128,7 +128,7 @@ ProcessPanel {
 
 					font.family: Config.fontFamily
 					font.pixelSize: Settings.fontSize
-					color: modelData.color
+					color: modelData.color || root.accentInk
 					text: modelData.text
 				}
 			}
