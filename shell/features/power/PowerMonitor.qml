@@ -1,6 +1,7 @@
 import QtQuick
 import qs.ui
 import qs
+import qs.services
 
 ProcessPanel {
 	id: root
@@ -19,6 +20,19 @@ ProcessPanel {
 	]
 	readonly property string awakeMode: root.awake && root.awake.mode ? root.awake.mode : "auto"
 	readonly property int awakeIndex: Math.max(0, root.awakeModes.findIndex((entry) => entry.value === root.awakeMode))
+
+	function governorGlyph(c, r, n, t, value) {
+		const name = String(value).toLowerCase();
+		if (name.indexOf("save") >= 0) {
+			const k = c + Math.floor(t * (r === 0 ? 7 : 5));
+			return Calc.hash(k, r, 0) > 0.82 ? (Calc.hash(k, r, 1) > 0.5 ? "z" : "Z") : " ";
+		}
+		const rush = name.indexOf("perf") >= 0;
+		const ph = (((c + r * 2 - t * (rush ? 10 : 4)) % 4) + 4) % 4;
+		if (ph < 1)
+			return ">";
+		return ph < 2 ? (rush ? ">" : "-") : " ";
+	}
 
 	function cycleAwake() {
 		const next = root.awakeModes[(root.awakeIndex + 1) % root.awakeModes.length];
@@ -62,6 +76,9 @@ ProcessPanel {
 			model: root.governors
 			selected: root.governorIndex
 			ink: root.accentInk
+			glyph: root.governorGlyph
+			animated: true
+			follow: false
 			onPick: (next) => root.governorPicked(String(next))
 		},
 
