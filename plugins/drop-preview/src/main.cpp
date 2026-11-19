@@ -232,15 +232,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
     g_state.listeners.emplace_back(Event::bus()->m_events.render.pre.listen([](PHLMONITOR) { update(); }));
     g_state.listeners.emplace_back(Event::bus()->m_events.render.stage.listen([](Event::SRenderStageEvent e) {
-        if (e.stage != RENDER_PRE_WINDOW || !e.context)
+        if (e.stage != RENDER_POST_WINDOWS || !e.context)
             return;
 
-        const auto DRAGGED = g_state.dragged.lock();
-        auto&      CTX     = e.context->get();
-        if (!DRAGGED || CTX.readOnlyEffects() || CTX.m_renderingSnapshot || CTX.m_data.currentWindow.lock() != DRAGGED)
-            return;
-
-        draw(CTX);
+        draw(e.context->get());
     }));
     g_state.listeners.emplace_back(Event::bus()->m_events.input.mouse.button.listen([](IPointer::SButtonEvent e, Event::SCallbackInfo&) { trackPointerButton(e); }));
 
