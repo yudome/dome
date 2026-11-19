@@ -168,13 +168,17 @@ Item {
 		visible: root.glyphs && !root.vertical
 		width: root.width
 		height: root.boxHeight
-		color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, Config.stepBarGlyphTrack)
+		color: Qt.darker(Config.surface, Config.stepBarGlyphShade)
+		border.width: Config.stepBarGlyphBorder
+		border.color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, Config.stepBarGlyphTrack)
 	}
 
 	Rectangle {
 		visible: root.glyphs && !root.vertical && root.shown >= 0
-		width: root.lensAt
-		height: root.boxHeight
+		x: Config.stepBarGlyphBorder
+		y: Config.stepBarGlyphBorder
+		width: Math.max(0, root.lensAt - Config.stepBarGlyphBorder)
+		height: root.boxHeight - Config.stepBarGlyphBorder * 2
 		color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, Config.stepBarGlyphFill)
 	}
 
