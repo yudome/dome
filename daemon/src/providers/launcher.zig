@@ -2309,28 +2309,23 @@ fn fuzzyMatch(target: []const u8, needle: []const u8) ?f64 {
 	if (needle.len == 0) return 0;
 	if (std.mem.eql(u8, target, needle)) return 1000;
 
-	var score: f64 = 0;
-	var at: usize = 0;
-	var streak: i64 = 0;
+	var found = std.mem.indexOf(u8, target, needle) orelse return null;
+	var bonus: f64 = 0;
 
-	for (needle) |ch| {
-		const found = std.mem.indexOfScalarPos(u8, target, at, ch) orelse return null;
-
-		streak = if (found == at) streak + 1 else 0;
-		score += 10 + @as(f64, @floatFromInt(streak)) * 6;
-
+	while (true) {
 		if (found == 0) {
-			score += 30;
-		} else if (std.mem.indexOfScalar(u8, " -_/.", target[found - 1]) != null) {
-			score += 20;
+			bonus = 200;
+			break;
 		}
 
-		at = found + 1;
+		if (std.mem.indexOfScalar(u8, " -_/.", target[found - 1]) != null) bonus = 100;
+
+		found = std.mem.indexOfPos(u8, target, found + 1, needle) orelse break;
 	}
 
 	const slack = @as(f64, @floatFromInt(target.len - needle.len));
 
-	return score - @max(0, slack) * 0.2;
+	return 100 + bonus - slack * 0.2;
 }
 
 fn lowerAlloc(arena: Allocator, text: []const u8) ![]const u8 {
@@ -2449,6 +2444,8 @@ test "pins toggle and keep their order" {
 
 	try std.testing.expect(fuzzyScore(arena.allocator(), "Firefox", "fire") != null);
 	try std.testing.expect(fuzzyScore(arena.allocator(), "Firefox", "zzz") == null);
+	try std.testing.expect(fuzzyScore(arena.allocator(), "Apps", "as") == null);
+	try std.testing.expect(fuzzyScore(arena.allocator(), "Image Viewer", "vi").? > fuzzyScore(arena.allocator(), "Davinci", "vi").?);
 	try std.testing.expect(fuzzyScore(arena.allocator(), "foot", "foot").? > fuzzyScore(arena.allocator(), "footclient", "foot").?);
 
 	const sober = Row{ .id = "app:sober", .kind = "app", .name = "Sober", .glyph = "" };
