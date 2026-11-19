@@ -16,6 +16,7 @@ Scrollbar 1.0 Scrollbar.qml
 StepList 1.0 StepList.qml
 ContextMenu 1.0 ContextMenu.qml
 SearchField 1.0 SearchField.qml
+InlineEdit 1.0 InlineEdit.qml
 NotificationRow 1.0 NotificationRow.qml
 CellGrid 1.0 CellGrid.qml
 DotGraph 1.0 DotGraph.qml
