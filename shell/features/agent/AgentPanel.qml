@@ -85,7 +85,7 @@ Item {
 	// The pointer is read through a curve that rises quickly while it is near
 	// the face and levels off as it gets far, so the eyes answer a pointer
 	// close by without slamming into the end of their travel.
-	readonly property real gazeArm: Config.agentFaceSize * 0.55
+	readonly property real gazeArm: Config.agentFaceSize * 2.5
 
 	readonly property real gazeX: {
 		if (!Yudae.cursor.valid)
@@ -98,7 +98,7 @@ Item {
 		if (!Yudae.cursor.valid)
 			return 0;
 
-		return Math.tanh((Yudae.cursor.y - root.faceCenter.y) / root.gazeArm);
+		return Math.tanh((Yudae.cursor.y - root.faceCenter.y) / (root.gazeArm * 2));
 	}
 
 	implicitWidth: Config.agentPanelWidth + 2 * Config.agentPanelPadding

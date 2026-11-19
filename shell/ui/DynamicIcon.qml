@@ -20,12 +20,13 @@ Shape {
 	// The subpaths, each a flat [x, y, ...] array in item coordinates.
 	property var subpaths: []
 
-	preferredRendererType: Shape.GeometryRenderer
+	preferredRendererType: Shape.CurveRenderer
+	antialiasing: true
 	asynchronous: false
 
 	ShapePath {
-		// The fill rule is left at its default, which is odd-even, so a subpath
-		// drawn inside another one punches a hole through it.
+		// The curve renderer only punches a hole when the inner subpath winds
+		// the other way, so holes are drawn counterclockwise.
 		strokeColor: "transparent"
 		fillColor: root.ink
 		strokeWidth: 1

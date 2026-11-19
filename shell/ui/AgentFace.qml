@@ -49,7 +49,6 @@ Item {
 	property real morph: 1
 
 	property real blink: 1
-	property real breathe: 1
 
 	property real openness: root.state === "working" ? 0 : (root.state === "blocked" ? 1.15 : 1)
 
@@ -92,6 +91,22 @@ Item {
 		onTriggered: root.spin = (root.spin + 360 * interval / Config.agentSpinMs) % 360
 	}
 
+	readonly property real spinAngle: {
+		if (root.state === "working")
+			return root.spin;
+
+		if (root.fromState !== "working")
+			return 0;
+
+		const step = 360 / root.shapes.working.lobes;
+		let rest = root.spin % step;
+
+		if (rest > step / 2)
+			rest -= step;
+
+		return rest * (1 - root.morph);
+	}
+
 	// The eyes only look around when they are told to.
 	readonly property real lookX: root.followCursor ? root.gazeX : 0
 	readonly property real lookY: root.followCursor ? root.gazeY : 0
@@ -103,16 +118,16 @@ Item {
 	Behavior on eyeX {
 		enabled: !root.paused
 		NumberAnimation {
-			duration: 110
-			easing.type: Easing.OutQuad
+			duration: 240
+			easing.type: Easing.OutCubic
 		}
 	}
 
 	Behavior on eyeY {
 		enabled: !root.paused
 		NumberAnimation {
-			duration: 110
-			easing.type: Easing.OutQuad
+			duration: 240
+			easing.type: Easing.OutCubic
 		}
 	}
 
@@ -156,11 +171,17 @@ Item {
 		{ x: root.bodyWidth / 2 + root.eyeSpacing, y: root.bodyHeight / 2 - root.eyeLift, radiusX: root.eyeWidth, radiusY: root.eyeRadius },
 	], root.eyeMargin)
 
+	readonly property var reaches: maxReach(root.body, root.fittedSockets, root.eyeTravel, root.eyeMargin)
+
 	readonly property var sockets: {
-		const slide = clampShift(root.body, root.fittedSockets, root.eyeX * root.eyeTravel, root.eyeY * root.eyeTravel, root.eyeMargin);
+		const dx = root.eyeX * root.eyeTravel;
+		const dy = root.eyeY * root.eyeTravel;
+		const length = Math.hypot(dx, dy);
+		const reach = reachAt(root.reaches, Math.atan2(dy, dx));
+		const keep = length > reach ? reach / length : 1;
 
 		return root.fittedSockets.map(function (socket) {
-			return { x: socket.x + slide.x, y: socket.y + slide.y, radiusX: socket.radiusX, radiusY: socket.radiusY };
+			return { x: socket.x + dx * keep, y: socket.y + dy * keep, radiusX: socket.radiusX, radiusY: socket.radiusY };
 		});
 	}
 
@@ -172,7 +193,7 @@ Item {
 		const radiusY = socket.radiusY * root.squish;
 		const radius = Math.min(socket.radiusX, radiusY);
 
-		return roundedRectPoints(socket.x, socket.y, socket.radiusX, radiusY, radius, 40);
+		return roundedRectPoints(socket.x, socket.y, socket.radiusX, radiusY, radius, root.small ? 16 : 40);
 	})
 
 	onStateChanged: {
@@ -224,25 +245,6 @@ Item {
 		}
 	}
 
-	// Breathing. It is a scale on the body rather than part of the outline, so
-	// the geometry is only rebuilt while the body is morphing.
-	//
-	// The scale steps on a timer rather than on every frame. A pair of eased
-	// halves is one cosine over the whole breath, so the face still rises and
-	// falls the same way without repainting at the refresh rate to do it.
-	property real breathePhase: 0
-
-	Timer {
-		interval: 20
-		repeat: true
-		running: !root.paused && !root.small
-
-		onTriggered: {
-			root.breathePhase = (root.breathePhase + interval / Config.agentBreatheMs) % 1;
-			root.breathe = 1 - 0.015 * (0.5 - 0.5 * Math.cos(root.breathePhase * root.twoPi));
-		}
-	}
-
 	// The body outline, before it is turned. The eyes are placed against this,
 	// so they stay level while the spikes turn.
 	readonly property var body: {
@@ -277,7 +279,7 @@ Item {
 		if (!root.live || root.paintEyes)
 			return root.body;
 
-		return rotatePoints(root.body, root.bodyWidth / 2, root.bodyHeight / 2, root.spin);
+		return rotatePoints(root.body, root.bodyWidth / 2, root.bodyHeight / 2, root.spinAngle * Math.PI / 180);
 	}
 
 	// The icon is drawn in body-local space, so it moves with the body.
@@ -290,9 +292,8 @@ Item {
 		height: root.bodyHeight
 
 		// The body leans toward the cursor.
-		rotation: root.eyeX * 4
+		rotation: root.eyeX * 2.5
 
-		scale: root.breathe
 		transformOrigin: Item.Center
 
 		// The body and the eyes are one path, so the eyes are holes in the
@@ -303,7 +304,7 @@ Item {
 
 			ink: root.bodyColor
 
-			rotation: root.paintEyes && root.live ? root.spin * 180 / Math.PI : 0
+			rotation: root.paintEyes && root.live ? root.spinAngle : 0
 			transformOrigin: Item.Center
 
 			subpaths: root.paintEyes ? [root.body] : [root.outline].concat(root.eyePaths)
@@ -430,10 +431,10 @@ function roundedRectPoints(cx, cy, halfWidth, halfHeight, radius, samples) {
 		[cx - halfWidth + r, cy - halfHeight + r, Math.PI],
 	];
 
-	for (let i = 0; i < corners.length; i++) {
+	for (let i = corners.length - 1; i >= 0; i--) {
 		const corner = corners[i];
 
-		for (let j = 0; j <= count; j++) {
+		for (let j = count; j >= 0; j--) {
 			const angle = corner[2] + (j / count) * (Math.PI / 2);
 
 			points.push(corner[0] + Math.cos(angle) * r, corner[1] + Math.sin(angle) * r);
@@ -532,6 +533,30 @@ function clampShift(outline, sockets, dx, dy, margin) {
 	}
 
 	return { x: dx * low, y: dy * low };
+}
+
+function maxReach(outline, sockets, travel, margin) {
+	const reaches = [];
+
+	for (let i = 0; i < 16; i++) {
+		const angle = i / 16 * twoPi;
+		const shift = clampShift(outline, sockets, Math.cos(angle) * travel, Math.sin(angle) * travel, margin);
+
+		reaches.push(Math.hypot(shift.x, shift.y));
+	}
+
+	return reaches.map(function (reach, i) {
+		return Math.min(reach, reaches[(i + 1) % 16], reaches[(i + 15) % 16]);
+	});
+}
+
+function reachAt(reaches, angle) {
+	const count = reaches.length;
+	const at = ((angle / twoPi * count) % count + count) % count;
+	const low = Math.floor(at);
+	const blend = at - low;
+
+	return reaches[low] * (1 - blend) + reaches[(low + 1) % count] * blend;
 }
 
 

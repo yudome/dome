@@ -123,4 +123,36 @@ for (const samples of [48, 96, 160, 320]) {
 	}
 }
 
+function area(points) {
+	let sum = 0;
+
+	for (let i = 0; i < points.length; i += 2) {
+		const j = (i + 2) % points.length;
+		sum += points[i] * points[j + 1] - points[j] * points[i + 1];
+	}
+
+	return sum;
+}
+
+for (const name of names)
+	assert.ok(area(bodyAt(48, name, name, 1)) * area(roundedRectPoints(10, 10, 3, 6, 3, 40)) < 0, `eye winds with the ${name} body, so the curve renderer fills it`);
+
+for (const name of names) {
+	const body = bodyAt(160, name, name, 1);
+	const fitted = clipSockets(body, sockets, margin);
+	const reaches = maxReach(body, fitted, size * 0.055, margin);
+
+	assert.ok(Math.max(...reaches) > 0, `eyes cannot move in the ${name} body`);
+
+	for (let i = 0; i < 64; i++) {
+		const angle = i / 64 * Math.PI * 2;
+		const reach = reachAt(reaches, angle);
+
+		for (const socket of fitted)
+			assert.ok(
+				socketInsideWhole(body, socket.x + Math.cos(angle) * reach, socket.y + Math.sin(angle) * reach, socket.radiusX, socket.radiusY, 24, 0),
+				`eye leaves the ${name} body looking at ${(angle * 180 / Math.PI).toFixed(0)} degrees`);
+	}
+}
+
 console.log(`AgentFace: eye fit holds, worst drift ${worst.toFixed(4)}px`);
