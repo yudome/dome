@@ -73,6 +73,7 @@ Item {
 		textOffset: 2
 		placeholder: "Search"
 		typing: true
+		candidate: root.ordered.length > 0 ? String(root.ordered[0].name) : ""
 	}
 
 	Row {

@@ -183,6 +183,7 @@ Item {
 				size: Settings.fontSize
 				hintKey: Config.procSearchHint
 				width: searchField.implicitWidth
+				candidate: panel.filter !== "" && panel.procs.length > 0 ? String(panel.procs[0].name) : ""
 
 				onEdited: panel.filter = searchField.text
 			}
