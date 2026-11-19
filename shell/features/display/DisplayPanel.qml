@@ -39,6 +39,21 @@ Item {
 
 	Keys.onPressed: function (event) { Yudae.cmd("screen", { keyCode: event.key }) }
 
+	function density(c, r, n) {
+		const ramp = " .-+xXS#";
+		const k = Math.floor((c + 0.5) / n * (ramp.length - 1) - (r === 1 ? 1.2 : 0) + Calc.hash(c, r, 0) * 0.8);
+		return ramp[Calc.clamp(k, 1, ramp.length - 1)];
+	}
+
+	function wave(c, r, n, t, value, options) {
+		const top = Math.max.apply(null, options.map(Number));
+		const rank = top > 0 ? Number(value) / top : 0;
+		const sv = Math.sin(c * (0.25 + rank) - t * (2 + rank * 10));
+		if (r === 0)
+			return sv > 0.3 ? "^" : sv > -0.3 ? "-" : " ";
+		return sv < -0.3 ? "_" : sv < 0.3 ? "-" : " ";
+	}
+
 	function format(kind, value) {
 		if (kind !== "scale" || value === "")
 			return value;
@@ -110,6 +125,9 @@ Item {
 			selected: group.selected
 			cursor: group.cursor
 			ink: root.ink
+			glyph: group.kind === "refresh" ? root.wave : root.density
+			animated: group.kind === "refresh"
+			follow: false
 			formatter: (value) => root.format(group.kind, value)
 
 			onPick: function (value) { Yudae.cmd("screen", { pick: { kind: group.kind, value: value } }) }
