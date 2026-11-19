@@ -19,7 +19,8 @@ hl.config({
             spacing = 0, -- inset from the drop area, logical px
 
             blur            = false, -- blur behind the fill
-            animation_speed = 0,     -- 0 = snap instantly, higher = smoother slide
+            animation_speed = 16,    -- slide length in screen refreshes, 0 = snap instantly
+            appear_speed    = 16,    -- fade in length in screen refreshes, 0 = snap instantly
             generic_fallback = true, -- master/scrolling/monocle: highlight hovered window
         },
     },

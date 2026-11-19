@@ -30,6 +30,9 @@ struct SState {
     bool                                  visible = false;
     PHLWINDOWREF                          dragged;
     std::chrono::steady_clock::time_point lastStep;
+    CBox                                  tweenFrom;
+    std::chrono::steady_clock::time_point tweenStart;
+    bool                                  tweening = false;
     std::vector<CHyprSignalListener>      listeners;
 };
 
@@ -50,6 +53,7 @@ static void hide() {
     g_state.alpha   = 0.F;
     g_state.goal.reset();
     g_state.dragged.reset();
+    g_state.tweening = false;
 }
 
 static CBox withSpacing(const CBox& box) {
@@ -74,7 +78,7 @@ static CBox lerpBox(const CBox& from, const CBox& to, double t) {
     };
 }
 
-static void update() {
+static void update(PHLMONITOR monitor) {
     if (!g_config.enabled->value()) {
         if (g_state.visible)
             hide();
@@ -99,8 +103,14 @@ static void update() {
 
     if (PREDICTION) {
         const auto BOX = withSpacing(PREDICTION->box);
-        if (!g_state.visible || g_state.alpha <= 0.F)
-            g_state.current = BOX;
+        if (!g_state.visible || g_state.alpha <= 0.F) {
+            g_state.current  = BOX;
+            g_state.tweening = false;
+        } else if (!g_state.goal || !approxEqual(*g_state.goal, BOX)) {
+            g_state.tweenFrom  = g_state.current;
+            g_state.tweenStart = NOW;
+            g_state.tweening   = true;
+        }
         g_state.goal    = BOX;
         g_state.visible = true;
         g_state.dragged = PREDICTION->dragged;
@@ -111,12 +121,21 @@ static void update() {
         return;
 
     const double SPEED     = g_config.animSpeed->value();
-    const double K         = SPEED <= 0 ? 1.0 : std::clamp(1.0 - std::exp(-SPEED * std::clamp(DT, 0.0, 0.1)), 0.0, 1.0);
-    const float  FADESTEP  = sc<float>(SPEED <= 0 ? 1.0 : std::max(K, 0.05));
+    const double ASPEED    = g_config.appearSpeed->value();
+    const double DTCLAMP   = std::clamp(DT, 0.0, 0.1);
+    const double HZ        = monitor ? std::max(1.F, monitor->m_refreshRate) : 60.0;
+    const float  FADESTEP  = sc<float>(ASPEED <= 0 ? 1.0 : std::clamp(DTCLAMP * HZ / ASPEED, 0.05, 1.0));
 
     if (g_state.goal) {
-        g_state.current = K >= 1.0 || approxEqual(g_state.current, *g_state.goal) ? *g_state.goal : lerpBox(g_state.current, *g_state.goal, K);
-        g_state.alpha   = std::min(1.F, g_state.alpha + FADESTEP);
+        if (g_state.tweening) {
+            const double DUR = SPEED <= 0 ? 0.0 : SPEED / HZ;
+            const double T   = DUR <= 0 ? 1.0 : std::clamp(std::chrono::duration<double>(NOW - g_state.tweenStart).count() / DUR, 0.0, 1.0);
+            const double E   = 1.0 - std::pow(1.0 - T, 3.0);
+            g_state.current  = lerpBox(g_state.tweenFrom, *g_state.goal, E);
+            if (T >= 1.0)
+                g_state.tweening = false;
+        }
+        g_state.alpha = std::min(1.F, g_state.alpha + FADESTEP);
     } else
         g_state.alpha = std::max(0.F, g_state.alpha - FADESTEP);
 
@@ -131,12 +150,12 @@ static void update() {
 }
 
 static CBox toDevicePixels(const CBox& logical, double scale) {
-    const double X0 = std::round(logical.x * scale);
-    const double Y0 = std::round(logical.y * scale);
-    const double X1 = std::round((logical.x + logical.w) * scale);
-    const double Y1 = std::round((logical.y + logical.h) * scale);
-
-    return CBox{X0, Y0, std::max(1.0, X1 - X0), std::max(1.0, Y1 - Y0)};
+    return CBox{
+        std::round(logical.x * scale),
+        std::round(logical.y * scale),
+        std::max(1.0, std::round(logical.w * scale)),
+        std::max(1.0, std::round(logical.h * scale)),
+    };
 }
 
 static void draw(Render::CRenderContext& ctx) {
@@ -211,7 +230,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_config.rounding   = makeShared<Config::Values::CIntValue>("plugin:drop-preview:rounding", "Preview corner rounding, -1 = decoration:rounding", -1,
                                                                 Config::Values::SIntValueOptions{.min = -1, .max = 100});
     g_config.blur       = makeShared<Config::Values::CBoolValue>("plugin:drop-preview:blur", "Blur behind the preview fill", false);
-    g_config.animSpeed  = makeShared<Config::Values::CFloatValue>("plugin:drop-preview:animation_speed", "Preview slide speed, 0 = snap instantly", 0.F);
+    g_config.animSpeed  = makeShared<Config::Values::CFloatValue>("plugin:drop-preview:animation_speed", "Preview slide length in screen refreshes, 0 = snap instantly", 16.F);
+    g_config.appearSpeed =
+        makeShared<Config::Values::CFloatValue>("plugin:drop-preview:appear_speed", "Preview fade in length in screen refreshes, 0 = snap instantly", 16.F);
     g_config.genericFallback =
         makeShared<Config::Values::CBoolValue>("plugin:drop-preview:generic_fallback", "On non-dwindle layouts, highlight the tiled window under the cursor", true);
     g_config.spacing = makeShared<Config::Values::CIntValue>("plugin:drop-preview:spacing", "Inset the preview from the drop area, in logical px", 8,
@@ -225,12 +246,13 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     HyprlandAPI::addConfigValueV2(PHANDLE, g_config.rounding);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_config.blur);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_config.animSpeed);
+    HyprlandAPI::addConfigValueV2(PHANDLE, g_config.appearSpeed);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_config.genericFallback);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_config.spacing);
 
     HyprlandAPI::reloadConfig();
 
-    g_state.listeners.emplace_back(Event::bus()->m_events.render.pre.listen([](PHLMONITOR) { update(); }));
+    g_state.listeners.emplace_back(Event::bus()->m_events.render.pre.listen([](PHLMONITOR m) { update(m); }));
     g_state.listeners.emplace_back(Event::bus()->m_events.render.stage.listen([](Event::SRenderStageEvent e) {
         if (e.stage != RENDER_POST_WINDOWS || !e.context)
             return;

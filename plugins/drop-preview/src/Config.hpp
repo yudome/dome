@@ -13,6 +13,7 @@ struct SConfig {
     SP<Config::Values::CIntValue>   rounding;
     SP<Config::Values::CBoolValue>  blur;
     SP<Config::Values::CFloatValue> animSpeed;
+    SP<Config::Values::CFloatValue> appearSpeed;
     SP<Config::Values::CBoolValue>  genericFallback;
     SP<Config::Values::CIntValue>   spacing;
 };

@@ -16,8 +16,8 @@ Hyprland update.
 - groups: `group:drag_into_group = 1` highlights the group you hover.
 - master / scrolling / monocle: approximate, highlights the tiled window under the cursor.
 - Floating windows get no preview, they stay where you drop them.
-- Drawn on top of every window, full monitor damage, edges snapped to whole pixels, so the box
-  slides without jitter.
+- Drawn on top of every window, fades in when it appears, full monitor damage, edges
+  snapped to whole pixels, so the box slides without jitter.
 
 ## Build
 
@@ -37,7 +37,8 @@ make
 | `border_size` | `-1` | `-1` = follow `general:border_size` |
 | `rounding` | `-1` | `-1` = follow `decoration:rounding` |
 | `blur` | `false` | blur behind the fill |
-| `animation_speed` | `0` | `0` = snap instantly, higher = slide |
+| `animation_speed` | `16` | slide length in screen refreshes, `0` = snap instantly |
+| `appear_speed` | `16` | fade in length in screen refreshes, `0` = snap instantly |
 | `generic_fallback` | `true` | highlight hovered window on non-dwindle layouts |
 | `spacing` | `8` | inset from the drop area in logical px, `0` = exact size |
 
