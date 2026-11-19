@@ -36,6 +36,7 @@ Item {
 			y: Math.floor(row.active / row.columns) * row.cell + (row.cell - row.highlightSize) / 2
 			width: row.highlightSize
 			height: row.highlightSize
+			radius: 0
 		}
 
 		Repeater {
