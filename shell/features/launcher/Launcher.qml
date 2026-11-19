@@ -134,6 +134,7 @@ PanelWindow {
 	property var heldResults: []
 
 	property var live: ({})
+	property string ghostName: ""
 
 	readonly property string mode: root.windows ? "windows" : (root.shown ? (root.live.mode || "apps") : (root.heldMode || root.live.mode || "apps"))
 	readonly property string prompt: root.windows ? "" : (root.live.prompt || "")
@@ -857,7 +858,12 @@ PanelWindow {
 		root.close();
 	}
 
-	onQueryChanged: root.push()
+	onQueryChanged: {
+		if (root.query === "")
+			root.ghostName = "";
+
+		root.push();
+	}
 
 	function syncLive() {
 		const intent = root.state.intent;
@@ -869,6 +875,7 @@ PanelWindow {
 			return false;
 
 		root.live = root.state;
+		root.ghostName = root.query !== "" && root.results.length > 0 && root.results[0].name ? String(root.results[0].name) : "";
 		root.settled = true;
 		settleGuard.stop();
 		return true;
@@ -1005,7 +1012,7 @@ PanelWindow {
 				size: root.spotlight ? Config.launcherSpotlightQuerySize : root.fontSize
 				glyph: root.spotlight ? "" : root.prompt
 				boxColor: root.spotlight ? "transparent" : Config.launcherSearchBox
-				candidate: root.live.intent && root.live.intent.query === root.query && root.results.length > 0 && root.results[0].name ? String(root.results[0].name) : ""
+				candidate: root.ghostName
 
 				onEdited: {
 					root.query = field.text;
