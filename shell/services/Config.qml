@@ -536,6 +536,12 @@ QtObject {
 	readonly property var stepBarHeight: settings.stepBarHeight !== undefined ? settings.stepBarHeight : 6
 	readonly property var stepBarGap: settings.stepBarGap !== undefined ? settings.stepBarGap : 2
 	readonly property var stepBarLensPad: settings.stepBarLensPad !== undefined ? settings.stepBarLensPad : 3
+	readonly property var stepBarGlyphSize: settings.stepBarGlyphSize !== undefined ? settings.stepBarGlyphSize : 10
+	readonly property var stepBarKnobWidth: settings.stepBarKnobWidth !== undefined ? settings.stepBarKnobWidth : 12
+	readonly property var stepBarGlyphRadius: settings.stepBarGlyphRadius !== undefined ? settings.stepBarGlyphRadius : 3
+	readonly property var stepBarGlyphTrack: settings.stepBarGlyphTrack !== undefined ? settings.stepBarGlyphTrack : 0.35
+	readonly property var stepBarGlyphFill: settings.stepBarGlyphFill !== undefined ? settings.stepBarGlyphFill : 0.14
+	readonly property var stepBarGlyphTick: settings.stepBarGlyphTick !== undefined ? settings.stepBarGlyphTick : 80
 	readonly property var displaySeparatorColor: settings.displaySeparatorColor !== undefined ? settings.displaySeparatorColor : "#3f3f3f"
 	readonly property var displaySeparatorHeight: settings.displaySeparatorHeight !== undefined ? settings.displaySeparatorHeight : 1
 	readonly property var displayScaleMin: settings.displayScaleMin !== undefined ? settings.displayScaleMin : 1
