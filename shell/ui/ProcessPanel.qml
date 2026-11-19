@@ -216,6 +216,7 @@ Item {
 					id: hl
 
 					active: row.active
+					radius: 0
 				}
 
 				Text {

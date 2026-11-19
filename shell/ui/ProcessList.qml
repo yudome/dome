@@ -44,6 +44,7 @@ Item {
 		visibleRows: root.visibleRows
 		rowHeight: root.rowHeight
 		rowSpacing: Config.procsGap
+		highlightRadius: 0
 	}
 
 	Text {
