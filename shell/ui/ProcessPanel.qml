@@ -159,7 +159,7 @@ Item {
 			height: searchField.implicitHeight
 			visible: panel.showList
 			color: Config.launcherSearchBox
-			radius: Config.rowRadius
+			radius: 0
 
 			Text {
 				id: listTitle
