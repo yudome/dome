@@ -562,7 +562,7 @@ networkPasswordHint = "Password"
 [agent]
 agentFaceSize = 44
 agentMorphMs = 420
-agentSpinMs = 120000
+agentSpinMs = 2100
 agentBreatheMs = 3800
 agentPanelWidth = 300
 agentPanelHeight = 360

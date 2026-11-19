@@ -603,7 +603,7 @@ QtObject {
 	// agent panel
 	readonly property var agentFaceSize: settings.agentFaceSize !== undefined ? settings.agentFaceSize : 44
 	readonly property var agentMorphMs: settings.agentMorphMs !== undefined ? settings.agentMorphMs : 420
-	readonly property var agentSpinMs: settings.agentSpinMs !== undefined ? settings.agentSpinMs : 120000
+	readonly property var agentSpinMs: settings.agentSpinMs !== undefined ? settings.agentSpinMs : 2100
 	readonly property var agentBreatheMs: settings.agentBreatheMs !== undefined ? settings.agentBreatheMs : 3800
 	readonly property var agentPanelWidth: settings.agentPanelWidth !== undefined ? settings.agentPanelWidth : 300
 	readonly property var agentPanelHeight: settings.agentPanelHeight !== undefined ? settings.agentPanelHeight : 360
