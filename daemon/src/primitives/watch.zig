@@ -10,7 +10,9 @@ pub const Event = struct {
 
 pub const Watcher = struct {
 	fd: i32,
-	buffer: [4096]u8 = undefined,
+	buffer: [4096]u8 align(@alignOf(linux.inotify_event)) = undefined,
+	pos: usize = 0,
+	len: usize = 0,
 
 	pub fn init() !Watcher {
 		const fd = linux.inotify_init1(linux.IN.CLOEXEC);
@@ -31,6 +33,7 @@ pub const Watcher = struct {
 	/// True when an event is already queued, so a debounce can tell a burst that is still
 	/// arriving from one that has stopped.
 	pub fn pending(self: *Watcher) bool {
+		if (self.pos < self.len) return true;
 		var fds = [_]linux.pollfd{.{ .fd = self.fd, .events = linux.POLL.IN, .revents = 0 }};
 		return linux.poll(&fds, 1, 0) > 0;
 	}
@@ -42,19 +45,34 @@ pub const Watcher = struct {
 
 	pub fn drain(self: *Watcher) void {
 		_ = linux.read(self.fd, &self.buffer, self.buffer.len);
+		self.pos = 0;
+		self.len = 0;
 	}
 
 	pub fn next(self: *Watcher) ![]const u8 {
-		const count = linux.read(self.fd, &self.buffer, self.buffer.len);
-		if (@as(isize, @bitCast(count)) < 0) return error.WatchRead;
-		if (count < @sizeOf(linux.inotify_event)) return error.WatchShort;
+		if (self.pos >= self.len) {
+			const count = linux.read(self.fd, &self.buffer, self.buffer.len);
+			if (@as(isize, @bitCast(count)) < 0) return error.WatchRead;
+			self.pos = 0;
+			self.len = count;
+		}
 
-		const event: *align(1) const linux.inotify_event = @ptrCast(&self.buffer[0]);
-		const start = @sizeOf(linux.inotify_event);
-		const end = @min(count, start + event.len);
-		const name = std.mem.sliceTo(self.buffer[start..end], 0);
+		return self.take();
+	}
 
-		return name;
+	fn take(self: *Watcher) ![]const u8 {
+		const head = @sizeOf(linux.inotify_event);
+		if (self.len - self.pos < head) {
+			self.pos = self.len;
+			return error.WatchShort;
+		}
+
+		const event: *align(1) const linux.inotify_event = @ptrCast(&self.buffer[self.pos]);
+		const start = self.pos + head;
+		const end = @min(self.len, start + event.len);
+		self.pos = end;
+
+		return std.mem.sliceTo(self.buffer[start..end], 0);
 	}
 };
 
@@ -123,6 +141,32 @@ test "a burst of ink writes only reads once the fade that made it is over" {
 	debounce.note(1560);
 	try std.testing.expect(!debounce.due(1570));
 	try std.testing.expect(debounce.due(2110));
+}
+
+test "a renamed write is seen even when it shares a read with other events" {
+	const proc = @import("proc.zig");
+	const allocator = std.testing.allocator;
+
+	var tmp = std.testing.tmpDir(.{});
+	defer tmp.cleanup();
+
+	const dir = try std.fmt.allocPrintSentinel(allocator, ".zig-cache/tmp/{s}", .{tmp.sub_path}, 0);
+	defer allocator.free(dir);
+	const file = try std.fmt.allocPrint(allocator, "{s}/config.toml", .{dir});
+	defer allocator.free(file);
+
+	var watcher = try Watcher.init();
+	defer watcher.close();
+	try watcher.add(dir);
+
+	try proc.writeFileAtomic(std.testing.io, allocator, file, "a = 1\n");
+
+	var seen = false;
+	while (watcher.pending()) {
+		if (std.mem.eql(u8, try watcher.next(), "config.toml")) seen = true;
+	}
+
+	try std.testing.expect(seen);
 }
 
 test "watch helpers split a path" {
