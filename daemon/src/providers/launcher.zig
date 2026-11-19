@@ -54,28 +54,26 @@ const Mode = struct {
 	name: []const u8,
 	mark: []const u8,
 	glyph: []const u8,
-	keywords: []const []const u8,
 };
 
 const modes = [_]Mode{
-	.{ .mode = "clipboard", .name = "Clipboard", .mark = "", .glyph = glyph_clip, .keywords = &.{ "copy", "paste" } },
-	.{ .mode = "wallpaper", .name = "Appearance", .mark = "~", .glyph = glyph_wallpaper, .keywords = &.{ "appearance", "wallpaper", "background", "desktop" } },
-	.{ .mode = "procs", .name = "Processes", .mark = "%", .glyph = glyph_process, .keywords = &.{ "top", "atop", "cpu", "processes", "monitor", "kill" } },
-	.{ .mode = "vms", .name = "Virtual machines", .mark = "", .glyph = glyph_vm, .keywords = &.{ "vm", "virtual", "machine", "qemu", "guest", "kill" } },
-	.{ .mode = "disk", .name = "Disk", .mark = "", .glyph = glyph_disk, .keywords = &.{ "disk", "space", "storage", "usage", "treemap", "caches", "packages" } },
-	.{ .mode = "emoji", .name = "Emoji & Kaomoji", .mark = ":", .glyph = glyph_emoji, .keywords = &.{ "emoji", "kaomoji", "emote", "smiley", "face", "copy" } },
+	.{ .mode = "clipboard", .name = "Clipboard", .mark = "", .glyph = glyph_clip },
+	.{ .mode = "wallpaper", .name = "Appearance", .mark = "~", .glyph = glyph_wallpaper },
+	.{ .mode = "procs", .name = "Processes", .mark = "%", .glyph = glyph_process },
+	.{ .mode = "vms", .name = "Virtual machines", .mark = "", .glyph = glyph_vm },
+	.{ .mode = "disk", .name = "Disk", .mark = "", .glyph = glyph_disk },
+	.{ .mode = "emoji", .name = "Emoji & Kaomoji", .mark = ":", .glyph = glyph_emoji },
 };
 
 const Group = struct {
 	id: []const u8,
 	name: []const u8,
 	glyph: []const u8,
-	keywords: []const []const u8,
 };
 
 const groups = [_]Group{
-	.{ .id = "apps", .name = "Apps", .glyph = glyph_apps, .keywords = &.{ "programs", "applications" } },
-	.{ .id = "power", .name = "Power", .glyph = glyph_power, .keywords = &.{ "power", "session", "shutdown", "logout", "reboot", "suspend", "sleep" } },
+	.{ .id = "apps", .name = "Apps", .glyph = glyph_apps },
+	.{ .id = "power", .name = "Power", .glyph = glyph_power },
 };
 
 const aliases = [_]struct { keep: []const u8, drop: []const []const u8 }{
@@ -1158,7 +1156,6 @@ pub const Launcher = struct {
 				.name = "Disk map",
 				.glyph = glyph_disk,
 				.mode = "disk",
-				.keywords = &.{ "disk", "space", "storage", "usage", "treemap" },
 			});
 			return rows.items;
 		}
@@ -1217,7 +1214,6 @@ pub const Launcher = struct {
 			.name = entry.name,
 			.glyph = entry.glyph,
 			.group = entry.id,
-			.keywords = entry.keywords,
 		});
 	}
 
@@ -1241,7 +1237,6 @@ pub const Launcher = struct {
 				.name = entry.name,
 				.glyph = entry.glyph,
 				.mode = entry.mode,
-				.keywords = entry.keywords,
 			});
 		}
 
