@@ -12,7 +12,7 @@ Item {
 	property alias selectByMouse: input.selectByMouse
 	property alias font: input.font
 
-	property string ghost: ""
+	property string candidate: ""
 	property var suggestions: []
 	property bool editing: false
 	property bool selectOnFocus: true
@@ -20,7 +20,8 @@ Item {
 	property color selectionColor: Config.launcherHighlight
 	property color selectedTextColor: Config.launcherHighlightText
 
-	readonly property bool hasGhost: root.ghost !== "" && root.text !== ""
+	readonly property string ghost: root.text !== "" && root.candidate.length > root.text.length && root.candidate.toLowerCase().startsWith(root.text.toLowerCase()) ? root.candidate.slice(root.text.length) : ""
+	readonly property bool hasGhost: root.ghost !== "" && input.activeFocus && input.cursorPosition === input.text.length && input.echoMode === TextInput.Normal
 	readonly property bool hasSuggestions: root.suggestions.length > 0
 
 	signal accepted()
@@ -65,7 +66,7 @@ Item {
 		if (!root.hasGhost)
 			return false;
 
-		input.text = input.text + root.ghost;
+		input.text = root.candidate;
 		input.cursorPosition = input.text.length;
 		root.ghostCompleted();
 		return true;
@@ -80,25 +81,16 @@ Item {
 
 	Component.onCompleted: if (root.editing) root.scheduleFocus()
 
-	TextMetrics {
-		id: measure
-
-		font: input.font
-		text: input.text
-	}
-
 	Text {
-		id: ghostText
-
 		visible: root.hasGhost && input.horizontalAlignment === TextInput.AlignLeft
-		x: measure.width
-		anchors.verticalCenter: parent.verticalCenter
+		x: input.cursorRectangle.x
+		y: input.cursorRectangle.y
 		width: Math.max(0, root.width - x)
-		height: root.height
-		elide: Text.ElideRight
+		height: input.cursorRectangle.height
+		clip: true
 		font: input.font
-		verticalAlignment: input.verticalAlignment
-		color: Config.muted
+		verticalAlignment: Text.AlignVCenter
+		color: Config.dim
 		text: root.ghost
 	}
 
@@ -110,6 +102,7 @@ Item {
 		color: root.color
 		selectionColor: root.selectionColor
 		selectedTextColor: root.selectedTextColor
+		font.features: { "liga": 0, "calt": 0, "dlig": 0 }
 
 		onAccepted: root.accepted()
 		onTextEdited: root.edited()
@@ -129,8 +122,7 @@ Item {
 				return;
 			}
 
-			if (event.key === Qt.Key_Tab && root.hasGhost) {
-				root.completeGhost();
+			if (event.key === Qt.Key_Tab && root.completeGhost()) {
 				event.accepted = true;
 				return;
 			}

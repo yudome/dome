@@ -9,6 +9,7 @@ Rectangle {
 	property string hintKey: ""
 	property string hintText: ""
 	property string placeholder: ""
+	property alias candidate: input.candidate
 	property int echoMode: TextInput.Normal
 	property bool typing: false
 	property color boxColor: Config.launcherSearchBox
@@ -100,6 +101,7 @@ Rectangle {
 
 		onAccepted: root.accepted()
 		onEdited: root.edited()
+		onGhostCompleted: root.edited()
 		onCancelled: root.typing = false
 		onKeyPressed: function (event) { root.keyPressed(event); }
 	}

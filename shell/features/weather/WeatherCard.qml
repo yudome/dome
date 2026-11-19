@@ -28,8 +28,6 @@ Item {
 	readonly property string tempValue: root.loading || !root.now.tempValue ? "--" : root.now.tempValue
 	readonly property string tempUnit: root.loading || !root.now.tempUnit ? "" : root.now.tempUnit
 	readonly property var match: root.suggestionRows.length > 0 ? root.suggestionRows[0] : null
-	readonly property string ghost: Weather.ghost
-	readonly property bool hasGhost: root.editing && root.match !== null && root.ghost !== ""
 	readonly property var suggestionRows: Weather.matches
 	readonly property bool headerShown: root.editing || root.held || cardHover.hovered
 	readonly property int dayCount: root.rows.length > 0 ? Math.min(root.rows.length, 7) : 7
@@ -395,7 +393,7 @@ Item {
 						anchors.right: parent.right
 						anchors.verticalCenter: parent.verticalCenter
 						height: placeMetrics.height
-						ghost: root.hasGhost ? root.ghost : ""
+						candidate: root.match ? String(root.match.name || "") : ""
 						suggestions: root.suggestionRows
 
 						font.family: Config.fontFamily
