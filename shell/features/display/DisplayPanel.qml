@@ -46,12 +46,13 @@ Item {
 	}
 
 	function wave(c, r, n, t, value, options) {
+		const ramp = " .-+xXS#";
 		const top = Math.max.apply(null, options.map(Number));
 		const rank = top > 0 ? Number(value) / top : 0;
-		const sv = Math.sin(c * (0.25 + rank) - t * (2 + rank * 10));
-		if (r === 0)
-			return sv > 0.3 ? "^" : sv > -0.3 ? "-" : " ";
-		return sv < -0.3 ? "_" : sv < 0.3 ? "-" : " ";
+		const gap = Math.round(18 - rank * 10);
+		const head = Math.floor(t * (6 + rank * 30));
+		const behind = (((head - c - r) % gap) + gap) % gap;
+		return ramp[Math.max(0, ramp.length - 1 - behind)];
 	}
 
 	function format(kind, value) {
