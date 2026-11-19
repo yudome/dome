@@ -191,7 +191,7 @@ Item {
 			width: Config.stepBarDot
 			height: Config.stepBarDot
 			radius: Config.stepBarDot / 2
-			color: lit ? root.ink : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, Config.stepBarGlyphFill * 2)
+			color: lit ? root.ink : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, Config.stepBarGlyphFill * 4)
 		}
 	}
 
