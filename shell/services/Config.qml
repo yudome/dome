@@ -329,7 +329,9 @@ QtObject {
 	readonly property var powerDemo: settings.powerDemo !== undefined ? settings.powerDemo : false
 	readonly property var powerFlowHeight: settings.powerFlowHeight !== undefined ? settings.powerFlowHeight : 40
 	readonly property var powerGovernorTitle: settings.powerGovernorTitle !== undefined ? settings.powerGovernorTitle : "Governor"
-	readonly property var powerAwakeTitle: settings.powerAwakeTitle !== undefined ? settings.powerAwakeTitle : "Keep awake"
+	readonly property var powerAwakeOff: settings.powerAwakeOff !== undefined ? settings.powerAwakeOff : "Off"
+	readonly property var powerAwakeAuto: settings.powerAwakeAuto !== undefined ? settings.powerAwakeAuto : "While working"
+	readonly property var powerAwakeOn: settings.powerAwakeOn !== undefined ? settings.powerAwakeOn : "Always on"
 
 	// pill switch
 	readonly property var rowHeight: settings.rowHeight !== undefined ? settings.rowHeight : 30

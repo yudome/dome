@@ -302,7 +302,9 @@ powerTooltipPadding = 12  # same as cpuTooltipPadding
 powerDemo = true  # fake battery on a desktop, for testing the flow
 powerFlowHeight = 40
 powerGovernorTitle = "Governor"
-powerAwakeTitle = "Keep awake"
+powerAwakeOff = "Off"
+powerAwakeAuto = "While working"
+powerAwakeOn = "Always on"
 
 # lock screen
 [lock]

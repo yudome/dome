@@ -14,9 +14,9 @@ ProcessPanel {
 	readonly property color accentInk: Config.mono ? Config.powerBaseMono : Config.powerBase
 	readonly property int governorIndex: Math.max(0, root.governors.indexOf(root.governor))
 	readonly property var awakeModes: [
-		{ value: "off", label: Config.iconAwakeOff },
-		{ value: "auto", label: Config.iconAwakeAuto },
-		{ value: "on", label: Config.iconAwakeOn }
+		{ value: "off", label: Config.iconAwakeOff, title: Config.powerAwakeOff },
+		{ value: "auto", label: Config.iconAwakeAuto, title: Config.powerAwakeAuto },
+		{ value: "on", label: Config.iconAwakeOn, title: Config.powerAwakeOn }
 	]
 	readonly property string awakeMode: root.awake && root.awake.mode ? root.awake.mode : "auto"
 	readonly property int awakeIndex: Math.max(0, root.awakeModes.findIndex((entry) => entry.value === root.awakeMode))
@@ -92,7 +92,7 @@ ProcessPanel {
 			readonly property bool armed: root.awakeMode !== "off"
 
 			width: parent.width
-			height: Math.max(awakeTitle.implicitHeight, awakeSwitch.implicitHeight) + 8
+			height: Math.max(awakeGlyph.implicitHeight, awakeTitle.implicitHeight, awakeSwitch.implicitHeight) + 8
 
 			Text {
 				id: awakeGlyph
@@ -111,12 +111,15 @@ ProcessPanel {
 
 				anchors.left: awakeGlyph.right
 				anchors.leftMargin: 6
+				anchors.right: awakeSwitch.left
+				anchors.rightMargin: 8
 				anchors.verticalCenter: parent.verticalCenter
+				elide: Text.ElideRight
 
 				font.family: Config.fontFamily
 				font.pixelSize: Settings.fontSize
 				color: awakeRow.armed ? Config.foreground : Config.dim
-				text: Config.powerAwakeTitle
+				text: root.awakeModes[root.awakeIndex].title
 			}
 
 			PillSwitch {
