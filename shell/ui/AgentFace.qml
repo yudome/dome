@@ -115,24 +115,16 @@ Item {
 	property real eyeX: 0
 	property real eyeY: 0
 
-	Behavior on eyeX {
-		enabled: !root.paused
-		NumberAnimation {
-			duration: 240
-			easing.type: Easing.OutCubic
+	FrameAnimation {
+		running: !root.paused && (Math.abs(root.lookX - root.eyeX) > 0.002 || Math.abs(root.lookY - root.eyeY) > 0.002)
+
+		onTriggered: {
+			const follow = 1 - Math.exp(-frameTime / 0.08);
+
+			root.eyeX += (root.lookX - root.eyeX) * follow;
+			root.eyeY += (root.lookY - root.eyeY) * follow;
 		}
 	}
-
-	Behavior on eyeY {
-		enabled: !root.paused
-		NumberAnimation {
-			duration: 240
-			easing.type: Easing.OutCubic
-		}
-	}
-
-	onLookXChanged: root.eyeX = root.lookX
-	onLookYChanged: root.eyeY = root.lookY
 
 	// The eyes are spaced so they never merge, at any size, and stay well
 	// inside the body even when they look to the side.
@@ -166,12 +158,14 @@ Item {
 	// The eye is fitted wide open and squashed afterwards. A squashed eye is
 	// smaller than the one that was fitted, so it still sits in the body, and
 	// the fit stays out of the blink.
-	readonly property var fittedSockets: clipSockets(root.body, [
+	readonly property var fitBody: root.state === "working" ? circleInside(root.body, root.bodyWidth / 2, root.bodyHeight / 2) : root.body
+
+	readonly property var fittedSockets: clipSockets(root.fitBody, [
 		{ x: root.bodyWidth / 2 - root.eyeSpacing, y: root.bodyHeight / 2 - root.eyeLift, radiusX: root.eyeWidth, radiusY: root.eyeRadius },
 		{ x: root.bodyWidth / 2 + root.eyeSpacing, y: root.bodyHeight / 2 - root.eyeLift, radiusX: root.eyeWidth, radiusY: root.eyeRadius },
 	], root.eyeMargin)
 
-	readonly property var reaches: maxReach(root.body, root.fittedSockets, root.eyeTravel, root.eyeMargin)
+	readonly property var reaches: maxReach(root.fitBody, root.fittedSockets, root.eyeTravel, root.eyeMargin)
 
 	readonly property var sockets: {
 		const dx = root.eyeX * root.eyeTravel;
@@ -533,6 +527,15 @@ function clampShift(outline, sockets, dx, dy, margin) {
 	}
 
 	return { x: dx * low, y: dy * low };
+}
+
+function circleInside(points, cx, cy) {
+	let radius = Infinity;
+
+	for (let i = 0; i < points.length; i += 2)
+		radius = Math.min(radius, Math.hypot(points[i] - cx, points[i + 1] - cy));
+
+	return ellipsePoints(cx, cy, radius, radius, 48);
 }
 
 function maxReach(outline, sockets, travel, margin) {

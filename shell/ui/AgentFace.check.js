@@ -155,4 +155,25 @@ for (const name of names) {
 	}
 }
 
+{
+	const body = bodyAt(160, "working", "working", 1);
+	const safe = circleInside(body, width / 2, height / 2);
+	const fitted = clipSockets(safe, sockets, margin);
+	const reaches = maxReach(safe, fitted, size * 0.055, margin);
+
+	for (let turn = 0; turn < 40; turn += 2) {
+		const turned = rotatePoints(body, width / 2, height / 2, turn * Math.PI / 180);
+
+		for (let i = 0; i < 64; i++) {
+			const angle = i / 64 * Math.PI * 2;
+			const reach = reachAt(reaches, angle);
+
+			for (const socket of fitted)
+				assert.ok(
+					socketInsideWhole(turned, socket.x + Math.cos(angle) * reach, socket.y + Math.sin(angle) * reach, socket.radiusX, socket.radiusY, 24, 0),
+					`eye crosses the spinning body at ${turn} degrees looking at ${(angle * 180 / Math.PI).toFixed(0)}`);
+		}
+	}
+}
+
 console.log(`AgentFace: eye fit holds, worst drift ${worst.toFixed(4)}px`);
