@@ -369,7 +369,7 @@ Item {
 					anchors.left: parent.left
 					anchors.right: parent.right
 
-					height: Config.agentRingSize
+					height: Yudae.planRings.length > 0 ? Config.agentRingSize : 0
 
 					Row {
 						visible: Yudae.planRings.length > 0
@@ -420,7 +420,7 @@ Item {
 					id: workTitle
 
 					anchors.top: planRingStrip.bottom
-					anchors.topMargin: 8
+					anchors.topMargin: Yudae.planRings.length > 0 ? 8 : 0
 					anchors.left: parent.left
 
 					font.family: Config.fontFamily
