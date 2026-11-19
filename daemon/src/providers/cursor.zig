@@ -89,6 +89,7 @@ pub const Cursor = struct {
 
 	fn loop(self: *Cursor) void {
 		var last_sent: i64 = 0;
+		var held: ?[2]f64 = null;
 
 		while (true) {
 			const path = self.fifoPath() catch {
@@ -118,10 +119,18 @@ pub const Cursor = struct {
 
 			while (!reopen) {
 				var poll_fds = [_]linux.pollfd{.{ .fd = fd, .events = linux.POLL.IN, .revents = 0 }};
-				const ready = linux.poll(&poll_fds, 1, 1000);
+				const wait: i32 = if (held != null) @intCast(std.math.clamp(33 - (fmt.nowMs(self.io) - last_sent), 0, 33)) else 1000;
+				const ready = linux.poll(&poll_fds, 1, wait);
 
 				if (sock.failed(ready)) break;
-				if (ready == 0) continue;
+				if (ready == 0) {
+					if (held) |point| {
+						held = null;
+						last_sent = fmt.nowMs(self.io);
+						if (self.hub.gazeWanted()) self.hub.publishGaze(point[0], point[1]);
+					}
+					continue;
+				}
 				if (poll_fds[0].revents & (linux.POLL.HUP | linux.POLL.ERR) != 0) reopen = true;
 
 				const count = linux.read(fd, buffer[pending..].ptr, buffer.len - pending);
@@ -145,9 +154,13 @@ pub const Cursor = struct {
 					const next = self.parse(line) orelse continue;
 					const now = fmt.nowMs(self.io);
 
-					if (now - last_sent < 33) continue;
+					if (now - last_sent < 33) {
+						held = next;
+						continue;
+					}
 					if (!self.hub.gazeWanted()) continue;
 
+					held = null;
 					last_sent = now;
 					self.hub.publishGaze(next[0], next[1]);
 				}
