@@ -18,8 +18,6 @@ Item {
 	property bool adding: false
 	property bool held: false
 	property string query: ""
-	property bool selectQuery: false
-	property int queryStamp: 0
 	property int pickIndex: 0
 
 	readonly property var now: Weather.current || {}
@@ -79,16 +77,11 @@ Item {
 		root.pick(rows[Calc.clamp(root.pickIndex, 0, rows.length - 1)]);
 	}
 
-	function pushQuery(select) {
-		root.selectQuery = select;
-		root.queryStamp = root.queryStamp + 1;
-	}
-
 	function startEdit(value, adding) {
 		root.editing = true;
 		root.adding = adding === true;
 		root.query = value !== undefined && value !== "" ? value : "";
-		root.pushQuery(true);
+		inputBox.setText(root.query, true);
 	}
 
 	function stopEdit() {
@@ -96,14 +89,6 @@ Item {
 		root.adding = false;
 		root.query = "";
 		root.forceActiveFocus();
-	}
-
-	function completeGhost() {
-		if (!root.hasGhost)
-			return;
-
-		root.query = String(root.match.name);
-		root.pushQuery(false);
 	}
 
 	function commitPlace() {
@@ -401,103 +386,26 @@ Item {
 						onClicked: root.startEdit("", true)
 					}
 
-					Item {
+					InlineEdit {
 						id: inputBox
 
 						visible: root.editing
+						editing: root.editing
 						anchors.left: parent.left
 						anchors.right: parent.right
 						anchors.verticalCenter: parent.verticalCenter
 						height: placeMetrics.height
+						ghost: root.hasGhost ? root.ghost : ""
+						suggestions: root.suggestionRows
 
-						Text {
-							id: queryMeasure
+						font.family: Config.fontFamily
+						font.pixelSize: Config.weatherPlaceSize
 
-							visible: false
-							font.family: Config.fontFamily
-							font.pixelSize: Config.weatherPlaceSize
-							text: root.query
-						}
-
-						Text {
-							id: ghostText
-
-							visible: root.hasGhost
-							x: queryMeasure.implicitWidth
-							anchors.verticalCenter: parent.verticalCenter
-							width: Math.max(0, inputBox.width - queryMeasure.implicitWidth)
-							height: placeMetrics.height
-							elide: Text.ElideRight
-							font.family: Config.fontFamily
-							font.pixelSize: Config.weatherPlaceSize
-							color: Config.muted
-							text: root.ghost
-						}
-
-						TextInput {
-							id: nameInput
-
-							anchors.fill: parent
-							focus: root.editing
-							clip: true
-							selectByMouse: false
-
-							font.family: Config.fontFamily
-							font.pixelSize: Config.weatherPlaceSize
-							color: Config.foreground
-							selectionColor: Config.launcherHighlight
-							selectedTextColor: Config.launcherHighlightText
-
-							onTextEdited: {
-								root.query = nameInput.text;
-							}
-							onActiveFocusChanged: if (activeFocus) selectAll()
-
-							Keys.onPressed: function (event) {
-								if (Input.cancel(event)) {
-									root.stopEdit();
-									event.accepted = true;
-									return;
-								}
-
-								if (Input.accept(event)) {
-									root.takeChosen();
-									event.accepted = true;
-									return;
-								}
-
-								if (event.key === Qt.Key_Down) {
-									root.pickRow(1);
-									event.accepted = true;
-									return;
-								}
-
-								if (event.key === Qt.Key_Up) {
-									root.pickRow(-1);
-									event.accepted = true;
-									return;
-								}
-
-								if (event.key === Qt.Key_Tab) {
-									root.completeGhost();
-									event.accepted = true;
-								}
-							}
-						}
-
-						Connections {
-							target: root
-
-							function onQueryStampChanged() {
-								nameInput.text = root.query;
-
-								if (root.selectQuery) {
-									root.selectQuery = false;
-									nameInput.selectAll();
-								} else
-									nameInput.cursorPosition = nameInput.text.length;
-							}
-						}
+						onEdited: root.query = inputBox.text
+						onAccepted: root.takeChosen()
+						onCancelled: root.stopEdit()
+						onMoved: function (step) { root.pickRow(step); }
+						onGhostCompleted: root.query = inputBox.text
 					}
 				}
 

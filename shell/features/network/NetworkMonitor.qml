@@ -167,6 +167,8 @@ ProcessPanel {
 		root.selectRun();
 	}
 
+	onDnsTypingChanged: if (root.dnsTyping) dnsField.setText(root.dnsDraft, true)
+
 	function selectRun() {
 		if (runButton.visible)
 			runButton.forceActiveFocus();
@@ -458,28 +460,27 @@ ProcessPanel {
 				text: root.net.dnsError || root.dns
 			}
 
-			TextInput {
+			InlineEdit {
+				id: dnsField
+
 				visible: dnsRow.live
+				editing: root.dnsTyping
 				anchors.right: parent.right
 				anchors.verticalCenter: parent.verticalCenter
 				width: parent.width - dnsLabel.width - 8
-				horizontalAlignment: Text.AlignRight
+				height: dnsValue.implicitHeight
+				horizontalAlignment: TextInput.AlignRight
+				selectByMouse: true
 
 				font.family: Config.fontFamily
 				font.pixelSize: Settings.fontSize
-				color: Config.foreground
-				selectByMouse: true
-				focus: dnsRow.live
 				text: root.dnsDraft
 
-				onTextEdited: root.dnsDraft = text
+				onEdited: root.dnsDraft = text
 				onAccepted: root.sendDns()
-				onActiveFocusChanged: if (activeFocus) selectAll()
-
-				Keys.onEscapePressed: (event) => {
+				onCancelled: {
 					root.dnsTyping = false;
 					root.forceActiveFocus();
-					event.accepted = true;
 				}
 			}
 

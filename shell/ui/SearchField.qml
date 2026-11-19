@@ -37,7 +37,7 @@ Rectangle {
 	radius: root.corner
 
 	function focusInput() {
-		input.forceActiveFocus();
+		input.focusInput();
 	}
 
 	function startTyping() {
@@ -81,7 +81,7 @@ Rectangle {
 		text: root.hintKey + (root.hintLabel !== "" ? " " + root.hintLabel : "")
 	}
 
-	TextInput {
+	InlineEdit {
 		id: input
 
 		anchors.left: icon.right
@@ -92,28 +92,16 @@ Rectangle {
 		anchors.verticalCenterOffset: root.textOffset
 
 		visible: !root.hint
+		height: implicitHeight
+		editing: root.typing
 		echoMode: root.echoMode
-		clip: true
-		focus: root.typing
-		selectByMouse: false
-		color: Config.foreground
 		font.family: Config.fontFamily
 		font.pixelSize: root.size
-		selectionColor: Config.launcherHighlight
-		selectedTextColor: Config.launcherHighlightText
 
 		onAccepted: root.accepted()
-		onTextEdited: root.edited()
-
-		Keys.onPressed: function (event) {
-			if (Input.cancel(event)) {
-				root.typing = false;
-				event.accepted = true;
-				return;
-			}
-
-			root.keyPressed(event);
-		}
+		onEdited: root.edited()
+		onCancelled: root.typing = false
+		onKeyPressed: function (event) { root.keyPressed(event); }
 	}
 
 	Text {

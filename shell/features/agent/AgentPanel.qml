@@ -210,29 +210,22 @@ Item {
 
 				spacing: 2
 
-				TextInput {
+				InlineEdit {
 					id: nameField
 
 					width: parent.width
 					height: root.rowHeight
 					verticalAlignment: TextInput.AlignVCenter
+					selectByMouse: true
+					selectOnFocus: false
 
 					font.family: Config.fontFamily
 					font.pixelSize: Settings.fontSize
-					color: Config.foreground
-					selectionColor: Config.muted
-					selectedTextColor: Config.surface
-					selectByMouse: true
 					text: root.agentName
 
-					onAccepted: root.saveAgentName(text)
-					onActiveFocusChanged: if (!activeFocus) root.saveAgentName(text)
-
-					Keys.onEscapePressed: function (event) {
-						root.saveAgentName(text);
-						nameField.focus = false;
-						event.accepted = true;
-					}
+					onAccepted: root.saveAgentName(nameField.text)
+					onCancelled: root.saveAgentName(nameField.text)
+					onFocusLost: root.saveAgentName(nameField.text)
 				}
 
 				Row {
