@@ -646,7 +646,7 @@ Item {
 
 					Text {
 						width: parent.width
-						visible: Yudae.plans.length === 0 && root.planError !== ""
+						visible: Yudae.plans.length === 0 && root.planError !== "" && root.planError !== "expired"
 						elide: Text.ElideRight
 
 						font.family: Config.fontFamily
