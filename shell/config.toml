@@ -125,6 +125,16 @@ iconLock = "\uF023"
 iconUser = "\uF007"
 iconEye = "\uF06E"
 iconEyeOff = "\uF070"
+iconSettings = "\uF013"
+iconAppearance = "\uF1FC"
+iconBar = "\uF2D0"
+iconWallpaper = "\U000F0E09"
+iconPanels = "\uF2D2"
+iconWidgets = "\uF009"
+iconTray = "\uF01C"
+iconWorkspaces = "\uF24D"
+iconAgent = "\U000F06A9"
+iconSpacer = "\uF07E"
 
 # cpu and process list
 [cpu]

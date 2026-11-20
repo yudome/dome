@@ -2,5 +2,7 @@
   "name": "power",
   "daemon": "system",
   "widget": "PowerStat",
-  "panel": "PowerMonitor"
+  "panel": "PowerMonitor",
+  "glyph": "batteryFull",
+  "description": "Battery, governor and keep awake"
 }

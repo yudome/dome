@@ -2,5 +2,7 @@
   "name": "agent",
   "daemon": "opencode",
   "widget": "AgentStat",
-  "panel": "AgentPanel"
+  "panel": "AgentPanel",
+  "glyph": "agent",
+  "description": "Coding agent state and session tasks"
 }

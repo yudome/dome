@@ -147,6 +147,16 @@ QtObject {
 	readonly property var iconUser: settings.iconUser !== undefined ? settings.iconUser : "\uf007"
 	readonly property var iconEye: settings.iconEye !== undefined ? settings.iconEye : "\uf06e"
 	readonly property var iconEyeOff: settings.iconEyeOff !== undefined ? settings.iconEyeOff : "\uf070"
+	readonly property var iconSettings: settings.iconSettings !== undefined ? settings.iconSettings : "\uf013"
+	readonly property var iconAppearance: settings.iconAppearance !== undefined ? settings.iconAppearance : "\uf1fc"
+	readonly property var iconBar: settings.iconBar !== undefined ? settings.iconBar : "\uf2d0"
+	readonly property var iconWallpaper: settings.iconWallpaper !== undefined ? settings.iconWallpaper : "\U000f0e09"
+	readonly property var iconPanels: settings.iconPanels !== undefined ? settings.iconPanels : "\uf2d2"
+	readonly property var iconWidgets: settings.iconWidgets !== undefined ? settings.iconWidgets : "\uf009"
+	readonly property var iconTray: settings.iconTray !== undefined ? settings.iconTray : "\uf01c"
+	readonly property var iconWorkspaces: settings.iconWorkspaces !== undefined ? settings.iconWorkspaces : "\uf24d"
+	readonly property var iconAgent: settings.iconAgent !== undefined ? settings.iconAgent : "\U000f06a9"
+	readonly property var iconSpacer: settings.iconSpacer !== undefined ? settings.iconSpacer : "\uf07e"
 	readonly property var iconPowerOff: settings.iconPowerOff !== undefined ? settings.iconPowerOff : "\uf011"
 	readonly property var iconReboot: settings.iconReboot !== undefined ? settings.iconReboot : "\uead2"
 	readonly property var iconLock: settings.iconLock !== undefined ? settings.iconLock : "\uf023"
@@ -296,6 +306,26 @@ QtObject {
 	readonly property var diskIconSortAsc: settings.diskIconSortAsc !== undefined ? settings.diskIconSortAsc : "\uf0d8"
 	readonly property var diskAccent: settings.diskAccent !== undefined ? settings.diskAccent : cpuCore
 	readonly property var diskOther: settings.diskOther !== undefined ? settings.diskOther : yellow
+
+	// settings app
+	readonly property var settingsSidebarWidth: settings.settingsSidebarWidth !== undefined ? settings.settingsSidebarWidth : 220
+	readonly property var settingsSidebar: settings.settingsSidebar !== undefined ? settings.settingsSidebar : launcherSearchBox
+	readonly property var settingsSelected: settings.settingsSelected !== undefined ? settings.settingsSelected : launcherHighlight
+	readonly property var settingsCard: settings.settingsCard !== undefined ? settings.settingsCard : weatherDayCardColor
+	readonly property var settingsAccent: settings.settingsAccent !== undefined ? settings.settingsAccent : cpuCore
+	readonly property var settingsLabel: settings.settingsLabel !== undefined ? settings.settingsLabel : launcherDetailText
+	readonly property var settingsPending: settings.settingsPending !== undefined ? settings.settingsPending : yellow
+	readonly property var settingsRowHeight: settings.settingsRowHeight !== undefined ? settings.settingsRowHeight : 34
+	readonly property var settingsPadding: settings.settingsPadding !== undefined ? settings.settingsPadding : 24
+	readonly property var settingsGap: settings.settingsGap !== undefined ? settings.settingsGap : 12
+	readonly property var settingsTitleSize: settings.settingsTitleSize !== undefined ? settings.settingsTitleSize : 22
+	readonly property var settingsFontSize: settings.settingsFontSize !== undefined ? settings.settingsFontSize : 13
+	readonly property var settingsSmallSize: settings.settingsSmallSize !== undefined ? settings.settingsSmallSize : 11
+	readonly property var settingsControlWidth: settings.settingsControlWidth !== undefined ? settings.settingsControlWidth : 260
+	readonly property var settingsRadius: settings.settingsRadius !== undefined ? settings.settingsRadius : 8
+	readonly property var settingsChipHeight: settings.settingsChipHeight !== undefined ? settings.settingsChipHeight : 30
+	readonly property var settingsPreviewSpan: settings.settingsPreviewSpan !== undefined ? settings.settingsPreviewSpan : 720
+	readonly property var settingsPreviewBelow: settings.settingsPreviewBelow !== undefined ? settings.settingsPreviewBelow : 40
 
 	// window switcher
 	readonly property var windowsGridCell: settings.windowsGridCell !== undefined ? settings.windowsGridCell : 92
@@ -642,6 +672,16 @@ QtObject {
 
 	readonly property var icons: ({
 		app: root.iconApp,
+		settings: root.iconSettings,
+		appearance: root.iconAppearance,
+		bar: root.iconBar,
+		wallpaper: root.iconWallpaper,
+		panels: root.iconPanels,
+		widgets: root.iconWidgets,
+		tray: root.iconTray,
+		workspaces: root.iconWorkspaces,
+		agent: root.iconAgent,
+		spacer: root.iconSpacer,
 		awake: root.iconAwake,
 		awakeAuto: root.iconAwakeAuto,
 		awakeOff: root.iconAwakeOff,

@@ -2,5 +2,7 @@
   "name": "volume",
   "daemon": "audio",
   "widget": "VolumeStat",
-  "panel": "VolumeMixer"
+  "panel": "VolumeMixer",
+  "glyph": "volumeHigh",
+  "description": "Output volume and the mixer"
 }

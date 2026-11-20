@@ -1,5 +1,7 @@
 {
   "name": "tray",
   "daemon": "tray",
-  "widget": "Tray"
+  "widget": "Tray",
+  "glyph": "tray",
+  "description": "Status icons of running apps"
 }

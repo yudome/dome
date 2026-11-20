@@ -2,5 +2,7 @@
   "name": "clock",
   "daemon": "calendar",
   "widget": "Clock",
-  "panel": "Calendar"
+  "panel": "Calendar",
+  "glyph": "day",
+  "description": "Date and time, opens the calendar"
 }

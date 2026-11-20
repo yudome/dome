@@ -1,4 +1,6 @@
 {
   "name": "spacer",
-  "widget": "Spacer"
+  "widget": "Spacer",
+  "glyph": "spacer",
+  "description": "Empty space between widgets"
 }

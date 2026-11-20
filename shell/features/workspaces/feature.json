@@ -1,5 +1,7 @@
 {
   "name": "workspaces",
   "daemon": "workspaces",
-  "widget": "Workspaces"
+  "widget": "Workspaces",
+  "glyph": "workspaces",
+  "description": "Hyprland workspaces"
 }

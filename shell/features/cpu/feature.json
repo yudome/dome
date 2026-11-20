@@ -2,5 +2,7 @@
   "name": "cpu",
   "daemon": "system",
   "widget": "CpuStat",
-  "panel": "CpuMonitor"
+  "panel": "CpuMonitor",
+  "glyph": "cpu",
+  "description": "Processor load and top processes"
 }

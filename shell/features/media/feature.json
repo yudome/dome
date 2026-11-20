@@ -2,5 +2,7 @@
   "name": "media",
   "daemon": "media",
   "widget": "MediaStat",
-  "panel": "MediaControl"
+  "panel": "MediaControl",
+  "glyph": "play",
+  "description": "Now playing and player controls"
 }

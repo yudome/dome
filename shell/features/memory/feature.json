@@ -2,5 +2,7 @@
   "name": "memory",
   "daemon": "system",
   "widget": "MemoryStat",
-  "panel": "MemoryMonitor"
+  "panel": "MemoryMonitor",
+  "glyph": "memory",
+  "description": "Memory use and top processes"
 }

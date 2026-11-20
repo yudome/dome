@@ -2,5 +2,7 @@
   "name": "weather",
   "daemon": "weather",
   "widget": "WeatherStat",
-  "panel": "WeatherCard"
+  "panel": "WeatherCard",
+  "glyph": "weather",
+  "description": "Current weather and forecast"
 }
