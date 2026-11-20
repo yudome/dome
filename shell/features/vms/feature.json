@@ -1,5 +1,4 @@
 {
   "name": "vms",
-  "daemon": "vms",
-  "widget": "VmSection"
+  "daemon": "vms"
 }
