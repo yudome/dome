@@ -68,6 +68,7 @@ pub const Context = struct {
 	apps: *apps.Apps,
 	screen: *screen.Screen,
 	settings: *settings.Settings,
+	config: *config_provider.Config,
 	network: *network.Network,
 	audio: *audio.Audio,
 	wallpaper: *wallpaper.Wallpaper,
@@ -439,6 +440,8 @@ fn callThunk(ctx: *anyopaque, target: []const u8, method: []const u8, args: json
 	if (std.mem.eql(u8, target, "vms")) return context.vms.call(method, args, allocator);
 	if (std.mem.eql(u8, target, "disk")) return context.disk.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "plugins")) return context.plugins.call(method, args, alloc);
+	if (std.mem.eql(u8, target, "bar")) return context.bar.call(method, args, alloc);
+	if (std.mem.eql(u8, target, "settings") and (std.mem.eql(u8, method, "set") or std.mem.eql(u8, method, "app"))) return context.config.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "state")) return context.hub.syncSnapshot(allocator);
 	if (std.mem.eql(u8, target, "ui")) return context.hub.syncSnapshot(allocator);
 
@@ -491,6 +494,7 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "open")) return cli.open(io, args);
 	if (std.mem.eql(u8, command, "app")) return cli.app(io, args);
 	if (std.mem.eql(u8, command, "disk")) return cli.disk(io, args);
+	if (std.mem.eql(u8, command, "settings") or std.mem.eql(u8, command, "bar")) return cli.settings(io, args);
 	if (std.mem.eql(u8, command, "ui")) return cli.ui(io, args);
 	if (std.mem.eql(u8, command, "spawn-check")) return cli.spawnCheck(io, args);
 
@@ -504,7 +508,7 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "files-index")) return files.command(io, args);
 
 	if (!std.mem.eql(u8, command, "run")) {
-		std.debug.print("usage: yudae [run|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|ui|spawn-check|logout|files rebuild]\n", .{});
+		std.debug.print("usage: yudae [run|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|settings|bar|ui|spawn-check|logout|files rebuild]\n", .{});
 		return;
 	}
 
@@ -661,6 +665,7 @@ fn run(io: std.Io) !void {
 		.apps = apps_provider,
 		.screen = screen_provider,
 		.settings = settings_provider,
+		.config = config_settings,
 		.network = network_provider,
 		.audio = audio_provider,
 		.wallpaper = wallpaper_provider,

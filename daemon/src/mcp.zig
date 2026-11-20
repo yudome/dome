@@ -54,6 +54,9 @@ const tools = [_]Tool{
 	.{ .name = "plugin_add", .description = "Clone a plugin repository and install it.", .inputSchema = "{\"type\":\"object\",\"properties\":{\"url\":{\"type\":\"string\"}},\"required\":[\"url\"]}" },
 	.{ .name = "plugin_update", .description = "Pull and rebuild an installed plugin.", .inputSchema = "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"}},\"required\":[\"id\"]}" },
 	.{ .name = "plugin_reload", .description = "Rebuild stale plugins and apply the load list.", .inputSchema = "{\"type\":\"object\",\"properties\":{}}" },
+	.{ .name = "settings_set", .description = "Rewrite one key's line in shell/config.toml. The value must have the key's current type.", .inputSchema = "{\"type\":\"object\",\"properties\":{\"key\":{\"type\":\"string\"},\"value\":{}},\"required\":[\"key\",\"value\"]}" },
+	.{ .name = "settings_app", .description = "Open the Settings app, optionally on one pane (appearance, bar, display, wallpaper, panels, widgets, power).", .inputSchema = "{\"type\":\"object\",\"properties\":{\"pane\":{\"type\":\"string\"}}}" },
+	.{ .name = "bar_layout", .description = "Write shell/topbarlayout.json atomically after validating it.", .inputSchema = "{\"type\":\"object\",\"properties\":{\"layout\":{\"type\":\"object\"}},\"required\":[\"layout\"]}" },
 	.{ .name = "disk_scan", .description = "Scan a disk tree on demand. Root scans need yudae-fsd and polkit.", .inputSchema = "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"}}}" },
 	.{ .name = "disk_view", .description = "Focus one path in the last disk scan and return its children.", .inputSchema = "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"depth\":{\"type\":\"integer\"}},\"required\":[\"path\"]}" },
 	.{ .name = "disk_search", .description = "Search names in the last disk scan.", .inputSchema = "{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}" },
@@ -181,6 +184,10 @@ fn call(io: Io, allocator: std.mem.Allocator, name: []const u8, arguments: json.
 	if (std.mem.eql(u8, name, "parity")) return runSelf(io, allocator, &.{"parity"});
 
 	if (std.mem.eql(u8, name, "qs_log")) return logTail(io, allocator, arguments);
+
+	if (std.mem.startsWith(u8, name, "settings_")) return callDaemon(io, allocator, "settings", name["settings_".len..], arguments);
+
+	if (std.mem.eql(u8, name, "bar_layout")) return callDaemon(io, allocator, "bar", "layout", arguments);
 
 	if (std.mem.startsWith(u8, name, "disk_")) return callDaemon(io, allocator, "disk", name["disk_".len..], arguments);
 

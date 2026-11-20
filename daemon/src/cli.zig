@@ -708,17 +708,22 @@ fn diskMessage(allocator: Allocator, method: []const u8, rest: []const []const u
 
 pub fn app(io: Io, args: []const []const u8) !void {
 	if (args.len < 4 or !std.mem.eql(u8, args[2], "open")) {
-		std.debug.print("usage: yudae app open <name> [--vm <vm>]\n", .{});
+		std.debug.print("usage: yudae app open <name> [--vm <vm>] [--pane <pane>]\n", .{});
 		std.process.exit(2);
 	}
 
 	const name = args[3];
 	var vm: []const u8 = "";
+	var pane: []const u8 = "";
 	var index: usize = 4;
 	while (index < args.len) : (index += 1) {
 		if (std.mem.eql(u8, args[index], "--vm") and index + 1 < args.len) {
 			index += 1;
 			vm = args[index];
+		}
+		if (std.mem.eql(u8, args[index], "--pane") and index + 1 < args.len) {
+			index += 1;
+			pane = args[index];
 		}
 	}
 
@@ -751,6 +756,8 @@ pub fn app(io: Io, args: []const []const u8) !void {
 		try std.fmt.allocPrint(allocator, "{s}/shell/app-vms.qml", .{repo})
 	else if (std.mem.eql(u8, name, "disk"))
 		try std.fmt.allocPrint(allocator, "{s}/shell/app-disk.qml", .{repo})
+	else if (std.mem.eql(u8, name, "settings"))
+		try std.fmt.allocPrint(allocator, "{s}/shell/app-settings.qml", .{repo})
 	else
 		try std.fmt.allocPrint(allocator, "{s}/shell/app.qml", .{repo});
 	const import_path = try std.fmt.allocPrint(allocator, "QML_IMPORT_PATH={s}/shell/native/qml", .{repo});
@@ -762,6 +769,7 @@ pub fn app(io: Io, args: []const []const u8) !void {
 	try argv.append(allocator, "QSG_RHI_BACKEND=opengl");
 	try argv.append(allocator, try std.fmt.allocPrint(allocator, "YUDAE_APP={s}", .{name}));
 	if (vm.len > 0) try argv.append(allocator, try std.fmt.allocPrint(allocator, "YUDAE_VM={s}", .{vm}));
+	if (pane.len > 0) try argv.append(allocator, try std.fmt.allocPrint(allocator, "YUDAE_PANE={s}", .{pane}));
 	try argv.append(allocator, "quickshell");
 	try argv.append(allocator, "-p");
 	try argv.append(allocator, entry);
@@ -822,4 +830,71 @@ pub fn print(io: Io, comptime message: []const u8) void {
 
 test "cli module compiles" {
 	try std.testing.expect(true);
+}
+
+pub fn settings(io: Io, args: []const []const u8) !void {
+	var arena = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
+	defer arena.deinit();
+	const allocator = arena.allocator();
+
+	const message = settingsMessage(io, allocator, args) catch {
+		std.debug.print("usage: yudae settings set <key> <value> | yudae settings app [pane] | yudae bar layout <file>\n", .{});
+		std.process.exit(2);
+	};
+
+	const result = roundTrip(io, allocator, message, false) catch std.process.exit(1);
+	if (result.len > 0 and !std.mem.eql(u8, result, "{}")) printResult(io, result);
+}
+
+fn settingsMessage(io: Io, allocator: Allocator, args: []const []const u8) ![]u8 {
+	if (args.len < 3) return error.Usage;
+
+	var out: std.Io.Writer.Allocating = .init(allocator);
+	const w = &out.writer;
+	const target = args[1];
+	const method = args[2];
+
+	if (std.mem.eql(u8, target, "settings") and std.mem.eql(u8, method, "set") and args.len == 5) {
+		try w.writeAll("{\"call\":{\"target\":\"settings\",\"method\":\"set\",\"args\":{\"key\":");
+		try std.json.Stringify.encodeJsonString(args[3], .{}, w);
+		try w.writeAll(",\"value\":");
+		if (json.parse(allocator, args[4])) |parsed| {
+			try w.print("{f}", .{std.json.fmt(parsed.value, .{})});
+		} else |_| {
+			try std.json.Stringify.encodeJsonString(args[4], .{}, w);
+		}
+		try w.writeAll("}}}");
+	} else if (std.mem.eql(u8, target, "settings") and std.mem.eql(u8, method, "app") and args.len <= 4) {
+		try w.writeAll("{\"call\":{\"target\":\"settings\",\"method\":\"app\",\"args\":{\"pane\":");
+		try std.json.Stringify.encodeJsonString(if (args.len == 4) args[3] else "", .{}, w);
+		try w.writeAll("}}}");
+	} else if (std.mem.eql(u8, target, "bar") and std.mem.eql(u8, method, "layout") and args.len == 4) {
+		const body = try proc.readFile(io, allocator, args[3]);
+		const parsed = try json.parse(allocator, body);
+		try w.print("{{\"call\":{{\"target\":\"bar\",\"method\":\"layout\",\"args\":{{\"layout\":{f}}}}}}}", .{std.json.fmt(parsed.value, .{})});
+	} else return error.Usage;
+
+	return out.written();
+}
+
+test "settings and bar verbs build their calls" {
+	var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+	defer arena.deinit();
+	const a = arena.allocator();
+	const io = std.testing.io;
+
+	try std.testing.expectEqualStrings(
+		"{\"call\":{\"target\":\"settings\",\"method\":\"set\",\"args\":{\"key\":\"barCells\",\"value\":12}}}",
+		try settingsMessage(io, a, &.{ "yudae", "settings", "set", "barCells", "12" }),
+	);
+	try std.testing.expectEqualStrings(
+		"{\"call\":{\"target\":\"settings\",\"method\":\"set\",\"args\":{\"key\":\"popupPos\",\"value\":\"top-left\"}}}",
+		try settingsMessage(io, a, &.{ "yudae", "settings", "set", "popupPos", "top-left" }),
+	);
+	try std.testing.expectEqualStrings(
+		"{\"call\":{\"target\":\"settings\",\"method\":\"app\",\"args\":{\"pane\":\"\"}}}",
+		try settingsMessage(io, a, &.{ "yudae", "settings", "app" }),
+	);
+	try std.testing.expectError(error.Usage, settingsMessage(io, a, &.{ "yudae", "settings", "set", "barCells" }));
+	try std.testing.expectError(error.Usage, settingsMessage(io, a, &.{ "yudae", "bar", "nope" }));
 }

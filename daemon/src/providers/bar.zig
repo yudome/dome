@@ -91,7 +91,28 @@ pub const Bar = struct {
 
 		try writer.writeAll(self.body);
 	}
+
+	pub fn call(self: *Bar, method: []const u8, args: json.Value, alloc: Allocator) ![]u8 {
+		if (!std.mem.eql(u8, method, "layout")) return error.UnknownMethod;
+
+		const text = try layoutFile(alloc, json.field(args, "layout") orelse return error.NoLayout);
+		const path = try pathOf(self.io, alloc);
+		try proc.writeFileAtomic(self.io, alloc, path, text);
+		self.reload();
+
+		return alloc.dupe(u8, "{\"ok\":true}");
+	}
 };
+
+fn layoutFile(allocator: Allocator, layout: Value) ![]u8 {
+	var text: Writer.Allocating = .init(allocator);
+	errdefer text.deinit();
+
+	try text.writer.print("{f}\n", .{std.json.fmt(layout, .{ .whitespace = .indent_tab })});
+	allocator.free(try normalize(allocator, text.written()));
+
+	return text.toOwnedSlice();
+}
 
 fn pathOf(io: Io, allocator: Allocator) ![]u8 {
 	return std.fmt.allocPrint(allocator, "{s}/dotfiles/shell/topbarlayout.json", .{proc.home(io, allocator)});
@@ -163,6 +184,25 @@ test "the bar layout keeps the slots the shell can draw" {
 	try std.testing.expectEqualStrings("clock", json.textAt(parsed.value, "centerAnchor"));
 	try std.testing.expectEqual(@as(usize, 1), json.listAt(parsed.value, "left").len);
 	try std.testing.expectEqualStrings("rss", json.textAt(json.listAt(parsed.value, "right")[0], "mode"));
+}
+
+test "bar.layout writes a layout the shell reads back and rejects one it cannot" {
+	var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+	defer arena.deinit();
+	const a = arena.allocator();
+
+	const given = try json.parse(a,
+		\\{"version":1,"bar":{"position":"top","centerAnchor":"clock","layout":{"left":[{"id":"workspaces"}],"center":[{"id":"clock"}],"right":[{"id":"cpu"},{"id":"memory"}]}}}
+	);
+	const file = try layoutFile(a, given.value);
+	try std.testing.expect(std.mem.endsWith(u8, file, "}\n"));
+
+	const back = try json.parse(a, try normalize(a, file));
+	try std.testing.expectEqual(@as(usize, 2), json.listAt(back.value, "right").len);
+	try std.testing.expectEqualStrings("memory", json.textAt(json.listAt(back.value, "right")[1], "id"));
+
+	const broken = try json.parse(a, "{\"version\":1,\"bar\":{}}");
+	try std.testing.expectError(error.NoLayout, layoutFile(a, broken.value));
 }
 
 test "a broken layout is rejected" {
