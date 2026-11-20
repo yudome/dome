@@ -118,7 +118,7 @@ Item {
 			value: root.format(group.kind, steps.hoverLabel !== "" ? steps.hoverLabel : group.shown)
 		}
 
-		StepBar {
+		GlyphBar {
 			id: steps
 
 			width: Config.displayPanelWidth

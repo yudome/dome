@@ -69,7 +69,7 @@ ProcessPanel {
 			hotInk: !Config.mono && root.battery && root.battery.color ? root.battery.color : root.accentInk
 		},
 
-		StepBar {
+		GlyphBar {
 			id: govStep
 
 			width: parent.width
