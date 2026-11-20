@@ -258,7 +258,7 @@ pub const Codex = struct {
 	fn pollLoop(self: *Codex) void {
 		while (true) {
 			sleep.ms(300_000);
-			self.fetchUsage();
+			self.refresh();
 		}
 	}
 
