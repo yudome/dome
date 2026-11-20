@@ -65,7 +65,7 @@ pub const Claude = struct {
 
 	fn reloadThunk(ctx: *anyopaque) void {
 		const self: *Claude = @ptrCast(@alignCast(ctx));
-		self.refreshPlan();
+		self.refreshNow();
 	}
 
 	fn credentialsPath(self: *Claude) ![]u8 {
@@ -80,8 +80,16 @@ pub const Claude = struct {
 		return limitmod.copy(arena, self.plan, self.failure, self.limits.items) catch .{};
 	}
 
+	fn refreshNow(self: *Claude) void {
+		self.refresh(true);
+	}
+
 	pub fn refreshPlan(self: *Claude) void {
-		if (!self.beginRefresh())
+		self.refresh(false);
+	}
+
+	fn refresh(self: *Claude, force: bool) void {
+		if (!self.beginRefresh(force))
 			return;
 
 		var cooldown: i64 = normal_refresh_ms;
@@ -116,7 +124,7 @@ pub const Claude = struct {
 		const expires = json.integer(json.deep(creds.value, &.{ "claudeAiOauth", "expiresAt" }));
 		if (expires > 0 and expires <= std.Io.Clock.real.now(self.io).toMilliseconds()) {
 			self.setFailure(plan, "expired");
-			cooldown = rate_limit_refresh_ms;
+			cooldown = error_refresh_ms;
 			return;
 		}
 
@@ -184,13 +192,13 @@ pub const Claude = struct {
 			self.saveCache();
 	}
 
-	fn beginRefresh(self: *Claude) bool {
+	fn beginRefresh(self: *Claude, force: bool) bool {
 		const now = std.Io.Clock.real.now(self.io).toMilliseconds();
 
 		self.mutex.lockUncancelable(self.io);
 		defer self.mutex.unlock(self.io);
 
-		if (self.fetching or now < self.next_refresh)
+		if (self.fetching or (!force and now < self.next_refresh))
 			return false;
 
 		self.fetching = true;
@@ -346,7 +354,7 @@ pub const Claude = struct {
 	}
 };
 
-test "a plan rests between fetches and keeps its numbers when a fetch fails" {
+test "a plan rests between fetches and a credential change skips the rest" {
 	var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
 	defer arena.deinit();
 
@@ -354,12 +362,12 @@ test "a plan rests between fetches and keeps its numbers when a fetch fails" {
 	var client = http.Client.init(allocator, std.testing.io);
 	const plan = try Claude.create(allocator, std.testing.io, &client);
 
-	try std.testing.expect(plan.beginRefresh());
+	try std.testing.expect(plan.beginRefresh(false));
 	plan.endRefresh(60_000);
-	try std.testing.expect(!plan.beginRefresh());
-
-	plan.next_refresh = 0;
-	try std.testing.expect(plan.beginRefresh());
+	try std.testing.expect(!plan.beginRefresh(false));
+	try std.testing.expect(plan.beginRefresh(true));
+	plan.endRefresh(60_000);
+	try std.testing.expect(!plan.beginRefresh(false));
 
 	const title = try allocator.dupe(u8, "Weekly");
 	const resets = try allocator.dupe(u8, "2026-11-07T23:00:00+00:00");

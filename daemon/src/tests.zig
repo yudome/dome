@@ -12,6 +12,7 @@ test {
 	_ = @import("ipc.zig");
 	_ = @import("providers/opencode.zig");
 	_ = @import("providers/codex.zig");
+	_ = @import("providers/claude.zig");
 	_ = @import("providers/cursor.zig");
 	_ = @import("providers/daemon.zig");
 	_ = @import("providers/notifications.zig");
