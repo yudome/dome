@@ -32,6 +32,7 @@ AppWindow {
 
 	readonly property var layout: win.pendingLayout || win.layoutDoc
 	readonly property bool dirty: Object.keys(win.pending).length > 0 || win.pendingLayout !== null
+	readonly property bool barShown: win.dirty || win.failed !== ""
 	readonly property var category: Toml.categories.find(function (c) { return c.id === win.pane; })
 	readonly property var library: Object.keys(win.features).sort().map(function (id) { return win.features[id]; })
 	readonly property var glyphs: {
@@ -154,11 +155,18 @@ AppWindow {
 		height: parent.height
 		color: Config.settingsSidebar
 
+		Rectangle {
+			anchors.right: parent.right
+			width: 1
+			height: parent.height
+			color: Config.settingsRule
+		}
+
 		Item {
 			id: brand
 
 			x: Config.settingsGap
-			y: Config.settingsPadding
+			y: Config.settingsPadding - 6
 			width: parent.width - Config.settingsGap * 2
 			height: Config.settingsRowHeight
 
@@ -167,16 +175,16 @@ AppWindow {
 
 				x: 10
 				anchors.verticalCenter: parent.verticalCenter
-				width: 22
-				height: 22
-				size: Config.settingsTitleSize - 4
-				color: Config.settingsAccent
+				width: 20
+				height: 20
+				size: Config.settingsFontSize + 5
+				color: Config.settingsInk
 				glyph: Config.glyph("settings")
 			}
 
 			Text {
 				anchors.left: brandGlyph.right
-				anchors.leftMargin: Config.settingsGap
+				anchors.leftMargin: 12
 				anchors.right: parent.right
 				anchors.verticalCenter: parent.verticalCenter
 				elide: Text.ElideRight
@@ -189,7 +197,7 @@ AppWindow {
 
 		Column {
 			anchors.top: brand.bottom
-			anchors.topMargin: Config.settingsGap * 2
+			anchors.topMargin: Config.settingsGap
 			x: Config.settingsGap
 			width: parent.width - Config.settingsGap * 2
 			spacing: 2
@@ -202,14 +210,22 @@ AppWindow {
 
 					required property var modelData
 
+					readonly property bool current: win.pane === entry.modelData.id
+
 					width: parent.width
-					height: Config.settingsRowHeight
+					height: 36
 
 					Rectangle {
 						anchors.fill: parent
-						radius: Config.rowRadius
+						radius: 8
 						color: Config.settingsSelected
-						opacity: win.pane === entry.modelData.id ? 1 : (entryHover.containsMouse ? 0.5 : 0)
+						opacity: entry.current ? 1 : (entryHover.containsMouse ? 0.45 : 0)
+
+						Behavior on opacity {
+							NumberAnimation {
+								duration: Config.toggleMs
+							}
+						}
 					}
 
 					Glyph {
@@ -220,20 +236,20 @@ AppWindow {
 						width: 18
 						height: 18
 						size: Config.settingsFontSize + 1
-						color: win.pane === entry.modelData.id ? Config.settingsAccent : Config.settingsLabel
+						color: entry.current ? Config.foreground : Config.settingsLabel
 						glyph: Config.glyph(entry.modelData.glyph)
 					}
 
 					Text {
 						anchors.left: entryGlyph.right
-						anchors.leftMargin: Config.settingsGap
+						anchors.leftMargin: 12
 						anchors.right: parent.right
 						anchors.rightMargin: 10
 						anchors.verticalCenter: parent.verticalCenter
 						elide: Text.ElideRight
 						font.family: Config.fontFamily
-						font.pixelSize: Config.settingsFontSize
-						color: Config.foreground
+						font.pixelSize: Config.settingsFontSize + 1
+						color: entry.current ? Config.foreground : Config.settingsLabel
 						text: entry.modelData.name
 					}
 
@@ -242,7 +258,10 @@ AppWindow {
 
 						anchors.fill: parent
 						hoverEnabled: true
-						onClicked: win.pane = entry.modelData.id
+						onClicked: {
+							win.pane = entry.modelData.id;
+							flick.contentY = 0;
+						}
 					}
 				}
 			}
@@ -255,21 +274,21 @@ AppWindow {
 		anchors.left: sidebar.right
 		anchors.right: parent.right
 		anchors.top: parent.top
-		anchors.bottom: footer.top
+		anchors.bottom: parent.bottom
 
 		Flickable {
 			id: flick
 
 			anchors.fill: parent
 			contentWidth: width
-			contentHeight: body.height + Config.settingsPadding * 2
+			contentHeight: body.height + Config.settingsPadding * 2 + (win.barShown ? applyBar.height + Config.settingsGap : 0)
 			boundsBehavior: Flickable.StopAtBounds
 			clip: true
 			interactive: false
 
 			MouseArea {
 				width: flick.width
-				height: flick.contentHeight
+				height: Math.max(flick.height, flick.contentHeight)
 				acceptedButtons: Qt.NoButton
 				onWheel: function (wheel) {
 					flick.contentY = Calc.clamp(flick.contentY - wheel.angleDelta.y, 0, Math.max(0, flick.contentHeight - flick.height));
@@ -279,10 +298,10 @@ AppWindow {
 			Column {
 				id: body
 
-				x: Config.settingsPadding
+				width: Math.min(Config.settingsColumn, flick.width - Config.settingsPadding * 2)
+				x: Math.round((flick.width - width) / 2)
 				y: Config.settingsPadding
-				width: flick.width - Config.settingsPadding * 2
-				spacing: Config.settingsGap * 2
+				spacing: Config.settingsSectionGap
 
 				Text {
 					width: parent.width
@@ -309,14 +328,16 @@ AppWindow {
 
 				Rectangle {
 					visible: win.pane === "display"
-					width: displayPanel.implicitWidth
-					height: displayPanel.implicitHeight
+					width: displayPanel.implicitWidth + 8
+					height: displayPanel.implicitHeight + 8
 					radius: Config.settingsRadius
 					color: Config.settingsCard
 
 					DisplayPanel {
 						id: displayPanel
 
+						x: 4
+						y: 4
 						shown: win.pane === "display"
 					}
 				}
@@ -338,73 +359,76 @@ AppWindow {
 		Scrollbar {
 			view: flick
 		}
-	}
-
-	Rectangle {
-		id: footer
-
-		anchors.left: sidebar.right
-		anchors.right: parent.right
-		anchors.bottom: parent.bottom
-		height: Config.settingsRowHeight + Config.settingsGap * 2
-		color: Config.surface
 
 		Rectangle {
-			width: parent.width
-			height: 1
-			color: Config.dim
-		}
+			id: applyBar
 
-		Text {
-			anchors.left: parent.left
-			anchors.leftMargin: Config.settingsPadding
-			anchors.right: buttons.left
-			anchors.rightMargin: Config.settingsGap
-			anchors.verticalCenter: parent.verticalCenter
-			elide: Text.ElideRight
-			visible: win.failed !== ""
-			font.family: Config.fontFamily
-			font.pixelSize: Config.settingsSmallSize
-			color: Config.red
-			text: "Could not save " + win.failed
-		}
+			width: Math.min(Config.settingsColumn, content.width - Config.settingsPadding * 2)
+			height: Config.settingsRowHeight + 8
+			x: Math.round((content.width - width) / 2)
+			y: win.barShown ? content.height - height - Config.settingsGap : content.height + 8
+			radius: Config.settingsRadius
+			color: Config.launcherHighlight
 
-		Row {
-			id: buttons
+			Behavior on y {
+				NumberAnimation {
+					duration: Config.popupSlideMs / 2
+					easing.type: Easing.OutCubic
+				}
+			}
 
-			anchors.right: parent.right
-			anchors.rightMargin: Config.settingsPadding
-			anchors.verticalCenter: parent.verticalCenter
-			spacing: Config.settingsGap
+			Text {
+				anchors.left: parent.left
+				anchors.leftMargin: Config.settingsGap + 4
+				anchors.right: buttons.left
+				anchors.rightMargin: Config.settingsGap
+				anchors.verticalCenter: parent.verticalCenter
+				elide: Text.ElideRight
+				font.family: Config.fontFamily
+				font.pixelSize: Config.settingsFontSize + 1
+				color: win.failed !== "" ? Config.red : Config.foreground
+				text: win.failed !== "" ? "Could not save " + win.failed : "Changes are not applied yet"
+			}
 
-			Repeater {
-				model: [{ label: "Revert", run: win.revert, main: false }, { label: "Apply", run: win.apply, main: true }]
+			Row {
+				id: buttons
 
-				delegate: Rectangle {
-					id: button
+				anchors.right: parent.right
+				anchors.rightMargin: 10
+				anchors.verticalCenter: parent.verticalCenter
+				spacing: 8
 
-					required property var modelData
+				Repeater {
+					model: [{ label: "Revert", run: win.revert, main: false }, { label: "Apply", run: win.apply, main: true }]
 
-					width: buttonText.implicitWidth + Config.settingsGap * 2
-					height: Config.settingsChipHeight
-					radius: Config.rowRadius
-					color: button.modelData.main && win.dirty ? Config.settingsAccent : Config.launcherSearchBox
-					opacity: win.dirty ? 1 : 0.4
+					delegate: Rectangle {
+						id: button
 
-					Text {
-						id: buttonText
+						required property var modelData
 
-						anchors.centerIn: parent
-						font.family: Config.fontFamily
-						font.pixelSize: Config.settingsFontSize
-						color: button.modelData.main && win.dirty ? Config.surface : Config.foreground
-						text: button.modelData.label
-					}
+						width: buttonText.implicitWidth + 32
+						height: Config.settingsChipHeight + 4
+						radius: height / 2
+						color: button.modelData.main ? (buttonHover.containsMouse ? Config.launcherHighlightText : Config.foreground) : (buttonHover.containsMouse ? Config.toggleHover : "transparent")
 
-					MouseArea {
-						anchors.fill: parent
-						enabled: win.dirty
-						onClicked: button.modelData.run()
+						Text {
+							id: buttonText
+
+							anchors.centerIn: parent
+							font.family: Config.fontFamily
+							font.pixelSize: Config.settingsFontSize + 1
+							color: button.modelData.main ? Config.surface : Config.foreground
+							text: button.modelData.label
+						}
+
+						MouseArea {
+							id: buttonHover
+
+							anchors.fill: parent
+							hoverEnabled: true
+							cursorShape: Qt.PointingHandCursor
+							onClicked: button.modelData.run()
+						}
 					}
 				}
 			}

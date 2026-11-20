@@ -309,23 +309,27 @@ QtObject {
 
 	// settings app
 	readonly property var settingsSidebarWidth: settings.settingsSidebarWidth !== undefined ? settings.settingsSidebarWidth : 220
-	readonly property var settingsSidebar: settings.settingsSidebar !== undefined ? settings.settingsSidebar : launcherSearchBox
+	readonly property var settingsSidebar: settings.settingsSidebar !== undefined ? settings.settingsSidebar : surface
 	readonly property var settingsSelected: settings.settingsSelected !== undefined ? settings.settingsSelected : launcherHighlight
 	readonly property var settingsCard: settings.settingsCard !== undefined ? settings.settingsCard : weatherDayCardColor
 	readonly property var settingsAccent: settings.settingsAccent !== undefined ? settings.settingsAccent : cpuCore
 	readonly property var settingsLabel: settings.settingsLabel !== undefined ? settings.settingsLabel : launcherDetailText
 	readonly property var settingsPending: settings.settingsPending !== undefined ? settings.settingsPending : yellow
-	readonly property var settingsRowHeight: settings.settingsRowHeight !== undefined ? settings.settingsRowHeight : 34
-	readonly property var settingsPadding: settings.settingsPadding !== undefined ? settings.settingsPadding : 24
-	readonly property var settingsGap: settings.settingsGap !== undefined ? settings.settingsGap : 12
+	readonly property var settingsRowHeight: settings.settingsRowHeight !== undefined ? settings.settingsRowHeight : 48
+	readonly property var settingsPadding: settings.settingsPadding !== undefined ? settings.settingsPadding : 32
+	readonly property var settingsGap: settings.settingsGap !== undefined ? settings.settingsGap : 16
 	readonly property var settingsTitleSize: settings.settingsTitleSize !== undefined ? settings.settingsTitleSize : 22
 	readonly property var settingsFontSize: settings.settingsFontSize !== undefined ? settings.settingsFontSize : 13
-	readonly property var settingsSmallSize: settings.settingsSmallSize !== undefined ? settings.settingsSmallSize : 11
-	readonly property var settingsControlWidth: settings.settingsControlWidth !== undefined ? settings.settingsControlWidth : 260
-	readonly property var settingsRadius: settings.settingsRadius !== undefined ? settings.settingsRadius : 8
+	readonly property var settingsSmallSize: settings.settingsSmallSize !== undefined ? settings.settingsSmallSize : 12
+	readonly property var settingsControlWidth: settings.settingsControlWidth !== undefined ? settings.settingsControlWidth : 272
+	readonly property var settingsRadius: settings.settingsRadius !== undefined ? settings.settingsRadius : 12
 	readonly property var settingsChipHeight: settings.settingsChipHeight !== undefined ? settings.settingsChipHeight : 30
 	readonly property var settingsPreviewSpan: settings.settingsPreviewSpan !== undefined ? settings.settingsPreviewSpan : 720
-	readonly property var settingsPreviewBelow: settings.settingsPreviewBelow !== undefined ? settings.settingsPreviewBelow : 40
+	readonly property var settingsPreviewBelow: settings.settingsPreviewBelow !== undefined ? settings.settingsPreviewBelow : 96
+	readonly property var settingsRule: settings.settingsRule !== undefined ? settings.settingsRule : "#222222"
+	readonly property var settingsColumn: settings.settingsColumn !== undefined ? settings.settingsColumn : 900
+	readonly property var settingsSectionGap: settings.settingsSectionGap !== undefined ? settings.settingsSectionGap : 40
+	readonly property var settingsInk: settings.settingsInk !== undefined ? settings.settingsInk : (mono ? displayBaseMono : displayBase)
 
 	// window switcher
 	readonly property var windowsGridCell: settings.windowsGridCell !== undefined ? settings.windowsGridCell : 92

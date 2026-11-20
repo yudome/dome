@@ -19,8 +19,11 @@ Item {
 	width: parent ? parent.width : 0
 	height: column.height
 
+	readonly property var names: ({ cpu: "CPU", github: "GitHub" })
+	readonly property var ordered: root.library.filter(function (f) { return !Toml.placed(root.store.layout, f.id); }).concat(root.library.filter(function (f) { return Toml.placed(root.store.layout, f.id); }))
+
 	function title(id) {
-		return id.charAt(0).toUpperCase() + id.slice(1);
+		return root.names[id] || id.charAt(0).toUpperCase() + id.slice(1);
 	}
 
 	function glyphOf(id) {
@@ -70,120 +73,171 @@ Item {
 			root.store.setLayout(Toml.move(root.store.layout, d.from, d.index, null, 0));
 	}
 
+	component Heading: Text {
+		width: root.width
+		elide: Text.ElideRight
+		font.family: Config.fontFamily
+		font.pixelSize: Config.settingsFontSize + 3
+		color: Config.foreground
+	}
+
 	Column {
 		id: column
 
 		width: parent.width
-		spacing: Config.settingsGap
+		spacing: Config.settingsSectionGap
 
-		Text {
-			font.family: Config.fontFamily
-			font.pixelSize: Config.settingsSmallSize
-			font.letterSpacing: 1
-			color: Config.settingsLabel
-			text: "LAYOUT"
-		}
+		Item {
+			width: parent.width
+			height: slotsHeading.height + 12 + slotsPanel.height
 
-		Repeater {
-			id: slotRepeater
+			Heading {
+				id: slotsHeading
 
-			model: root.slotNames
+				text: "Layout"
+			}
 
-			delegate: Item {
-				id: slot
+			Rectangle {
+				id: slotsPanel
 
-				required property string modelData
+				y: slotsHeading.height + 12
+				width: parent.width
+				height: slotColumn.height
+				radius: Config.settingsRadius
+				color: Config.settingsCard
 
-				required property int index
+				Column {
+					id: slotColumn
 
-				readonly property string name: modelData
+					x: Config.settingsGap + 4
+					width: parent.width - x * 2
 
-				Component.onCompleted: root.targets[slot.index] = { name: slot.name, area: box, flow: chips, list: chipRepeater }
+					Repeater {
+						model: root.slotNames
 
-				width: column.width
-				height: box.height
+						delegate: Item {
+							id: slot
 
-				Rectangle {
-					id: box
+							required property string modelData
+							required property int index
 
-					width: parent.width
-					height: Math.max(Config.settingsChipHeight, chips.height) + Config.settingsGap
-					radius: Config.settingsRadius
-					color: root.drag && root.inside(box) ? Config.settingsSelected : Config.settingsCard
+							readonly property string name: modelData
 
-					Text {
-						id: slotTitle
+							Component.onCompleted: root.targets[slot.index] = { name: slot.name, area: box, flow: chips, list: chipRepeater }
 
-						anchors.left: parent.left
-						anchors.leftMargin: Config.settingsGap
-						y: Config.settingsGap / 2
-						height: Config.settingsChipHeight
-						verticalAlignment: Text.AlignVCenter
-						width: 64
-						elide: Text.ElideRight
-						font.family: Config.fontFamily
-						font.pixelSize: Config.settingsFontSize
-						color: Config.settingsLabel
-						text: root.title(slot.name)
-					}
+							width: slotColumn.width
+							height: Math.max(Config.settingsRowHeight + 8, chips.height + 24)
 
-					Flow {
-						id: chips
+							Rectangle {
+								id: box
 
-						anchors.left: slotTitle.right
-						anchors.leftMargin: Config.settingsGap
-						anchors.right: parent.right
-						anchors.rightMargin: Config.settingsGap
-						y: Config.settingsGap / 2
-						spacing: 6
+								x: -Config.settingsGap + 6
+								y: 4
+								width: parent.width + (Config.settingsGap - 6) * 2
+								height: parent.height - 8
+								radius: Config.settingsRadius - 4
+								color: Config.settingsSelected
+								opacity: root.drag && root.inside(box) ? 1 : 0
 
-						Repeater {
-							id: chipRepeater
-
-							model: root.layout[slot.name] || []
-
-							delegate: Rectangle {
-								id: chip
-
-								required property var modelData
-								required property int index
-
-								width: chipRow.width + 16
-								height: Config.settingsChipHeight
-								radius: height / 2
-								color: Config.launcherHighlight
-								opacity: root.drag && root.drag.from === slot.name && root.drag.index === chip.index ? 0.3 : 1
-
-								Row {
-									id: chipRow
-
-									anchors.centerIn: parent
-									spacing: 6
-
-									Glyph {
-										width: 14
-										height: Config.settingsChipHeight
-										size: Config.settingsFontSize
-										glyph: root.glyphOf(chip.modelData.id)
-									}
-
-									Text {
-										anchors.verticalCenter: parent.verticalCenter
-										font.family: Config.fontFamily
-										font.pixelSize: Config.settingsFontSize
-										color: Config.foreground
-										text: root.title(chip.modelData.id)
+								Behavior on opacity {
+									NumberAnimation {
+										duration: Config.toggleMs
 									}
 								}
+							}
 
-								MouseArea {
-									anchors.fill: parent
-									cursorShape: Qt.OpenHandCursor
-									preventStealing: true
-									onPressed: function (mouse) { root.begin(slot.name, chip.index, chip.modelData.id, chip, mouse); }
-									onPositionChanged: function (mouse) { root.follow(chip, mouse); }
-									onReleased: root.finish()
-									onCanceled: root.drag = null
+							Rectangle {
+								visible: slot.index < 2
+								anchors.bottom: parent.bottom
+								width: parent.width
+								height: 1
+								color: Config.settingsRule
+							}
+
+							Text {
+								id: slotTitle
+
+								anchors.verticalCenter: parent.verticalCenter
+								width: 72
+								elide: Text.ElideRight
+								font.family: Config.fontFamily
+								font.pixelSize: Config.settingsFontSize + 1
+								color: Config.foreground
+								text: root.title(slot.name)
+							}
+
+							Text {
+								anchors.left: slotTitle.right
+								anchors.leftMargin: Config.settingsGap
+								anchors.verticalCenter: parent.verticalCenter
+								visible: chipRepeater.count === 0
+								font.family: Config.fontFamily
+								font.pixelSize: Config.settingsSmallSize
+								color: Config.settingsLabel
+								text: "Empty"
+							}
+
+							Flow {
+								id: chips
+
+								anchors.left: slotTitle.right
+								anchors.leftMargin: Config.settingsGap
+								anchors.right: parent.right
+								anchors.verticalCenter: parent.verticalCenter
+								spacing: 6
+
+								Repeater {
+									id: chipRepeater
+
+									model: root.layout[slot.name] || []
+
+									delegate: Rectangle {
+										id: chip
+
+										required property var modelData
+										required property int index
+
+										width: chipRow.width + 22
+										height: Config.settingsChipHeight
+										radius: height / 2
+										color: chipHover.containsMouse ? Config.toggleHover : Config.launcherHighlight
+										opacity: root.drag && root.drag.from === slot.name && root.drag.index === chip.index ? 0.25 : 1
+
+										Row {
+											id: chipRow
+
+											anchors.centerIn: parent
+											spacing: 7
+
+											Glyph {
+												width: 14
+												height: Config.settingsChipHeight
+												size: Config.settingsFontSize
+												glyph: root.glyphOf(chip.modelData.id)
+											}
+
+											Text {
+												anchors.verticalCenter: parent.verticalCenter
+												font.family: Config.fontFamily
+												font.pixelSize: Config.settingsFontSize
+												color: Config.foreground
+												text: root.title(chip.modelData.id)
+											}
+										}
+
+										MouseArea {
+											id: chipHover
+
+											anchors.fill: parent
+											hoverEnabled: true
+											cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+											preventStealing: true
+											onPressed: function (mouse) { root.begin(slot.name, chip.index, chip.modelData.id, chip, mouse); }
+											onPositionChanged: function (mouse) { root.follow(chip, mouse); }
+											onReleased: root.finish()
+											onCanceled: root.drag = null
+										}
+									}
 								}
 							}
 						}
@@ -192,89 +246,120 @@ Item {
 			}
 		}
 
-		Text {
-			topPadding: Config.settingsGap
-			font.family: Config.fontFamily
-			font.pixelSize: Config.settingsSmallSize
-			font.letterSpacing: 1
-			color: Config.settingsLabel
-			text: "WIDGETS"
-		}
-
-		Rectangle {
-			id: libraryBox
-
+		Item {
 			width: parent.width
-			height: libraryColumn.height + Config.settingsGap
-			radius: Config.settingsRadius
-			color: root.drag && root.drag.from && root.inside(libraryBox) ? Config.settingsSelected : Config.settingsCard
+			height: libraryHeading.height + 12 + libraryBox.height
 
-			Column {
-				id: libraryColumn
+			Heading {
+				id: libraryHeading
 
-				x: Config.settingsGap
-				y: Config.settingsGap / 2
-				width: parent.width - Config.settingsGap * 2
+				text: "Widgets"
+			}
 
-				Repeater {
-					model: root.library
+			Rectangle {
+				id: libraryBox
 
-					delegate: Item {
-						id: feature
+				y: libraryHeading.height + 12
+				width: parent.width
+				height: libraryColumn.height
+				radius: Config.settingsRadius
+				color: root.drag && root.drag.from && root.inside(libraryBox) ? Config.settingsSelected : Config.settingsCard
 
-						required property var modelData
+				Behavior on color {
+					ColorAnimation {
+						duration: Config.toggleMs
+					}
+				}
 
-						readonly property bool placed: Toml.placed(root.store.layout, feature.modelData.id)
+				Column {
+					id: libraryColumn
 
-						width: libraryColumn.width
-						height: Config.settingsRowHeight
-						opacity: feature.placed ? 0.35 : 1
+					x: Config.settingsGap + 4
+					width: parent.width - x * 2
 
-						Glyph {
-							id: featureGlyph
+					Repeater {
+						model: root.ordered
 
-							anchors.verticalCenter: parent.verticalCenter
-							width: 20
-							height: 20
-							size: Config.settingsFontSize + 2
-							glyph: Config.glyph(feature.modelData.glyph)
-						}
+						delegate: Item {
+							id: feature
 
-						Text {
-							id: featureName
+							required property var modelData
+							required property int index
 
-							anchors.left: featureGlyph.right
-							anchors.leftMargin: Config.settingsGap
-							anchors.verticalCenter: parent.verticalCenter
-							width: 110
-							elide: Text.ElideRight
-							font.family: Config.fontFamily
-							font.pixelSize: Config.settingsFontSize
-							color: Config.foreground
-							text: root.title(feature.modelData.id)
-						}
+							readonly property bool placed: Toml.placed(root.store.layout, feature.modelData.id)
 
-						Text {
-							anchors.left: featureName.right
-							anchors.leftMargin: Config.settingsGap
-							anchors.right: parent.right
-							anchors.verticalCenter: parent.verticalCenter
-							elide: Text.ElideRight
-							font.family: Config.fontFamily
-							font.pixelSize: Config.settingsSmallSize
-							color: Config.settingsLabel
-							text: feature.modelData.description || ""
-						}
+							width: libraryColumn.width
+							height: Config.settingsRowHeight
 
-						MouseArea {
-							anchors.fill: parent
-							enabled: !feature.placed
-							cursorShape: Qt.OpenHandCursor
-							preventStealing: true
-							onPressed: function (mouse) { root.begin(null, -1, feature.modelData.id, feature, mouse); }
-							onPositionChanged: function (mouse) { root.follow(feature, mouse); }
-							onReleased: root.finish()
-							onCanceled: root.drag = null
+							Rectangle {
+								visible: feature.index < root.library.length - 1
+								anchors.bottom: parent.bottom
+								width: parent.width
+								height: 1
+								color: Config.settingsRule
+							}
+
+							Glyph {
+								id: featureGlyph
+
+								anchors.verticalCenter: parent.verticalCenter
+								width: 18
+								height: 18
+								size: Config.settingsFontSize + 1
+								color: feature.placed ? Config.settingsLabel : Config.foreground
+								glyph: Config.glyph(feature.modelData.glyph)
+							}
+
+							Text {
+								id: featureName
+
+								anchors.left: featureGlyph.right
+								anchors.leftMargin: 14
+								anchors.verticalCenter: parent.verticalCenter
+								width: 120
+								elide: Text.ElideRight
+								font.family: Config.fontFamily
+								font.pixelSize: Config.settingsFontSize + 1
+								color: feature.placed ? Config.settingsLabel : Config.foreground
+								text: root.title(feature.modelData.id)
+							}
+
+							Text {
+								anchors.left: featureName.right
+								anchors.leftMargin: Config.settingsGap
+								anchors.right: placeMark.left
+								anchors.rightMargin: Config.settingsGap
+								anchors.verticalCenter: parent.verticalCenter
+								elide: Text.ElideRight
+								font.family: Config.fontFamily
+								font.pixelSize: Config.settingsSmallSize
+								color: Config.settingsLabel
+								text: feature.modelData.description || ""
+							}
+
+							Text {
+								id: placeMark
+
+								anchors.right: parent.right
+								anchors.verticalCenter: parent.verticalCenter
+								width: 64
+								horizontalAlignment: Text.AlignRight
+								font.family: Config.fontFamily
+								font.pixelSize: Config.settingsSmallSize
+								color: Config.settingsLabel
+								text: feature.placed ? "On bar" : ""
+							}
+
+							MouseArea {
+								anchors.fill: parent
+								enabled: !feature.placed
+								cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+								preventStealing: true
+								onPressed: function (mouse) { root.begin(null, -1, feature.modelData.id, feature, mouse); }
+								onPositionChanged: function (mouse) { root.follow(feature, mouse); }
+								onReleased: root.finish()
+								onCanceled: root.drag = null
+							}
 						}
 					}
 				}
@@ -285,18 +370,18 @@ Item {
 	Rectangle {
 		visible: root.drag !== null
 		z: 10
-		x: root.drag ? root.drag.x - ghostRow.width / 2 - 8 : 0
+		x: root.drag ? root.drag.x - width / 2 : 0
 		y: root.drag ? root.drag.y - height / 2 : 0
-		width: ghostRow.width + 16
+		width: ghostRow.width + 22
 		height: Config.settingsChipHeight
 		radius: height / 2
-		color: Config.settingsAccent
+		color: Config.foreground
 
 		Row {
 			id: ghostRow
 
 			anchors.centerIn: parent
-			spacing: 6
+			spacing: 7
 
 			Glyph {
 				width: 14

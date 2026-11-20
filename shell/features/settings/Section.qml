@@ -3,8 +3,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs
 import qs.ui
+import "Toml.js" as Toml
 
-Column {
+Item {
 	id: root
 
 	required property var section
@@ -13,87 +14,92 @@ Column {
 
 	readonly property var main: root.section.keys.filter(function (k) { return !k.advanced; })
 	readonly property var fine: root.section.keys.filter(function (k) { return k.advanced; })
+	readonly property var shown: root.main.length === 0 ? root.fine : root.main
+	readonly property bool folds: root.main.length > 0 && root.fine.length > 0
+	readonly property var rows: root.shown.concat(root.folds && root.open ? root.fine : [])
 
-	spacing: Config.settingsGap / 2
-
-	Component {
-		id: fieldRow
-
-		Field {
-			required property var modelData
-
-			entry: modelData
-			value: root.store.value(modelData.key)
-			changed: root.store.pending[modelData.key] !== undefined
-			onSet: function (next) { root.store.setValue(modelData.key, next); }
-		}
-	}
+	height: heading.height + 12 + panel.height
 
 	Text {
-		width: parent.width
+		id: heading
+
+		width: root.width
 		elide: Text.ElideRight
 		font.family: Config.fontFamily
-		font.pixelSize: Config.settingsSmallSize
-		font.letterSpacing: 1
-		color: Config.settingsLabel
-		text: (root.section.comment || root.section.name).toUpperCase()
+		font.pixelSize: Config.settingsFontSize + 3
+		color: Config.foreground
+		text: Toml.titles[root.section.name] || Toml.label(root.section.name, "")
 	}
 
 	Rectangle {
-		width: parent.width
-		height: card.height + Config.settingsGap
+		id: panel
+
+		y: heading.height + 12
+		width: root.width
+		height: list.height
 		radius: Config.settingsRadius
 		color: Config.settingsCard
 
 		Column {
-			id: card
+			id: list
 
-			x: Config.settingsGap
-			y: Config.settingsGap / 2
-			width: parent.width - Config.settingsGap * 2
+			x: Config.settingsGap + 4
+			width: parent.width - x * 2
+
+			Component {
+				id: fieldRow
+
+				Field {
+					required property var modelData
+					required property int index
+
+					entry: modelData
+					value: root.store.value(modelData.key)
+					changed: root.store.pending[modelData.key] !== undefined
+					last: index === root.rows.length - 1 && !root.folds
+					onSet: function (next) { root.store.setValue(modelData.key, next); }
+				}
+			}
 
 			Repeater {
-				model: root.main
+				model: root.rows
 				delegate: fieldRow
 			}
 
 			Item {
 				width: parent.width
-				height: Config.settingsRowHeight
-				visible: root.fine.length > 0
-
-				Glyph {
-					id: chevron
-
-					anchors.verticalCenter: parent.verticalCenter
-					width: 14
-					height: 14
-					size: Config.settingsSmallSize
-					color: Config.settingsLabel
-					glyph: root.open ? Config.iconDown : Config.iconRight
-				}
+				height: Config.settingsRowHeight - 4
+				visible: root.folds
 
 				Text {
-					anchors.left: chevron.right
-					anchors.leftMargin: 8
-					anchors.right: parent.right
+					id: moreText
+
 					anchors.verticalCenter: parent.verticalCenter
-					elide: Text.ElideRight
 					font.family: Config.fontFamily
 					font.pixelSize: Config.settingsFontSize
-					color: Config.settingsLabel
-					text: "Advanced"
+					color: moreHover.containsMouse ? Config.foreground : Config.settingsLabel
+					text: root.open ? "Fewer options" : "More options"
+				}
+
+				Glyph {
+					anchors.left: moreText.right
+					anchors.leftMargin: 8
+					anchors.verticalCenter: parent.verticalCenter
+					width: 12
+					height: 12
+					size: Config.settingsSmallSize - 2
+					color: moreText.color
+					glyph: root.open ? Config.iconUp : Config.iconDown
 				}
 
 				MouseArea {
+					id: moreHover
+
 					anchors.fill: parent
+					hoverEnabled: true
+					cursorShape: Qt.PointingHandCursor
 					onClicked: root.open = !root.open
 				}
-			}
-
-			Repeater {
-				model: root.open ? root.fine : []
-				delegate: fieldRow
 			}
 		}
 	}

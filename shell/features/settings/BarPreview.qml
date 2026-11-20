@@ -5,7 +5,7 @@ import qs
 import qs.ui
 import qs.services
 
-Column {
+Rectangle {
 	id: root
 
 	required property var store
@@ -19,7 +19,7 @@ Column {
 	readonly property var bar: root.layout && root.layout.bar ? root.layout.bar : ({})
 	readonly property var slots: root.bar.layout || ({})
 	readonly property bool atBottom: root.bar.position === "bottom"
-	readonly property real span: Math.min(root.width, root.screenWidth)
+	readonly property real span: Math.min(root.width - 12, root.screenWidth)
 	readonly property real offset: root.part === "left" ? 0 : root.part === "right" ? root.screenWidth - root.span : Math.round((root.screenWidth - root.span) / 2)
 	readonly property real outer: root.v("barFloating") === true ? root.v("gapsOut") : 0
 	readonly property real borderWidth: root.v("barBorderWidth") < 0 ? root.v("borderFallbackWidth") : root.v("barBorderWidth")
@@ -28,7 +28,9 @@ Column {
 	readonly property real barHeight: Math.ceil(root.contentHeight) + root.inset * 2
 	readonly property real stripHeight: root.barHeight + root.outer + Config.settingsPreviewBelow
 
-	spacing: Config.settingsGap
+	height: header.height + strip.height + Config.settingsGap * 2 + 12
+	radius: Config.settingsRadius
+	color: Config.settingsCard
 
 	function v(key) {
 		const value = root.store.value(key);
@@ -47,17 +49,45 @@ Column {
 		network: { base: "networkBase", sample: "4G", fill: 0.6 }
 	})
 
-	PillSwitch {
-		model: [{ label: "Left", value: "left" }, { label: "Center", value: "center" }, { label: "Right", value: "right" }]
-		selected: ["left", "center", "right"].indexOf(root.part)
-		onPick: function (next) { root.part = next; }
+	Item {
+		id: header
+
+		x: Config.settingsGap + 4
+		y: Config.settingsGap
+		width: root.width - x * 2
+		height: partSwitch.height
+
+		Text {
+			anchors.left: parent.left
+			anchors.right: partSwitch.left
+			anchors.rightMargin: Config.settingsGap
+			anchors.verticalCenter: parent.verticalCenter
+			elide: Text.ElideRight
+			font.family: Config.fontFamily
+			font.pixelSize: Config.settingsFontSize + 1
+			color: Config.foreground
+			text: "Preview"
+		}
+
+		PillSwitch {
+			id: partSwitch
+
+			anchors.right: parent.right
+			model: [{ label: "Left", value: "left" }, { label: "Center", value: "center" }, { label: "Right", value: "right" }]
+			selected: ["left", "center", "right"].indexOf(root.part)
+			onPick: function (next) { root.part = next; }
+		}
 	}
 
 	Rectangle {
-		width: root.width
+		id: strip
+
+		x: 6
+		y: header.y + header.height + 12
+		width: root.width - 12
 		height: root.stripHeight
-		radius: Config.settingsRadius
-		color: Config.settingsCard
+		radius: Config.settingsRadius - 4
+		color: Config.surface
 		clip: true
 
 		Image {

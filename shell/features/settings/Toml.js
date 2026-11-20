@@ -8,6 +8,7 @@ var enums = {
 };
 
 var primary = [
+	"fontFamily", "clockFormat", "lockClockFormat", "weatherLocation", "launcherClipTimeFormat",
 	"fontSize", "iconSize", "spacing", "gapsIn", "gapsOut", "workspaceSpacing",
 	"barCells", "barPadding", "barInset", "barStatSpacing", "barThickness", "barBorderWidth",
 	"trayIconSize", "trayIconGap",
@@ -28,6 +29,42 @@ var categories = [
 	{ id: "widgets", name: "Widgets", glyph: "widgets", sections: ["cpu", "memory", "mixer", "media", "network", "weather", "contrib", "agent", "disk"] },
 	{ id: "power", name: "Lock and power", glyph: "lock", sections: ["lock", "power"] }
 ];
+
+var titles = {
+	colors: "Colors", shell: "Type and spacing", bar: "Bar", tray: "Tray", wallpaper: "Wallpaper picker",
+	popup: "Popups", tooltip: "Tooltips", notify: "Notifications", calendar: "Calendar", launcher: "Launcher",
+	windows: "Window switcher", cpu: "Processor", memory: "Memory", mixer: "Volume mixer", media: "Now playing",
+	network: "Network", weather: "Weather", contrib: "GitHub graph", agent: "Agent", disk: "Disk map",
+	lock: "Lock screen", power: "Power"
+};
+
+var prefixes = {
+	bar: ["bar"], tray: ["tray"], popup: ["popup"], tooltip: ["tooltip"], notify: ["notify"], calendar: ["calendar"],
+	launcher: ["launcher"], windows: ["windows", "window"], cpu: ["cpu"], memory: ["memory"], mixer: ["mixer"],
+	media: ["media"], network: ["network"], weather: ["weather"], contrib: ["contrib"], agent: ["agent"],
+	disk: ["disk"], lock: ["lock"], power: ["power"], wallpaper: ["wallpaper"]
+};
+
+function label(key, section) {
+	var rest = key;
+	var own = prefixes[section] || [];
+	for (var i = 0; i < own.length; i++) {
+		var p = own[i];
+		if (key.indexOf(p) === 0 && key.length > p.length && /[A-Z]/.test(key[p.length])) {
+			rest = key.slice(p.length);
+			break;
+		}
+	}
+	var words = rest.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z])([A-Z][a-z])/g, "$1 $2").toLowerCase();
+	words = words.replace(/\bms\b/, "(ms)").replace(/\bpos\b/, "position").replace(/\bcpu\b/, "CPU").replace(/\bx\b/, "X").replace(/\by\b/, "Y");
+	return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+function note(comment) {
+	if (!comment || /[()?"+*=]/.test(comment) || /^same as/.test(comment))
+		return "";
+	return comment.charAt(0).toUpperCase() + comment.slice(1);
+}
 
 function decode(body) {
 	var out = "";
@@ -91,6 +128,12 @@ function typeOf(key, lit) {
 	return "text";
 }
 
+function isAdvanced(key, type) {
+	if (type === "bool" || type === "enum" || type === "color")
+		return false;
+	return primary.indexOf(key) < 0;
+}
+
 function parse(text) {
 	var sections = [];
 	var values = {};
@@ -133,7 +176,7 @@ function parse(text) {
 		if (!lit)
 			continue;
 		var comment = lit.tail.replace(/^\s*#?\s*/, "");
-		current.keys.push({ key: kv[1], value: lit.value, type: typeOf(kv[1], lit), comment: comment, advanced: (lit.float !== undefined) && primary.indexOf(kv[1]) < 0 });
+		current.keys.push({ section: current.name, key: kv[1], value: lit.value, type: typeOf(kv[1], lit), comment: comment, advanced: isAdvanced(kv[1], typeOf(kv[1], lit)) });
 		values[kv[1]] = lit.value;
 		note = "";
 	}
@@ -141,20 +184,41 @@ function parse(text) {
 	return { sections: sections, values: values };
 }
 
+var ranges = {
+	fontSize: [8, 24], iconSize: [6, 24], spacing: [0, 32], gapsIn: [0, 24], gapsOut: [0, 32], workspaceSpacing: [0, 24],
+	barCells: [4, 30], barPadding: [0, 32], barInset: [0, 24], barStatSpacing: [0, 40], barThickness: [0, 4], barBorderWidth: [-1, 6],
+	trayIconSize: [8, 32], trayIconGap: [0, 24], popupCloseDelay: [0, 500], notifyScale: [0.75, 2], notifyTimeout: [1000, 20000],
+	notifyVisibleRows: [1, 12], launcherMaxRows: [4, 20], launcherSpotlightMaxRows: [4, 16], launcherGridColumns: [3, 10],
+	launcherGridRows: [2, 8], calendarWeekStart: [0, 6], calendarLifeExpectancy: [50, 110], cpuTopCount: [1, 12],
+	memoryTopCount: [1, 12], memoryWarnAt: [0, 100], memoryDangerAt: [0, 100], mixerMaxVolume: [0.5, 1.5], weatherDays: [1, 14],
+	contribWeeks: [4, 52], wallpaperTransitionMs: [0, 2000], lockAfterMinutes: [0, 60], lockSleepAfterMinutes: [0, 120],
+	lockFontSize: [8, 32], powerWarnAt: [0, 100], powerDangerAt: [0, 100]
+};
+
 function nice(x) {
 	var p = Math.pow(10, Math.floor(Math.log(x) / Math.LN10));
 	var f = x / p;
 	return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
 }
 
-function steps(base, type) {
+function steps(base, type, key) {
+	var range = ranges[key];
 	var top = Math.abs(base) > 0 ? Math.abs(base) * 2 : (type === "float" ? 1 : 10);
-	var step = type === "int" ? Math.max(1, nice(top / 24)) : nice(top / 20);
-	var out = [];
 	var low = base < 0 ? base : 0;
+	if (range) {
+		low = Math.min(range[0], base);
+		top = Math.max(range[1], base);
+	}
+	var span = top - low;
+	var step = type === "int" ? Math.max(1, nice(span / 24)) : nice(span / 20);
+	var out = [];
 	for (var v = low; v <= top + step / 2; v += step)
-		out.push(type === "int" ? Math.round(v) : Math.round(v / step) * step);
-	return out.map(function (v) { return type === "int" ? v : Number(v.toFixed(6)); });
+		out.push(type === "int" ? Math.round(v) : Number((Math.round(v / step) * step).toFixed(6)));
+	if (out.indexOf(base) < 0) {
+		out.push(base);
+		out.sort(function (x, y) { return x - y; });
+	}
+	return out;
 }
 
 function nearest(options, value) {
