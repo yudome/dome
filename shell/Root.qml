@@ -144,6 +144,10 @@ ShellRoot {
 		BarInk.toggleAll(all);
 	}
 
+	function openSettings(pane) {
+		Yudae.request("settings", "app", { pane: pane });
+	}
+
 	// Opens a widget, or one of the few things the bar does besides showing
 	// widgets.
 	function widgetAction(id) {
@@ -174,7 +178,7 @@ ShellRoot {
 	}
 
 	Instantiator {
-		model: [["clipboard", "clipboard"], ["cpu", "cpu"], ["memory", "memory"], ["volume", "volume"], ["calendar", "clock"], ["weather", "weather"], ["notifications", "notify"], ["contributions", "github"], ["media", "media"], ["network", "network"], ["display", "display"], ["power", "power"], ["tray", "tray"], ["bareBar", "bareBar"]]
+		model: [["clipboard", "clipboard"], ["cpu", "cpu"], ["memory", "memory"], ["volume", "volume"], ["calendar", "clock"], ["weather", "weather"], ["notifications", "notify"], ["contributions", "github"], ["media", "media"], ["network", "network"], ["power", "power"], ["tray", "tray"], ["bareBar", "bareBar"]]
 
 		delegate: GlobalShortcut {
 			required property var modelData
@@ -183,6 +187,12 @@ ShellRoot {
 
 			onPressed: modelData[1] === "clipboard" ? shellRoot.clipboard() : shellRoot.widgetAction(modelData[1])
 		}
+	}
+
+	GlobalShortcut {
+		name: "display"
+
+		onPressed: shellRoot.openSettings("display")
 	}
 
 	Instantiator {
@@ -274,7 +284,7 @@ ShellRoot {
 		}
 
 		function display() {
-			shellRoot.openWidget("display", true);
+			shellRoot.openSettings("display");
 		}
 
 		function agent() {

@@ -8,7 +8,6 @@ import "../features/agent"
 import "../features/clock"
 import "../features/github"
 import "../features/cpu"
-import "../features/display"
 import "../features/media"
 import "../features/memory"
 import "../features/network"
@@ -107,7 +106,6 @@ PanelWindow {
 		if (id === "network") return networkComponent;
 		if (id === "volume") return volumeComponent;
 		if (id === "power") return powerComponent;
-		if (id === "display") return displayComponent;
 		if (id === "agent") return agentComponent;
 		if (id === "spacer") return spacerComponent;
 
@@ -266,7 +264,6 @@ PanelWindow {
 	Component { id: networkComponent; NetworkStat {} }
 	Component { id: volumeComponent; VolumeStat {} }
 	Component { id: powerComponent; PowerStat {} }
-	Component { id: displayComponent; DisplayStat {} }
 	Component { id: agentComponent; AgentStat {} }
 	Component { id: spacerComponent; Spacer {} }
 

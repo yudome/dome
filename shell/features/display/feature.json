@@ -1,6 +1,5 @@
 {
   "name": "display",
   "daemon": "screen",
-  "widget": "DisplayStat",
   "panel": "DisplayPanel"
 }
