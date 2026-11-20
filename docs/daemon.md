@@ -35,6 +35,16 @@ providers -> hub.snapshot() -> unix socket -> services/Yudae.qml -> QML
 
 A provider registers its commands by key. `yudae call <target> <method> [args...]` sends `{"cmd":{"<target>":{"<method>":<value>}}}`. With no arg the value is `true`, one arg is a string (or JSON if it parses), several are an array. The daemon routes the target to the provider; the provider validates the method.
 
+## Settings
+
+The Settings app (`shell/app-settings.qml`, `features/settings/`) edits `shell/config.toml` and `shell/topbarlayout.json`. Edits stay pending in the app; Apply sends one call per changed key and one for the layout, and the file watchers republish `settings` and `bar`.
+
+- `settings.set {key, value}` rewrites the one line of `key` in `config.toml`, keeping its indent, trailing comment and the order of the file. The value must have the key's current type: string, bool, integer (a whole float is accepted) or float (an integer is written as `N.0`). Non-ASCII text is written as `\uXXXX` / `\UXXXXXXXX`. Errors: `UnknownKey`, `WrongType`, `Unsupported` (arrays and tables), `NoKey`, `NoValue`. The result is parsed before the atomic write, so a bad edit never lands.
+- `bar.layout {layout}` writes the whole `topbarlayout.json` document atomically after the same `normalize` the bar reader uses accepts it (`NoBar`, `NoLayout`).
+- `settings.app {pane?}` opens the app (`setsid scripts/yudae app open settings [--pane <pane>]`), like `vms.app` and `disk.app`. Panes: `appearance`, `bar`, `display`, `wallpaper`, `panels`, `widgets`, `power`. Super+P opens it on `display`.
+
+The display controls live only in the Display pane; there is no display widget on the bar. The widget library in the Top bar pane reads `features/*/feature.json`: every feature with a `widget` and its `glyph` (a name in the icon list) and `description`.
+
 ## VM control plane
 
 The daemon is the only process that talks to QEMU and to guest daemons:
