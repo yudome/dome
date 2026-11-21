@@ -95,6 +95,7 @@ pub const Opencode = struct {
 	mutex: std.Io.Mutex = .init,
 	scratch: std.heap.ArenaAllocator,
 	notifications: ?*notify.Notifications = null,
+	finished_toast: ?bool = null,
 	sessions: std.StringHashMapUnmanaged(*Session) = .empty,
 	running: std.ArrayListUnmanaged([]u8) = .empty,
 	asking: std.ArrayListUnmanaged([]u8) = .empty,
@@ -410,7 +411,7 @@ pub const Opencode = struct {
 
 		if (self.notifications) |notifications| {
 			if (note_title) |text| {
-				if (finishedToastWanted(self.io, self.allocator)) notifications.post(app, text, "Task finished", 5000);
+				if (self.finished_toast orelse finishedToastWanted(self.io, self.allocator)) notifications.post(app, text, "Task finished", 5000);
 				self.allocator.free(text);
 			}
 		}
@@ -1017,6 +1018,7 @@ test "a finished session posts a notification" {
 	const self = try Opencode.create(allocator, io, &hub, &client);
 	var notes: notify.Notifications = .{ .allocator = allocator, .io = io, .hub = &hub, .scratch = std.heap.ArenaAllocator.init(allocator), .runtime = "/tmp" };
 	self.attach(&notes);
+	self.finished_toast = true;
 
 	self.handleEvent("{\"type\":\"session.created\",\"data\":{\"sessionID\":\"ses_done\",\"title\":\"Greeting\"}}");
 	self.handleEvent("{\"type\":\"session.execution.succeeded\",\"data\":{\"sessionID\":\"ses_done\"}}");
