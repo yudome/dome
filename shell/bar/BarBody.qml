@@ -27,6 +27,7 @@ Item {
 	property bool hidden: false
 	property real contentFade: 1
 	property bool clear: false
+	property bool sample: false
 	property var widgets: ({})
 
 	readonly property real inset: border.inset
@@ -117,6 +118,10 @@ Item {
 					item.mode = modelData.mode;
 				if (item.bar !== undefined)
 					item.bar = body.host;
+				if (item.frozen !== undefined)
+					item.frozen = body.sample;
+				if (item.sampleOnly !== undefined)
+					item.sampleOnly = body.sample;
 				if (item.popupCentered !== undefined && body.isCenterSlot(modelData.id)) {
 					item.popupCentered = true;
 					if (item.popupAlwaysCentered !== undefined)

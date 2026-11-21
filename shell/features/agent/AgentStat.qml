@@ -12,6 +12,8 @@ import qs.ui
 BarStat {
 	id: root
 
+	property bool sampleOnly: false
+
 	inkId: "agent"
 
 	mode: "icon"
@@ -37,9 +39,8 @@ BarStat {
 			height: parent.height
 
 			size: Math.min(parent.width, parent.height)
-			state: Yudae.state
-
-			paused: !root.onScreen
+			state: root.sampleOnly ? "idle" : Yudae.state
+			paused: root.sampleOnly || !root.onScreen
 
 			// The bar icon keeps its eyes still. The panel face tracks the cursor.
 			followCursor: false

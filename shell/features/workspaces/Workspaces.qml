@@ -7,11 +7,12 @@ Row {
 	id: root
 	spacing: Config.workspaceSpacing
 	property var bar: null
+	property bool frozen: false
 
 	readonly property real baselineLift: Math.ceil(Config.barThickness)
 	readonly property var source: Yudae.workspaces
 	readonly property var ids: (root.source.ids || []).filter(function (id) { return id !== 99; })
-	readonly property int pool: root.ids.length > 0 ? root.ids[root.ids.length - 1] : 0
+	readonly property int pool: root.frozen ? 4 : root.ids.length > 0 ? root.ids[root.ids.length - 1] : 0
 	readonly property int focusedSlot: root.source.focusedSlot === undefined ? -1 : root.source.focusedSlot
 	readonly property var slotVersions: root.source.versions || []
 
@@ -49,7 +50,7 @@ Row {
 
 			readonly property int workspaceId: index + 1
 			readonly property int version: root.slotVersions[ws.workspaceId] || 1
-			readonly property bool active: root.focusedSlot === ws.workspaceId
+			readonly property bool active: root.frozen ? ws.index === 0 : root.focusedSlot === ws.workspaceId
 			readonly property bool versioned: ws.version > 1
 			property real reform: 0
 
