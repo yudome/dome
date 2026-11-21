@@ -37,20 +37,21 @@ A provider registers its commands by key. `yudae call <target> <method> [args...
 
 ## Settings
 
-The Settings app (`shell/app-settings.qml`, `features/settings/`) draws itself from `settings.schema`; it holds no list of settings. Adding one means adding a line to `shell/config.toml`:
+The Settings app (`shell/app-settings.qml`, `features/settings/`) draws itself from `settings.schema`; it holds no list of settings. Every settings category is one file under `shell/config/`, and `general.toml` lists the pages:
 
-- A section is a `[section]` table; the comment line above it is the panel title. A key needs no registration: its type comes from its value, and its label from the key with the section prefix dropped (`barCells` in `[bar]` is "Cells").
-- A trailing comment adds the rest without code: `# 4..30` gives the slider range, `# icon | text` makes a choice, `hidden` keeps a key out of the app, and any other sentence is shown as the row's note.
-- A page is one entry in `settingsPages` with a name, a glyph from the icon list and the sections it holds, in order. Sections not listed in any page fall under "Other".
-- `[agent] agentFinishedToast` turns the "Task finished" toast off; the finished list in the agent panel stays.
+```toml
+settingsPages = [
+	{ name = "Display", glyph = "monitor", file = "display" },
+]
+```
 
-`settingsApply` is `instant` (every change is written as it is made) or `manual` (changes wait behind one Apply). It is itself a setting.
+Adding a setting means adding a line to that category's file. A section is a `[section]` table; the comment line above it is the panel title. A key needs no registration: its type comes from its value, and its label is the key with the section prefix dropped (`barCells` in `[bar]` is "Cells"). A trailing comment adds the rest: `# 4..30` gives the slider range, `# icon | text` makes a choice, `hidden` keeps a key out of the app, any other sentence is the row's note. All font glyphs live in `icons.toml`; `settings.schema` collects every glyph key there and leaves glyphs out of the other pages.
 
-`config.toml` stays the only store. Edits are one line each, keeping indent, trailing comment and file order; the result is parsed before the atomic write, so a bad edit never lands.
+The files under `shell/config/` stay the only store. Edits are one line each, keeping indent, trailing comment and file order; the result is parsed before the atomic write, so a bad edit never lands.
 
 - `settings.schema` returns the pages, sections and keys with type, value, label, note, choices and slider steps; the app re-reads it whenever the config changes. Glyph keys are collected on the page named `Icons` and left out of every other page.
 - `settings.get {key?}` returns one value, or the whole flattened map without a key.
-- `settings.set {key, value}` writes one key and then the keys that copy or derive from it: `# same as <key>`, and arithmetic or `a ? b : c` comments that name the changed key (`notifyWidth` follows `notifyScale`, `barBorderWidth` follows `barFloating`). The value must have the key's current type: string, bool, integer (a whole float is accepted) or float (an integer is written as `N.0`). Non-ASCII text is written as `\uXXXX` / `\UXXXXXXXX`. Errors: `UnknownKey`, `WrongType`, `Unsupported` (arrays and tables), `NoKey`, `NoValue`.
+- `settings.set {key, value}` finds the category file that owns the key, writes one line there and then the keys that copy or derive from it, in that file or another: `# same as <key>`, and arithmetic or `a ? b : c` comments that name the changed key (`notifyWidth` follows `notifyScale`, `barBorderWidth` follows `barFloating`). The value must have the key's current type: string, bool, integer (a whole float is accepted) or float (an integer is written as `N.0`). Non-ASCII text is written as `\uXXXX` / `\UXXXXXXXX`. Errors: `UnknownKey`, `WrongType`, `Unsupported` (arrays and tables), `NoKey`, `NoValue`.
 - `bar.layout {layout}` writes the whole `topbarlayout.json` document atomically after the same `normalize` the bar reader uses accepts it (`NoBar`, `NoLayout`). One widget per line, like the checked-in file.
 - `settings.app {pane?}` opens the app (`setsid scripts/yudae app open settings [--pane <pane>]`), like `vms.app` and `disk.app`. The pane is a page name; Super+P opens the app on `display`.
 

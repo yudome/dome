@@ -45,8 +45,8 @@ pub const Config = struct {
 		thread.detach();
 	}
 
-	fn path(self: *Config, allocator: Allocator) []const u8 {
-		return std.fmt.allocPrint(allocator, "{s}/dotfiles/shell/config.toml", .{proc.home(self.io, allocator)}) catch "/nonexistent";
+	fn dir(self: *Config, allocator: Allocator) []const u8 {
+		return std.fmt.allocPrint(allocator, "{s}/dotfiles/shell/config", .{proc.home(self.io, allocator)}) catch "/nonexistent";
 	}
 
 	fn themePath(self: *Config, allocator: Allocator) []const u8 {
@@ -60,10 +60,23 @@ pub const Config = struct {
 	fn watchLoop(self: *Config) void {
 		self.reload();
 
-		const file = self.path(self.allocator);
-		defer self.allocator.free(file);
+		const folder = self.dir(self.allocator);
+		defer self.allocator.free(folder);
 
-		watch.watchFile(self.io, self.allocator, file, self, reloadThunk) catch {};
+		var watcher = watch.Watcher.init() catch return;
+		defer watcher.close();
+
+		const sentinel = self.allocator.allocSentinel(u8, folder.len, 0) catch return;
+		defer self.allocator.free(sentinel);
+		@memcpy(sentinel, folder);
+
+		watcher.add(sentinel) catch return;
+
+		while (true) {
+			_ = watcher.next() catch continue;
+			self.io.sleep(std.Io.Duration.fromMilliseconds(120), .awake) catch {};
+			self.reload();
+		}
 	}
 
 	fn reloadThunk(ctx: *anyopaque) void {
@@ -72,10 +85,10 @@ pub const Config = struct {
 	}
 
 	pub fn reload(self: *Config) void {
-		const file = self.path(self.allocator);
-		defer self.allocator.free(file);
+		const folder = self.dir(self.allocator);
+		defer self.allocator.free(folder);
 
-		const body = proc.readFile(self.io, self.allocator, file) catch return;
+		const body = configmod.readDir(self.io, self.allocator, folder) catch return;
 		defer self.allocator.free(body);
 
 		const theme_file = self.themePath(self.allocator);
@@ -128,7 +141,15 @@ pub const Config = struct {
 	pub fn call(self: *Config, method: []const u8, args: json.Value, alloc: Allocator) ![]u8 {
 		if (std.mem.eql(u8, method, "set")) return self.set(args, alloc);
 		if (std.mem.eql(u8, method, "get")) return self.get(args, alloc);
-		if (std.mem.eql(u8, method, "schema")) return schema(alloc, try proc.readFile(self.io, alloc, self.path(alloc)));
+		if (std.mem.eql(u8, method, "schema")) {
+			const folder = self.dir(alloc);
+			const list = try configmod.files(self.io, alloc, folder);
+			defer {
+				for (list) |file| alloc.free(file.body);
+				alloc.free(list);
+			}
+			return schema(alloc, list);
+		}
 		if (std.mem.eql(u8, method, "app")) return openApp(self.io, alloc, "settings", json.textAt(args, "pane"));
 		return error.UnknownMethod;
 	}
@@ -138,12 +159,35 @@ pub const Config = struct {
 		const value = json.field(args, "value") orelse return error.NoValue;
 		if (name.len == 0) return error.NoKey;
 
-		const file = self.path(alloc);
-		const body = try proc.readFile(self.io, alloc, file);
-		const next = try propagate(alloc, try rewrite(alloc, body, name, value), name, value, 0);
+		const folder = self.dir(alloc);
+		const list = try configmod.files(self.io, alloc, folder);
+		defer {
+			for (list) |file| alloc.free(file.body);
+			alloc.free(list);
+		}
 
-		(try configmod.Config.parse(alloc, next)).deinit();
-		try proc.writeFileAtomic(self.io, alloc, file, next);
+		var found = false;
+		var merged: std.ArrayList(u8) = .empty;
+		defer merged.deinit(alloc);
+
+		for (list) |file| {
+			var body = file.body;
+			if (!found and try hasKey(alloc, body, name)) {
+				found = true;
+				body = try rewrite(alloc, body, name, value);
+			}
+			const next = try propagate(alloc, body, name, value, 0);
+			if (!std.mem.eql(u8, next, file.body)) {
+				const path = try std.fmt.allocPrint(alloc, "{s}/{s}.toml", .{ folder, file.name });
+				defer alloc.free(path);
+				try proc.writeFileAtomic(self.io, alloc, path, next);
+			}
+			try merged.appendSlice(alloc, next);
+			try merged.append(alloc, '\n');
+		}
+
+		if (!found) return error.UnknownKey;
+		(try configmod.Config.parse(alloc, merged.items)).deinit();
 		self.reload();
 
 		return alloc.dupe(u8, "{\"ok\":true}");
@@ -151,7 +195,9 @@ pub const Config = struct {
 
 	fn get(self: *Config, args: json.Value, alloc: Allocator) ![]u8 {
 		const name = json.textAt(args, "key");
-		const cfg = try configmod.Config.parse(alloc, try proc.readFile(self.io, alloc, self.path(alloc)));
+		const folder = self.dir(alloc);
+		const body = try configmod.readDir(self.io, alloc, folder);
+		const cfg = try configmod.Config.parse(alloc, body);
 		defer cfg.deinit();
 
 		var out: Writer.Allocating = .init(alloc);
@@ -687,14 +733,18 @@ fn writeSection(alloc: Allocator, w: *Writer, cfg: configmod.Config, all: []cons
 	return true;
 }
 
-pub fn schema(alloc: Allocator, body: []const u8) ![]u8 {
-	const cfg = try configmod.Config.parse(alloc, body);
+pub fn schema(alloc: Allocator, list: []const configmod.File) ![]u8 {
+	var merged: std.ArrayList(u8) = .empty;
+	defer merged.deinit(alloc);
+	for (list) |file| {
+		try merged.appendSlice(alloc, file.body);
+		try merged.append(alloc, '\n');
+	}
+	const cfg = try configmod.Config.parse(alloc, merged.items);
 	defer cfg.deinit();
-	const all = try lines(alloc, body);
 
 	var out: Writer.Allocating = .init(alloc);
 	const w = &out.writer;
-	var listed: std.StringHashMapUnmanaged(void) = .empty;
 
 	try w.writeAll("{\"apply\":");
 	const apply = switch (cfg.get("settingsApply") orelse configmod.Value{ .string = "instant" }) {
@@ -724,49 +774,54 @@ pub fn schema(alloc: Allocator, body: []const u8) ![]u8 {
 		try w.writeAll(",\"sections\":[");
 		var wrote = false;
 		if (std.mem.eql(u8, tableText(table, "name"), "Icons")) {
-			var seen: std.StringHashMapUnmanaged(void) = .empty;
-			for (all) |line| {
-				if (line.key.len != 0 or line.section.len == 0 or seen.contains(line.section)) continue;
-				try seen.put(alloc, line.section, {});
+			for (list) |file| {
+				const body_lines = try lines(alloc, file.body);
+				for (body_lines) |line| {
+					if (line.key.len != 0 or line.section.len == 0) continue;
+					if (wrote) try w.writeByte(',');
+					if (try writeSection(alloc, w, cfg, body_lines, line.section, .glyph_only)) {
+						wrote = true;
+					} else if (wrote) {
+						out.writer.undo(1);
+					}
+				}
+			}
+		} else {
+			const file = tableText(table, "file");
+			const body = bodyFor(list, file, tableText(table, "name")) orelse "";
+			const body_lines = try lines(alloc, body);
+			for (body_lines) |line| {
+				if (line.key.len != 0 or line.section.len == 0) continue;
 				if (wrote) try w.writeByte(',');
-				if (try writeSection(alloc, w, cfg, all, line.section, .glyph_only)) {
+				if (try writeSection(alloc, w, cfg, body_lines, line.section, .no_glyph)) {
 					wrote = true;
 				} else if (wrote) {
 					out.writer.undo(1);
 				}
 			}
-		} else for (tableList(table, "sections")) |item| {
-			const name = switch (item) {
-				.string => |t| t,
-				else => continue,
-			};
-			try listed.put(alloc, name, {});
-			if (wrote) try w.writeByte(',');
-			if (try writeSection(alloc, w, cfg, all, name, .no_glyph)) {
-				wrote = true;
-			} else if (wrote) {
-				out.writer.undo(1);
-			}
 		}
 		try w.writeAll("]}");
 	}
 
-	var other = false;
-	for (all) |line| {
-		if (line.key.len != 0 or listed.contains(line.section)) continue;
-		var probe: Writer.Allocating = .init(alloc);
-		if (!try writeSection(alloc, &probe.writer, cfg, all, line.section, .no_glyph)) continue;
-		if (!other) {
-			if (pages > 0) try w.writeByte(',');
-			try w.writeAll("{\"name\":\"Other\",\"glyph\":\"settings\",\"sections\":[");
-			other = true;
-		} else try w.writeByte(',');
-		try w.writeAll(probe.written());
-	}
-	if (other) try w.writeAll("]}");
-
 	try w.writeAll("]}");
 	return out.toOwnedSlice();
+}
+
+fn bodyFor(list: []const configmod.File, file: []const u8, name: []const u8) ?[]const u8 {
+	for (list) |entry| {
+		if (std.mem.eql(u8, entry.name, file)) return entry.body;
+	}
+	for (list) |entry| {
+		if (std.mem.eql(u8, entry.name, name)) return entry.body;
+	}
+	return if (list.len == 1) list[0].body else null;
+}
+
+fn hasKey(alloc: Allocator, body: []const u8, key: []const u8) !bool {
+	for (try lines(alloc, body)) |line| {
+		if (std.mem.eql(u8, line.key, key)) return true;
+	}
+	return false;
 }
 
 fn references(comment: []const u8, key: []const u8) bool {
@@ -865,16 +920,21 @@ test "settings.schema reads pages, titles, types and hints from config.toml" {
 		\\extraSize = 2.5
 	;
 
-	const parsed = try json.parse(a, try schema(a, body));
+	const files = [_]configmod.File{.{ .name = "config", .body = body }};
+	const parsed = try json.parse(a, try schema(a, &files));
 	const root = parsed.value;
 	try std.testing.expectEqualStrings("instant", json.textAt(root, "apply"));
 	const pages = json.listAt(root, "pages");
-	try std.testing.expectEqual(@as(usize, 3), pages.len);
+	try std.testing.expectEqual(@as(usize, 2), pages.len);
 	try std.testing.expectEqualStrings("Look", json.textAt(pages[0], "name"));
 	try std.testing.expectEqualStrings("Icons", json.textAt(pages[1], "name"));
-	try std.testing.expectEqualStrings("Other", json.textAt(pages[2], "name"));
 
-	const bar = json.listAt(pages[0], "sections")[0];
+	const bar = blk: {
+		for (json.listAt(pages[0], "sections")) |section| {
+			if (std.mem.eql(u8, json.textAt(section, "title"), "Bar")) break :blk section;
+		}
+		return error.TestUnexpectedResult;
+	};
 	try std.testing.expectEqualStrings("Bar", json.textAt(bar, "title"));
 	const keys = json.listAt(bar, "keys");
 	try std.testing.expectEqual(@as(usize, 4), keys.len);
@@ -890,8 +950,7 @@ test "settings.schema reads pages, titles, types and hints from config.toml" {
 	const iconKeys = json.listAt(iconSections[0], "keys");
 	try std.testing.expectEqual(@as(usize, 1), iconKeys.len);
 	try std.testing.expectEqualStrings("glyph", json.textAt(iconKeys[0], "type"));
-	const others = json.listAt(pages[2], "sections");
-	try std.testing.expectEqualStrings("Size", json.textAt(json.listAt(others[others.len - 1], "keys")[0], "label"));
+
 }
 
 test "labels drop the section prefix and read as words" {
@@ -956,9 +1015,10 @@ test "the repo config.toml makes a settings schema" {
 	defer arena.deinit();
 	const a = arena.allocator();
 
-	const body = try proc.readFile(std.testing.io, a, "../shell/config.toml");
-	const parsed = try json.parse(a, try schema(a, body));
+	const list = try configmod.files(std.testing.io, a, "../shell/config");
+	defer configmod.freeFiles(a, list);
+	const parsed = try json.parse(a, try schema(a, list));
 	const pages = json.listAt(parsed.value, "pages");
 	try std.testing.expectEqualStrings("General", json.textAt(pages[0], "name"));
-	for (pages) |page| try std.testing.expect(!std.mem.eql(u8, json.textAt(page, "name"), "Other"));
+	try std.testing.expect(pages.len >= 8);
 }

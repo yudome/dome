@@ -4,6 +4,8 @@ const proc = @import("proc.zig");
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
 
+pub const File = struct { name: []const u8, body: []const u8 };
+
 pub const Value = union(enum) {
 	string: []const u8,
 	integer: i64,
@@ -34,10 +36,77 @@ pub const Config = struct {
 
 	pub fn load(io: Io, allocator: Allocator) !Config {
 		const home = proc.home(io, allocator);
-		const path = try std.fmt.allocPrint(allocator, "{s}/dotfiles/shell/config.toml", .{home});
-		defer allocator.free(path);
+		const dir = try std.fmt.allocPrint(allocator, "{s}/dotfiles/shell/config", .{home});
+		defer allocator.free(dir);
 
-		return loadPath(io, allocator, path);
+		const body = Config.readDir(io, allocator, dir) catch "";
+		defer if (body.len > 0) allocator.free(body);
+
+		return parse(allocator, body);
+	}
+
+
+	pub fn files(io: Io, allocator: Allocator, dir: []const u8) ![]File {
+		var opened = std.Io.Dir.cwd().openDir(io, dir, .{ .iterate = true }) catch return &.{};
+		defer opened.close(io);
+
+		var names: std.ArrayList([]u8) = .empty;
+		defer {
+			for (names.items) |name| allocator.free(name);
+			names.deinit(allocator);
+		}
+
+		var iterator = opened.iterate();
+		while (iterator.next(io) catch null) |entry| {
+			if (entry.kind != .file) continue;
+			if (!std.mem.endsWith(u8, entry.name, ".toml")) continue;
+			try names.append(allocator, try allocator.dupe(u8, entry.name));
+		}
+
+		std.mem.sort([]u8, names.items, {}, struct {
+			fn less(_: void, a: []u8, b: []u8) bool {
+				return std.mem.lessThan(u8, a, b);
+			}
+		}.less);
+
+		var out: std.ArrayList(File) = .empty;
+		errdefer {
+			for (out.items) |file| {
+				allocator.free(file.name);
+				allocator.free(file.body);
+			}
+			out.deinit(allocator);
+		}
+
+		for (names.items) |name| {
+			const path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, name });
+			defer allocator.free(path);
+			const body = proc.readFile(io, allocator, path) catch continue;
+			try out.append(allocator, .{ .name = try allocator.dupe(u8, name[0 .. name.len - ".toml".len]), .body = body });
+		}
+
+		return out.toOwnedSlice(allocator);
+	}
+
+	pub fn readDir(io: Io, allocator: Allocator, dir: []const u8) ![]u8 {
+		const list = try Config.files(io, allocator, dir);
+		defer Config.freeFiles(allocator, list);
+
+		var out: std.ArrayList(u8) = .empty;
+		errdefer out.deinit(allocator);
+		for (list) |file| {
+			try out.appendSlice(allocator, file.body);
+			try out.append(allocator, '\n');
+		}
+		return out.toOwnedSlice(allocator);
+	}
+
+	pub fn freeFiles(allocator: Allocator, list: []File) void {
+		for (list) |file| {
+			allocator.free(file.name);
+			allocator.free(file.body);
+		}
+		allocator.free(list);
 	}
 
 	pub fn loadPath(io: Io, allocator: Allocator, path: []const u8) !Config {
@@ -244,6 +313,18 @@ pub const Config = struct {
 		try writer.writeAll("}");
 	}
 };
+
+pub fn files(io: Io, allocator: Allocator, dir: []const u8) ![]File {
+	return Config.files(io, allocator, dir);
+}
+
+pub fn readDir(io: Io, allocator: Allocator, dir: []const u8) ![]u8 {
+	return Config.readDir(io, allocator, dir);
+}
+
+pub fn freeFiles(allocator: Allocator, list: []File) void {
+	Config.freeFiles(allocator, list);
+}
 
 fn flatten(writer: *std.Io.Writer, table: *Table, first: *bool) !void {
 	for (table.entries.items) |entry| {
