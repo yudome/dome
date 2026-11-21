@@ -43,7 +43,7 @@ fn strip(arena: Allocator, text: []const u8) ![]const u8 {
 	return out.toOwnedSlice(arena);
 }
 
-fn calculate(text: []const u8) ?f64 {
+pub fn calculate(text: []const u8) ?f64 {
 	var parser: Parser = .{ .text = text };
 	const result = parser.expression() orelse return null;
 

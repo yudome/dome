@@ -54,6 +54,8 @@ const tools = [_]Tool{
 	.{ .name = "plugin_add", .description = "Clone a plugin repository and install it.", .inputSchema = "{\"type\":\"object\",\"properties\":{\"url\":{\"type\":\"string\"}},\"required\":[\"url\"]}" },
 	.{ .name = "plugin_update", .description = "Pull and rebuild an installed plugin.", .inputSchema = "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"}},\"required\":[\"id\"]}" },
 	.{ .name = "plugin_reload", .description = "Rebuild stale plugins and apply the load list.", .inputSchema = "{\"type\":\"object\",\"properties\":{}}" },
+	.{ .name = "settings_schema", .description = "Every settings page, section and key with its type, value and limits, as the Settings app draws it.", .inputSchema = "{\"type\":\"object\",\"properties\":{}}" },
+	.{ .name = "settings_get", .description = "One setting's current value, or the whole config.toml map without a key.", .inputSchema = "{\"type\":\"object\",\"properties\":{\"key\":{\"type\":\"string\"}}}" },
 	.{ .name = "settings_set", .description = "Rewrite one key's line in shell/config.toml. The value must have the key's current type.", .inputSchema = "{\"type\":\"object\",\"properties\":{\"key\":{\"type\":\"string\"},\"value\":{}},\"required\":[\"key\",\"value\"]}" },
 	.{ .name = "settings_app", .description = "Open the Settings app, optionally on one pane (appearance, bar, display, wallpaper, panels, widgets, power).", .inputSchema = "{\"type\":\"object\",\"properties\":{\"pane\":{\"type\":\"string\"}}}" },
 	.{ .name = "bar_layout", .description = "Write shell/topbarlayout.json atomically after validating it.", .inputSchema = "{\"type\":\"object\",\"properties\":{\"layout\":{\"type\":\"object\"}},\"required\":[\"layout\"]}" },

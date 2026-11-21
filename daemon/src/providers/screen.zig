@@ -143,7 +143,6 @@ pub const Screen = struct {
 	scale_max: f64 = 2,
 	title_scale: []u8 = &.{},
 	title_refresh: []u8 = &.{},
-	title_font: []u8 = &.{},
 	row: i64 = 0,
 	step: i64 = 0,
 	keyboard: bool = false,
@@ -151,8 +150,6 @@ pub const Screen = struct {
 	apply_ready: std.Io.Condition = .init,
 	queued: ?Apply = null,
 	pending: std.atomic.Value(bool) = .init(false),
-	fonts: [12]i64 = @splat(0),
-	font_count: usize = 0,
 	settings: ?*settings.Settings = null,
 	border_text: []u8 = &.{},
 	border_width: ?i64 = null,
@@ -188,21 +185,7 @@ pub const Screen = struct {
 
 		self.title_scale = cfg.string("displayScaleTitle", self.allocator) orelse self.allocator.dupe(u8, "Scale") catch &.{};
 		self.title_refresh = cfg.string("displayRefreshTitle", self.allocator) orelse self.allocator.dupe(u8, "Refresh") catch &.{};
-		self.title_font = cfg.string("displayFontTitle", self.allocator) orelse self.allocator.dupe(u8, "Font") catch &.{};
 
-		const fonts = cfg.numbers("displayFonts", self.allocator) catch &.{};
-		self.font_count = @min(fonts.len, self.fonts.len);
-
-		for (fonts[0..self.font_count], 0..) |value, i| self.fonts[i] = value;
-
-		if (fonts.len > 0) self.allocator.free(fonts);
-
-		if (self.font_count == 0) {
-			self.fonts[0] = 12;
-			self.fonts[1] = 14;
-			self.fonts[2] = 16;
-			self.font_count = 3;
-		}
 	}
 
 	pub fn provider(self: *Screen) hubmod.Provider {
@@ -511,7 +494,7 @@ pub const Screen = struct {
 	}
 
 	pub fn pick(self: *Screen, kind: []const u8, value: []const u8) void {
-		const kinds = [_][]const u8{ "scale", "refresh", "font", "resolution" };
+		const kinds = [_][]const u8{ "scale", "refresh", "resolution" };
 		var row: i64 = 0;
 
 		for (kinds, 0..) |name, i| {
@@ -589,12 +572,6 @@ pub const Screen = struct {
 		const target = self.settings orelse return;
 		if (snap.name.len == 0) return;
 
-		if (std.mem.eql(u8, kind, "font")) {
-			const size = std.fmt.parseInt(i64, std.mem.trim(u8, value, " "), 10) catch return;
-			target.setFontSize(size);
-			return;
-		}
-
 		if (std.mem.eql(u8, kind, "scale")) {
 			const number = std.fmt.parseFloat(f64, std.mem.trim(u8, value, " ")) catch return;
 			if (number <= 0) return;
@@ -667,8 +644,8 @@ pub const Screen = struct {
 
 		const snap = self.focusedSnap(arena.allocator()) orelse return;
 
-		const names = [_][]const u8{ "scale", "refresh", "font", "resolution" };
-		const kind = names[@intCast(@mod(self.row, 4))];
+		const names = [_][]const u8{ "scale", "refresh", "resolution" };
+		const kind = names[@intCast(@mod(self.row, 3))];
 		const options = self.optionsFor(arena.allocator(), snap, kind) catch return;
 
 		if (options.len == 0) return;
@@ -694,10 +671,10 @@ pub const Screen = struct {
 	pub fn key(self: *Screen, name: []const u8) void {
 		self.keyboard = true;
 		if (std.mem.eql(u8, name, "up")) {
-			self.row = @mod(self.row - 1 + 4, 4);
+			self.row = @mod(self.row - 1 + 3, 3);
 			self.step = 0;
 		} else if (std.mem.eql(u8, name, "down")) {
-			self.row = @mod(self.row + 1, 4);
+			self.row = @mod(self.row + 1, 3);
 			self.step = 0;
 		} else if (std.mem.eql(u8, name, "left")) {
 			self.step = @max(0, self.step - 1);
@@ -763,10 +740,10 @@ pub const Screen = struct {
 	}
 
 	fn panelLocked(self: *Screen, arena: Allocator) !PanelOut {
-		const names = [_][]const u8{ "scale", "refresh", "font", "resolution" };
+		const names = [_][]const u8{ "scale", "refresh", "resolution" };
 		var options: std.ArrayListUnmanaged([]const u8) = .empty;
 
-		const kind = names[@intCast(@mod(self.row, 4))];
+		const kind = names[@intCast(@mod(self.row, 3))];
 		const pending = self.pending.load(.monotonic);
 
 		const snap = self.focusedSnapLocked(arena) orelse {
@@ -783,8 +760,8 @@ pub const Screen = struct {
 		var groups: std.ArrayListUnmanaged(GroupOut) = .empty;
 		var selected_rows: std.ArrayListUnmanaged(i64) = .empty;
 
-		const kinds = [_][]const u8{ "scale", "refresh", "font" };
-		const titles = [_][]const u8{ self.title_scale, self.title_refresh, self.title_font };
+		const kinds = [_][]const u8{ "scale", "refresh" };
+		const titles = [_][]const u8{ self.title_scale, self.title_refresh };
 
 		for (kinds, 0..) |group_kind, i| {
 			var group_options: std.ArrayListUnmanaged([]const u8) = .empty;
@@ -866,8 +843,6 @@ pub const Screen = struct {
 			for (modes.items) |mode| {
 				try options.append(arena, try std.fmt.allocPrint(arena, "{d} Hz", .{@as(i64, @intFromFloat(@round(mode.refresh)))}));
 			}
-		} else if (std.mem.eql(u8, kind, "font")) {
-			for (self.fonts[0..self.font_count]) |size| try options.append(arena, try std.fmt.allocPrint(arena, "{d}", .{size}));
 		} else {
 			var seen: std.ArrayListUnmanaged(ResSize) = .empty;
 
@@ -937,16 +912,6 @@ pub const Screen = struct {
 			for (modes.items) |mode| {
 				if (@abs(mode.refresh - monitor.refresh) < 0.5) return index;
 				index += 1;
-			}
-
-			return 0;
-		}
-
-		if (std.mem.eql(u8, kind, "font")) {
-			const target = if (self.settings) |target_settings| target_settings.font_size else 0;
-
-			for (self.fonts[0..self.font_count], 0..) |size, i| {
-				if (size == target) return @intCast(i);
 			}
 
 			return 0;

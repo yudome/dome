@@ -441,7 +441,7 @@ fn callThunk(ctx: *anyopaque, target: []const u8, method: []const u8, args: json
 	if (std.mem.eql(u8, target, "disk")) return context.disk.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "plugins")) return context.plugins.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "bar")) return context.bar.call(method, args, alloc);
-	if (std.mem.eql(u8, target, "settings") and (std.mem.eql(u8, method, "set") or std.mem.eql(u8, method, "app"))) return context.config.call(method, args, alloc);
+	if (std.mem.eql(u8, target, "settings")) return context.config.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "state")) return context.hub.syncSnapshot(allocator);
 	if (std.mem.eql(u8, target, "ui")) return context.hub.syncSnapshot(allocator);
 

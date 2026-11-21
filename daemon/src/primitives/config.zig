@@ -76,6 +76,10 @@ pub const Config = struct {
 		return null;
 	}
 
+	pub fn get(self: Config, name: []const u8) ?Value {
+		return find(self.root, name);
+	}
+
 	fn find(table: *Table, name: []const u8) ?Value {
 		for (table.entries.items) |entry| {
 			switch (entry.value) {

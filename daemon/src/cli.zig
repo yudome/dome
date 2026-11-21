@@ -838,7 +838,7 @@ pub fn settings(io: Io, args: []const []const u8) !void {
 	const allocator = arena.allocator();
 
 	const message = settingsMessage(io, allocator, args) catch {
-		std.debug.print("usage: yudae settings set <key> <value> | yudae settings app [pane] | yudae bar layout <file>\n", .{});
+		std.debug.print("usage: yudae settings schema | get <key> | set <key> <value> | app [pane] | yudae bar layout <file>\n", .{});
 		std.process.exit(2);
 	};
 
@@ -854,7 +854,16 @@ fn settingsMessage(io: Io, allocator: Allocator, args: []const []const u8) ![]u8
 	const target = args[1];
 	const method = args[2];
 
-	if (std.mem.eql(u8, target, "settings") and std.mem.eql(u8, method, "set") and args.len == 5) {
+	if (std.mem.eql(u8, target, "settings") and (std.mem.eql(u8, method, "schema") or std.mem.eql(u8, method, "get"))) {
+		try w.writeAll("{\"call\":{\"target\":\"settings\",\"method\":");
+		try std.json.Stringify.encodeJsonString(method, .{}, w);
+		try w.writeAll(",\"args\":{");
+		if (std.mem.eql(u8, method, "get") and args.len >= 4) {
+			try w.writeAll("\"key\":");
+			try std.json.Stringify.encodeJsonString(args[3], .{}, w);
+		}
+		try w.writeAll("}}}");
+	} else if (std.mem.eql(u8, target, "settings") and std.mem.eql(u8, method, "set") and args.len == 5) {
 		try w.writeAll("{\"call\":{\"target\":\"settings\",\"method\":\"set\",\"args\":{\"key\":");
 		try std.json.Stringify.encodeJsonString(args[3], .{}, w);
 		try w.writeAll(",\"value\":");
@@ -896,5 +905,13 @@ test "settings and bar verbs build their calls" {
 		try settingsMessage(io, a, &.{ "yudae", "settings", "app" }),
 	);
 	try std.testing.expectError(error.Usage, settingsMessage(io, a, &.{ "yudae", "settings", "set", "barCells" }));
+	try std.testing.expectEqualStrings(
+		"{\"call\":{\"target\":\"settings\",\"method\":\"schema\",\"args\":{}}}",
+		try settingsMessage(io, a, &.{ "yudae", "settings", "schema" }),
+	);
+	try std.testing.expectEqualStrings(
+		"{\"call\":{\"target\":\"settings\",\"method\":\"get\",\"args\":{\"key\":\"barCells\"}}}",
+		try settingsMessage(io, a, &.{ "yudae", "settings", "get", "barCells" }),
+	);
 	try std.testing.expectError(error.Usage, settingsMessage(io, a, &.{ "yudae", "bar", "nope" }));
 }
