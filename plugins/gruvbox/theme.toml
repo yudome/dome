@@ -89,7 +89,6 @@ contribEmpty = "#32302f"
 [display]
 displayBase = "#83a598"
 displayBaseMono = "#ebdbb2"
-displaySeparatorColor = "#3c3836"
 
 [network]
 networkBase = "#83a598"

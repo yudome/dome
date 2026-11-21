@@ -9,10 +9,12 @@ QtObject {
 	id: root
 
 	property var local: ({})
+	property var overlay: ({})
 	readonly property var settings: {
 		const live = Yudae.settings || ({});
+		const base = Object.keys(live).length > 0 ? live : root.local;
 
-		return Object.keys(live).length > 0 ? live : root.local;
+		return Object.keys(root.overlay).length > 0 ? Object.assign({}, base, root.overlay) : base;
 	}
 
 	property FileView settingsFile: FileView {
@@ -147,6 +149,8 @@ QtObject {
 	readonly property var iconUser: settings.iconUser !== undefined ? settings.iconUser : "\uf007"
 	readonly property var iconEye: settings.iconEye !== undefined ? settings.iconEye : "\uf06e"
 	readonly property var iconEyeOff: settings.iconEyeOff !== undefined ? settings.iconEyeOff : "\uf070"
+	readonly property var iconSearch: settings.iconSearch !== undefined ? settings.iconSearch : "\uf002"
+	readonly property var iconRefresh: settings.iconRefresh !== undefined ? settings.iconRefresh : "\uf021"
 	readonly property var iconSettings: settings.iconSettings !== undefined ? settings.iconSettings : "\uf013"
 	readonly property var iconAppearance: settings.iconAppearance !== undefined ? settings.iconAppearance : "\uf1fc"
 	readonly property var iconBar: settings.iconBar !== undefined ? settings.iconBar : "\uf2d0"
@@ -324,7 +328,6 @@ QtObject {
 	readonly property var settingsControlWidth: settings.settingsControlWidth !== undefined ? settings.settingsControlWidth : 272
 	readonly property var settingsRadius: settings.settingsRadius !== undefined ? settings.settingsRadius : 12
 	readonly property var settingsChipHeight: settings.settingsChipHeight !== undefined ? settings.settingsChipHeight : 30
-	readonly property var settingsPreviewSpan: settings.settingsPreviewSpan !== undefined ? settings.settingsPreviewSpan : 720
 	readonly property var settingsPreviewBelow: settings.settingsPreviewBelow !== undefined ? settings.settingsPreviewBelow : 96
 	readonly property var settingsRule: settings.settingsRule !== undefined ? settings.settingsRule : "#222222"
 	readonly property var settingsColumn: settings.settingsColumn !== undefined ? settings.settingsColumn : 900
@@ -372,7 +375,7 @@ QtObject {
 	readonly property var rowInset: settings.rowInset !== undefined ? settings.rowInset : 3
 	readonly property var toggleHeight: settings.toggleHeight !== undefined ? settings.toggleHeight : root.rowHeight - 2 * root.rowInset
 	readonly property var togglePadding: settings.togglePadding !== undefined ? settings.togglePadding : 2
-	readonly property var toggleLabelPad: settings.toggleLabelPad !== undefined ? settings.toggleLabelPad : 4
+	readonly property var toggleLabelPad: settings.toggleLabelPad !== undefined ? settings.toggleLabelPad : 10
 	readonly property var toggleFontSize: settings.toggleFontSize !== undefined ? settings.toggleFontSize : 13
 	readonly property var toggleEmpty: settings.toggleEmpty !== undefined ? settings.toggleEmpty : "|"
 	readonly property var toggleTrack: settings.toggleTrack !== undefined ? settings.toggleTrack : "#2f2f2f"
@@ -557,18 +560,8 @@ QtObject {
 	readonly property var contribAvatar: settings.contribAvatar !== undefined ? settings.contribAvatar : 24
 
 	// display panel
-	readonly property var displayFile: settings.displayFile !== undefined ? settings.displayFile : "cache/display.lua"
 	readonly property var displayBase: settings.displayBase !== undefined ? settings.displayBase : "#7aa2f7"
 	readonly property var displayBaseMono: settings.displayBaseMono !== undefined ? settings.displayBaseMono : "#ffffff"
-	readonly property var displayPanelWidth: settings.displayPanelWidth !== undefined ? settings.displayPanelWidth : 296
-	readonly property var displayPanelPadding: settings.displayPanelPadding !== undefined ? settings.displayPanelPadding : 12
-	readonly property var displayRowHeight: settings.displayRowHeight !== undefined ? settings.displayRowHeight : 18
-	readonly property var displayRowGap: settings.displayRowGap !== undefined ? settings.displayRowGap : 3
-	readonly property var displayGroupGap: settings.displayGroupGap !== undefined ? settings.displayGroupGap : 10
-	readonly property var displayLabelSize: settings.displayLabelSize !== undefined ? settings.displayLabelSize : 10
-	readonly property var displayDetailSize: settings.displayDetailSize !== undefined ? settings.displayDetailSize : 10
-	readonly property var displayDetailGap: settings.displayDetailGap !== undefined ? settings.displayDetailGap : 3
-	readonly property var displayValueGap: settings.displayValueGap !== undefined ? settings.displayValueGap : 6
 	readonly property var stepBarHeight: settings.stepBarHeight !== undefined ? settings.stepBarHeight : 6
 	readonly property var stepBarGap: settings.stepBarGap !== undefined ? settings.stepBarGap : 2
 	readonly property var stepBarLensPad: settings.stepBarLensPad !== undefined ? settings.stepBarLensPad : 3
@@ -577,22 +570,13 @@ QtObject {
 	readonly property var stepBarDot: settings.stepBarDot !== undefined ? settings.stepBarDot : 3
 	readonly property var stepBarDotGap: settings.stepBarDotGap !== undefined ? settings.stepBarDotGap : 4
 	readonly property var stepBarGlyphRadius: settings.stepBarGlyphRadius !== undefined ? settings.stepBarGlyphRadius : 3
-	readonly property var stepBarGlyphBorder: settings.stepBarGlyphBorder !== undefined ? settings.stepBarGlyphBorder : 1
 	readonly property var stepBarGlyphShade: settings.stepBarGlyphShade !== undefined ? settings.stepBarGlyphShade : 1.8
-	readonly property var stepBarGlyphTrack: settings.stepBarGlyphTrack !== undefined ? settings.stepBarGlyphTrack : 0.18
 	readonly property var stepBarGlyphFill: settings.stepBarGlyphFill !== undefined ? settings.stepBarGlyphFill : 0.09
 	readonly property var stepBarGlyphTick: settings.stepBarGlyphTick !== undefined ? settings.stepBarGlyphTick : 80
-	readonly property var displaySeparatorColor: settings.displaySeparatorColor !== undefined ? settings.displaySeparatorColor : "#3f3f3f"
-	readonly property var displaySeparatorHeight: settings.displaySeparatorHeight !== undefined ? settings.displaySeparatorHeight : 1
 	readonly property var displayScaleMin: settings.displayScaleMin !== undefined ? settings.displayScaleMin : 1
 	readonly property var displayScaleMax: settings.displayScaleMax !== undefined ? settings.displayScaleMax : 2
-	readonly property var displayFonts: settings.displayFonts !== undefined ? settings.displayFonts : [10, 11, 12, 13, 14, 16, 18]
-	readonly property var displayResolutionLimit: settings.displayResolutionLimit !== undefined ? settings.displayResolutionLimit : 6
-	readonly property var displayTitle: settings.displayTitle !== undefined ? settings.displayTitle : "Display"
-	readonly property var displayResolutionTitle: settings.displayResolutionTitle !== undefined ? settings.displayResolutionTitle : "Resolution"
 	readonly property var displayRefreshTitle: settings.displayRefreshTitle !== undefined ? settings.displayRefreshTitle : "Refresh"
 	readonly property var displayScaleTitle: settings.displayScaleTitle !== undefined ? settings.displayScaleTitle : "Scale"
-	readonly property var displayFontTitle: settings.displayFontTitle !== undefined ? settings.displayFontTitle : "Font"
 	readonly property var displayNothing: settings.displayNothing !== undefined ? settings.displayNothing : "No display found"
 	readonly property var displayIconRefresh: settings.displayIconRefresh !== undefined ? settings.displayIconRefresh : "\uf021"
 
@@ -677,6 +661,8 @@ QtObject {
 	readonly property var icons: ({
 		app: root.iconApp,
 		settings: root.iconSettings,
+		search: root.iconSearch,
+		refresh: root.iconRefresh,
 		appearance: root.iconAppearance,
 		bar: root.iconBar,
 		wallpaper: root.iconWallpaper,
