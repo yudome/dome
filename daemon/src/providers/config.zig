@@ -610,7 +610,7 @@ fn tableList(table: *configmod.Table, name: []const u8) []const configmod.Value 
 	return &.{};
 }
 
-fn writeSection(alloc: Allocator, w: *Writer, cfg: configmod.Config, all: []const Line, name: []const u8) !bool {
+fn writeSection(alloc: Allocator, w: *Writer, cfg: configmod.Config, all: []const Line, name: []const u8, mode: enum { all, no_glyph, glyph_only }) !bool {
 	var start: ?usize = null;
 	for (all, 0..) |line, i| {
 		if (line.key.len == 0 and std.mem.eql(u8, line.section, name)) start = i;
@@ -620,7 +620,11 @@ fn writeSection(alloc: Allocator, w: *Writer, cfg: configmod.Config, all: []cons
 	var count: usize = 0;
 	for (all[first + 1 ..]) |line| {
 		if (line.key.len == 0) break;
-		if (!metaOf(line.comment).hidden) count += 1;
+		if (metaOf(line.comment).hidden) continue;
+		const value = cfg.get(line.key) orelse continue;
+		const kind = kindOf(line.kind.?, value, metaOf(line.comment));
+		const want = mode == .all or (mode == .glyph_only and std.mem.eql(u8, kind, "glyph")) or (mode == .no_glyph and !std.mem.eql(u8, kind, "glyph"));
+		if (want) count += 1;
 	}
 	if (count == 0) return false;
 
@@ -638,6 +642,8 @@ fn writeSection(alloc: Allocator, w: *Writer, cfg: configmod.Config, all: []cons
 		if (meta.hidden) continue;
 		const value = cfg.get(line.key) orelse continue;
 		const kind = kindOf(line.kind.?, value, meta);
+		const want = mode == .all or (mode == .glyph_only and std.mem.eql(u8, kind, "glyph")) or (mode == .no_glyph and !std.mem.eql(u8, kind, "glyph"));
+		if (!want) continue;
 
 		if (wrote) try w.writeByte(',');
 		wrote = true;
@@ -717,14 +723,26 @@ pub fn schema(alloc: Allocator, body: []const u8) ![]u8 {
 		try std.json.Stringify.encodeJsonString(tableText(table, "glyph"), .{}, w);
 		try w.writeAll(",\"sections\":[");
 		var wrote = false;
-		for (tableList(table, "sections")) |item| {
+		if (std.mem.eql(u8, tableText(table, "name"), "Icons")) {
+			var seen: std.StringHashMapUnmanaged(void) = .empty;
+			for (all) |line| {
+				if (line.key.len != 0 or line.section.len == 0 or seen.contains(line.section)) continue;
+				try seen.put(alloc, line.section, {});
+				if (wrote) try w.writeByte(',');
+				if (try writeSection(alloc, w, cfg, all, line.section, .glyph_only)) {
+					wrote = true;
+				} else if (wrote) {
+					out.writer.undo(1);
+				}
+			}
+		} else for (tableList(table, "sections")) |item| {
 			const name = switch (item) {
 				.string => |t| t,
 				else => continue,
 			};
 			try listed.put(alloc, name, {});
 			if (wrote) try w.writeByte(',');
-			if (try writeSection(alloc, w, cfg, all, name)) {
+			if (try writeSection(alloc, w, cfg, all, name, .no_glyph)) {
 				wrote = true;
 			} else if (wrote) {
 				out.writer.undo(1);
@@ -737,7 +755,7 @@ pub fn schema(alloc: Allocator, body: []const u8) ![]u8 {
 	for (all) |line| {
 		if (line.key.len != 0 or listed.contains(line.section)) continue;
 		var probe: Writer.Allocating = .init(alloc);
-		if (!try writeSection(alloc, &probe.writer, cfg, all, line.section)) continue;
+		if (!try writeSection(alloc, &probe.writer, cfg, all, line.section, .no_glyph)) continue;
 		if (!other) {
 			if (pages > 0) try w.writeByte(',');
 			try w.writeAll("{\"name\":\"Other\",\"glyph\":\"settings\",\"sections\":[");
@@ -830,6 +848,7 @@ test "settings.schema reads pages, titles, types and hints from config.toml" {
 		\\settingsApply = "instant"  # instant | manual
 		\\settingsPages = [
 		\\  { name = "Look", glyph = "appearance", sections = ["bar"] },
+		\\  { name = "Icons", glyph = "star", sections = [] },
 		\\]
 		\\
 		\\# Bar
@@ -850,14 +869,15 @@ test "settings.schema reads pages, titles, types and hints from config.toml" {
 	const root = parsed.value;
 	try std.testing.expectEqualStrings("instant", json.textAt(root, "apply"));
 	const pages = json.listAt(root, "pages");
-	try std.testing.expectEqual(@as(usize, 2), pages.len);
+	try std.testing.expectEqual(@as(usize, 3), pages.len);
 	try std.testing.expectEqualStrings("Look", json.textAt(pages[0], "name"));
-	try std.testing.expectEqualStrings("Other", json.textAt(pages[1], "name"));
+	try std.testing.expectEqualStrings("Icons", json.textAt(pages[1], "name"));
+	try std.testing.expectEqualStrings("Other", json.textAt(pages[2], "name"));
 
 	const bar = json.listAt(pages[0], "sections")[0];
 	try std.testing.expectEqualStrings("Bar", json.textAt(bar, "title"));
 	const keys = json.listAt(bar, "keys");
-	try std.testing.expectEqual(@as(usize, 5), keys.len);
+	try std.testing.expectEqual(@as(usize, 4), keys.len);
 	try std.testing.expectEqualStrings("Cells", json.textAt(keys[0], "label"));
 	try std.testing.expectEqualStrings("int", json.textAt(keys[0], "type"));
 	try std.testing.expectEqual(@as(f64, 4), json.number(json.listAt(keys[0], "steps")[0]));
@@ -865,8 +885,12 @@ test "settings.schema reads pages, titles, types and hints from config.toml" {
 	try std.testing.expectEqual(@as(usize, 2), json.listAt(keys[1], "options").len);
 	try std.testing.expectEqualStrings("bool", json.textAt(keys[2], "type"));
 	try std.testing.expectEqualStrings("color", json.textAt(keys[3], "type"));
-	try std.testing.expectEqualStrings("glyph", json.textAt(keys[4], "type"));
-	const others = json.listAt(pages[1], "sections");
+	const iconSections = json.listAt(pages[1], "sections");
+	try std.testing.expectEqual(@as(usize, 1), iconSections.len);
+	const iconKeys = json.listAt(iconSections[0], "keys");
+	try std.testing.expectEqual(@as(usize, 1), iconKeys.len);
+	try std.testing.expectEqualStrings("glyph", json.textAt(iconKeys[0], "type"));
+	const others = json.listAt(pages[2], "sections");
 	try std.testing.expectEqualStrings("Size", json.textAt(json.listAt(others[others.len - 1], "keys")[0], "label"));
 }
 

@@ -108,10 +108,63 @@ fn layoutFile(allocator: Allocator, layout: Value) ![]u8 {
 	var text: Writer.Allocating = .init(allocator);
 	errdefer text.deinit();
 
-	try text.writer.print("{f}\n", .{std.json.fmt(layout, .{ .whitespace = .indent_tab })});
+	try writeLayout(&text.writer, layout, 0, false);
+	try text.writer.writeByte('\n');
 	allocator.free(try normalize(allocator, text.written()));
 
 	return text.toOwnedSlice();
+}
+
+fn writeLayout(w: *Writer, value: Value, level: usize, compact: bool) !void {
+	switch (value) {
+		.object => |map| {
+			if (compact) {
+				try w.writeAll("{ ");
+				var first = true;
+				var it = map.iterator();
+				while (it.next()) |entry| {
+					if (!first) try w.writeAll(", ");
+					first = false;
+					try std.json.Stringify.encodeJsonString(entry.key_ptr.*, .{}, w);
+					try w.writeAll(": ");
+					try writeLayout(w, entry.value_ptr.*, level, true);
+				}
+				try w.writeAll(" }");
+				return;
+			}
+
+			try w.writeAll("{\n");
+			var first = true;
+			var it = map.iterator();
+			while (it.next()) |entry| {
+				if (!first) try w.writeAll(",\n");
+				first = false;
+				try indent(w, level + 1);
+				try std.json.Stringify.encodeJsonString(entry.key_ptr.*, .{}, w);
+				try w.writeAll(": ");
+				try writeLayout(w, entry.value_ptr.*, level + 1, false);
+			}
+			try w.writeByte('\n');
+			try indent(w, level);
+			try w.writeByte('}');
+		},
+		.array => |items| {
+			try w.writeAll("[\n");
+			for (items.items, 0..) |item, i| {
+				if (i > 0) try w.writeAll(",\n");
+				try indent(w, level + 1);
+				try writeLayout(w, item, level + 1, item == .object or item == .array);
+			}
+			try w.writeByte('\n');
+			try indent(w, level);
+			try w.writeByte(']');
+		},
+		else => try w.print("{f}", .{std.json.fmt(value, .{})}),
+	}
+}
+
+fn indent(w: *Writer, level: usize) !void {
+	for (0..level) |_| try w.writeByte('\t');
 }
 
 fn pathOf(io: Io, allocator: Allocator) ![]u8 {
@@ -196,6 +249,7 @@ test "bar.layout writes a layout the shell reads back and rejects one it cannot"
 	);
 	const file = try layoutFile(a, given.value);
 	try std.testing.expect(std.mem.endsWith(u8, file, "}\n"));
+	try std.testing.expect(std.mem.indexOf(u8, file, "\t\t\t\t{ \"id\": \"workspaces\" }\n") != null);
 
 	const back = try json.parse(a, try normalize(a, file));
 	try std.testing.expectEqual(@as(usize, 2), json.listAt(back.value, "right").len);
