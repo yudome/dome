@@ -30,17 +30,16 @@ Rectangle {
 	property int choiceRow: 0
 	readonly property int panelWidth: Math.min(30, root.cols - 2)
 	readonly property int panelCol: root.centerCol(root.panelWidth)
-	readonly property int panelRow: Math.floor((root.rows - 5) / 2)
+	readonly property int panelRow: root.topRow + 10
 
 	readonly property int boxWidth: {
-		const need = Math.max(14, root.filled + 9);
-		const even = need + need % 2;
+		const room = (root.cols - 2) - ((root.cols - 2) % 2);
 
-		return Math.min(even, (root.cols - 2) - ((root.cols - 2) % 2));
+		return Math.max(14, Math.min(root.clockRows[0].length, room));
 	}
 	readonly property int fieldOffset: Math.floor((root.fieldWidth - root.field.length) / 2)
 	property bool blink: true
-	readonly property int fieldWidth: root.boxWidth - 8
+	readonly property int fieldWidth: root.boxWidth - 9
 	readonly property int fontPixels: Math.round(Config.lockFontSize * 4 / 3)
 	readonly property real cellWidth: Math.max(1, cell.averageCharacterWidth)
 	readonly property real cellHeight: Math.max(1, Math.ceil(cell.height))
@@ -103,6 +102,13 @@ Rectangle {
 		running: true
 		repeat: true
 		onTriggered: root.blink = !root.blink
+	}
+
+	Timer {
+		interval: 250
+		repeat: true
+		running: root.source !== null && !surface.activeFocus
+		onTriggered: surface.forceActiveFocus()
 	}
 
 	SystemClock {
@@ -194,16 +200,17 @@ Rectangle {
 			radius: 0
 			color: "transparent"
 			border.width: 1
-			border.color: root.mode === "wrong" ? Config.red : Config.foreground
+			border.color: root.message !== "" ? Config.red : root.mode === "checking" ? Config.dim : root.focusIndex === 0 ? Config.foreground : Config.dim
 		}
 
-		Cell {
-			col: root.boxCol + 2
-			row: root.topRow + 7
-			slotIndex: 0
+		Glyph {
+			x: (root.boxCol + 2) * root.cellWidth
+			y: (root.topRow + 7) * root.cellHeight
+			width: root.cellWidth
+			height: root.cellHeight
+			size: root.fontPixels
 			glyph: Config.iconLock
-			ink: root.mode === "checking" ? Config.dim : Config.foreground
-			lit: false
+			color: root.mode === "checking" ? Config.dim : Config.foreground
 		}
 
 		Text {
@@ -220,7 +227,7 @@ Rectangle {
 		}
 
 		Rectangle {
-			visible: root.focusIndex === 0 && root.blink
+			visible: root.focusIndex === 0 && root.blink && root.mode !== "checking" && root.mode !== "open"
 			x: (root.boxCol + 4 + root.fieldOffset + root.field.length) * root.cellWidth
 			y: (root.topRow + 7) * root.cellHeight
 			width: Math.ceil(root.cellWidth)
@@ -243,6 +250,7 @@ Rectangle {
 			y: (root.topRow + 10) * root.cellHeight
 			width: line.length * root.cellWidth
 			height: root.cellHeight
+			visible: line.length > 0 && !root.choiceOpen
 			verticalAlignment: Text.AlignVCenter
 			elide: Text.ElideRight
 			font: cell.font
@@ -283,6 +291,8 @@ Rectangle {
 			width: root.panelWidth * root.cellWidth
 			height: 5 * root.cellHeight
 			color: Config.surface
+			border.width: 1
+			border.color: Config.dim
 		}
 
 		Repeater {

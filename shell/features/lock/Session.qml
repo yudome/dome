@@ -119,7 +119,6 @@ Item {
 
 		interval: Math.max(0, Config.lockCooldownMs)
 		onTriggered: {
-			root.message = "";
 			root.cooling = false;
 
 			if (root.mode === "wrong")
