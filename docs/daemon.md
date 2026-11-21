@@ -37,13 +37,22 @@ A provider registers its commands by key. `yudae call <target> <method> [args...
 
 ## Settings
 
-The Settings app (`shell/app-settings.qml`, `features/settings/`) edits `shell/config.toml` and `shell/topbarlayout.json`. Edits stay pending in the app; Apply sends one call per changed key and one for the layout, and the file watchers republish `settings` and `bar`.
+The Settings app (`shell/app-settings.qml`, `features/settings/`) draws itself from `settings.schema`; it holds no list of settings. Adding one means adding a line to `shell/config.toml`:
 
-- `settings.set {key, value}` rewrites the one line of `key` in `config.toml`, keeping its indent, trailing comment and the order of the file. The value must have the key's current type: string, bool, integer (a whole float is accepted) or float (an integer is written as `N.0`). Non-ASCII text is written as `\uXXXX` / `\UXXXXXXXX`. Errors: `UnknownKey`, `WrongType`, `Unsupported` (arrays and tables), `NoKey`, `NoValue`. The result is parsed before the atomic write, so a bad edit never lands.
+- A section is a `[section]` table; the comment line above it is the panel title. A key needs no registration: its type comes from its value, and its label from the key with the section prefix dropped (`barCells` in `[bar]` is "Cells").
+- A trailing comment adds the rest without code: `# 4..30` gives the slider range, `# icon | text` makes a choice, `hidden` keeps a key out of the app, and any other sentence is shown as the row's note.
+- A page is one entry in `settingsPages` with a name, a glyph from the icon list and the sections it holds, in order. Sections not listed in any page fall under "Other".
+- `settingsApply` is `instant` (every change is written as it is made) or `manual` (changes wait behind one Apply). It is itself a setting.
+
+`config.toml` stays the only store. Edits are one line each, keeping indent, trailing comment and file order; the result is parsed before the atomic write, so a bad edit never lands.
+
+- `settings.schema` returns the pages, sections and keys with type, value, label, note, choices and slider steps; the app re-reads it whenever the config changes.
+- `settings.get {key?}` returns one value, or the whole flattened map without a key.
+- `settings.set {key, value}` writes one key and then the keys that copy or derive from it: `# same as <key>`, and arithmetic or `a ? b : c` comments that name the changed key (`notifyWidth` follows `notifyScale`, `barBorderWidth` follows `barFloating`). The value must have the key's current type: string, bool, integer (a whole float is accepted) or float (an integer is written as `N.0`). Non-ASCII text is written as `\uXXXX` / `\UXXXXXXXX`. Errors: `UnknownKey`, `WrongType`, `Unsupported` (arrays and tables), `NoKey`, `NoValue`.
 - `bar.layout {layout}` writes the whole `topbarlayout.json` document atomically after the same `normalize` the bar reader uses accepts it (`NoBar`, `NoLayout`).
-- `settings.app {pane?}` opens the app (`setsid scripts/yudae app open settings [--pane <pane>]`), like `vms.app` and `disk.app`. Panes: `appearance`, `bar`, `display`, `wallpaper`, `panels`, `widgets`, `power`. Super+P opens it on `display`.
+- `settings.app {pane?}` opens the app (`setsid scripts/yudae app open settings [--pane <pane>]`), like `vms.app` and `disk.app`. The pane is a page name; Super+P opens the app on `display`.
 
-The display controls live only in the Display pane; there is no display widget on the bar. The widget library in the Top bar pane reads `features/*/feature.json`: every feature with a `widget` and its `glyph` (a name in the icon list) and `description`.
+The bar preview in the app draws the real bar: `bar/BarBody.qml` is the rows, widget components and border that `Bar.qml` uses, so the preview and the live bar are one piece of code. In `manual` mode the app feeds pending values through `Config.overlay`. The display controls (scale, refresh, resolution) live only in the Display page; there is no display widget and no font size in the display panel, so `fontSize` in `[shell]` is the one font size everywhere.
 
 ## VM control plane
 

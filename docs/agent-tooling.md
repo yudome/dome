@@ -11,6 +11,8 @@ yudae plugin list | build <id> | load <id> | unload <id> | theme <id> | add <url
 yudae vm <verb> ...                        # same verbs as the MCP tools
 yudae open <vm> [app]                      # open the viewer, or an app inside the guest
 yudae disk scan|view|search|stat|mark|unmark|trash|remove|move|copy|rename|packages|uninstall|clean-packages|caches|clean|watch [args...]
+yudae settings schema                      # pages, sections and keys as the app draws them
+yudae settings get [key]
 yudae settings set <key> <value>           # value is JSON when it parses, else a string
 yudae settings app [pane]
 yudae bar layout <file.json>
@@ -31,7 +33,7 @@ yudae bar layout <file.json>
 - state, providers, bench, parity
 - qs_log
 - plugin_list, plugin_build, plugin_load, plugin_unload, plugin_theme, plugin_add, plugin_update, plugin_reload
-- settings_set, settings_app, bar_layout
+- settings_schema, settings_get, settings_set, settings_app, bar_layout
 - disk_scan, disk_view, disk_search, disk_stat, disk_mark, disk_unmark, disk_trash, disk_delete, disk_move, disk_copy, disk_rename, disk_packages, disk_uninstall, disk_caches, disk_clean, disk_watch
 - vm_create, vm_list, vm_state, vm_exec, vm_push, vm_pull, vm_key, vm_type, vm_click, vm_move, vm_scroll, vm_gui, vm_config, vm_screenshot, vm_wait, vm_sleep, vm_wake, vm_park, vm_stop, vm_destroy, vm_snapshot, vm_restore, vm_fork, vm_view, vm_ui_tree, vm_run_scenario
 
