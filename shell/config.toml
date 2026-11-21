@@ -1,6 +1,22 @@
+# Saving
+[settings]
+settingsApply = "instant"  # instant | manual
+settingsPages = [
+	{ name = "General", glyph = "settings", sections = ["settings"] },
+	{ name = "Appearance", glyph = "appearance", sections = ["colors", "shell", "bar", "tray"] },
+	{ name = "Display", glyph = "display", sections = ["display"] },
+	{ name = "Wallpaper", glyph = "wallpaper", sections = ["wallpaper"] },
+	{ name = "Notifications", glyph = "bell", sections = ["notify", "popup", "tooltip"] },
+	{ name = "Launcher", glyph = "panels", sections = ["launcher", "windows"] },
+	{ name = "Widgets", glyph = "widgets", sections = ["cpu", "memory", "mixer", "media", "network", "weather", "calendar", "contrib", "agent", "disk"] },
+	{ name = "Lock and power", glyph = "lock", sections = ["lock", "power"] },
+	{ name = "Icons", glyph = "app", sections = ["icons"] }
+]
+
+# Colors
 [colors]
 surface = "#101010"
-surfaceTranslucent = "#ff101010"  # "#" + ("0" + Math.round(surfaceAlpha * 255).toString(16)).slice(-2) + surface.slice(1)
+surfaceTranslucent = "#ff101010"  # the bar background, alpha first
 foreground = "#ffffff"
 dim = "#3f3f3f"
 red = "#e05252"
@@ -8,26 +24,26 @@ yellow = "#e0b24f"
 muted = "#ffffff"  # same as foreground
 mono = true
 
-# things that are not a widget: font, spacing, workspace morph
+# Type and spacing
 [shell]
-workspaceSpacing = 6
+workspaceSpacing = 6  # 0..24
 workspaceMorphMs = 320
 figureLobes = 9
 figureScallop = 0.16
 fontFamily = "GoogleSansCode Nerd Font"
-fontSize = 12
-valueSample = "0123456789.%G"
-iconSize = 10
-spacing = 12
+fontSize = 12  # 8..24
+valueSample = "0123456789.%G"  # hidden
+iconSize = 10  # 6..24
+spacing = 12  # 0..32
 lineLength = 45
 scrollbarWidth = 2
-gapsIn = 4
-gapsOut = 8
+gapsIn = 4  # 0..24
+gapsOut = 8  # 0..32
 
-# tray icons and their menu
+# Tray
 [tray]
-trayIconSize = 15
-trayIconGap = 10
+trayIconSize = 15  # 8..32
+trayIconGap = 10  # 0..24
 trayGroupSize = 15
 trayChevronBoost = 1
 trayMenuWidth = 120
@@ -35,18 +51,18 @@ trayMenuPadding = 6
 trayMenuRowHeight = 18
 trayMenuSeparator = 1
 
-# the bar itself, its cells and the sweep that runs through them
+# Bar
 [bar]
 barHitPadding = 4
-barStatSpacing = 16
-barCells = 15
-barInset = 8
-barPadding = 8
+barStatSpacing = 16  # 0..40
+barCells = 15  # 4..30
+barInset = 8  # 0..24
+barPadding = 8  # 0..32
 barFloating = false
 barBorderWidth = 0  # barFloating ? -1 : 0
-barStatMode = "icon"
+barStatMode = "icon"  # icon | text
 barStatMono = true
-barThickness = 1.5
+barThickness = 1.5  # 0..4
 barSweepMs = 1400
 barSlideMs = 400
 barFullscreenSlide = false
@@ -56,19 +72,19 @@ clockFormat = "ddd MMM d h:mm AP"
 borderFallbackWidth = 1
 borderFallbackColor = "#ffffff"
 
-# every panel's fade, slide and position
+# Popups
 [popup]
-popupCloseDelay = 60
+popupCloseDelay = 60  # 0..500
 popupFadeMs = 140
 popupSlideMs = 400
 barFadeMs = 200
-popupPos = "top-center"
+popupPos = "top-center"  # top-left | top-center | top-right | bottom-left | bottom-center | bottom-right
 popupX = -1
 popupY = -1
 popupBorderWidth = 1
 volumeOsdMs = 1500
 
-# the tooltip body and its close button
+# Tooltips
 [tooltip]
 tooltipCloseSize = 14
 tooltipCloseInset = 6
@@ -77,7 +93,7 @@ tooltipGap = 7
 tooltipGapRight = 3
 tooltipHang = 3
 
-# nerd font glyphs
+# Icons
 [icons]
 iconClose = "\uF00D"
 iconCpu = "\uF2DB"
@@ -125,6 +141,8 @@ iconLock = "\uF023"
 iconUser = "\uF007"
 iconEye = "\uF06E"
 iconEyeOff = "\uF070"
+iconSearch = "\uF002"
+iconRefresh = "\uF021"
 iconSettings = "\uF013"
 iconAppearance = "\uF1FC"
 iconBar = "\uF2D0"
@@ -136,7 +154,7 @@ iconWorkspaces = "\uF24D"
 iconAgent = "\U000F06A9"
 iconSpacer = "\uF07E"
 
-# cpu and process list
+# Processor
 [cpu]
 cpuBase = "#a78bfa"
 cpuBaseMono = "#ffffff"  # same as foreground
@@ -145,24 +163,24 @@ cpuPeakMono = "#ffffff"  # same as foreground
 cpuCore = "#7aa2f7"
 cpuCoreFloor = 0.18
 cpuIdle = "#2f2f2f"
-cpuTopCount = 5
+cpuTopCount = 5  # 1..12
 cpuTooltipWidth = 240
 cpuTooltipPadding = 12
 cpuBlockGap = 4
 cpuBlockColumns = 16
-topProcessTitle = "Top processes"
+topProcessTitle = "Top processes"  # hidden
 procRowHeight = 22
 procsGap = 2
 psIgnore = ["ps", "ps <defunct>"]
-procSearchHint = "f to type"
+procSearchHint = "f to type"  # hidden
 procSearchPadding = 4
 procSearchMinWidth = 140
-procKillSignal = "-9"
-procNoMatch = "Nothing matches"
-procHintKey = "f"
-procKillKey = "q"
+procKillSignal = "-9"  # hidden
+procNoMatch = "Nothing matches"  # hidden
+procHintKey = "f"  # hidden
+procKillKey = "q"  # hidden
 
-# memory bars and tooltip
+# Memory
 [memory]
 memoryBase = "#7bd88f"
 memoryBaseMono = "#ffffff"  # same as foreground
@@ -179,13 +197,13 @@ memoryDangerMono = "#ffffff"  # same as foreground
 memorySeparator = 3
 memorySeparatorColor = "#101010"  # same as surface
 memoryVizHeight = 12
-memoryWarnAt = 60
-memoryDangerAt = 85
+memoryWarnAt = 60  # 0..100
+memoryDangerAt = 85  # 0..100
 memoryTooltipWidth = 240  # same as cpuTooltipWidth
 memoryTooltipPadding = 12  # same as cpuTooltipPadding
-memoryTopCount = 5
+memoryTopCount = 5  # 1..12
 
-# volume mixer
+# Volume mixer
 [mixer]
 mixerWidth = 246
 mixerChannelGap = 8
@@ -197,7 +215,7 @@ mixerListGap = 8
 rowRadius = 4
 rowHeight = 30
 rowInset = 3
-mixerMaxVolume = 1
+mixerMaxVolume = 1  # 0.5..1.5
 mixerStepCount = 10
 mixerStep = 0.1  # 1 / mixerStepCount
 mixerShiftStep = 0.1
@@ -206,7 +224,7 @@ mixerHoldMs = 2000
 mixerSeparator = 1
 mixerSeparatorColor = "#2b2b2b"
 
-# now playing
+# Now playing
 [media]
 mediaTooltipWidth = 228
 mediaTooltipPadding = 12  # same as cpuTooltipPadding
@@ -216,10 +234,10 @@ mediaRowGap = 6
 mediaButtonGlyphSize = 16
 mediaButtonGap = 18
 mediaLineGap = 2
-mediaEmpty = "Nothing playing"
+mediaEmpty = "Nothing playing"  # hidden
 volumeBase = "#ffffff"
 
-# launcher box
+# Launcher
 [launcher]
 launcherWidth = 270
 launcherPadding = 12
@@ -235,7 +253,7 @@ launcherHighlight = "#2f2f2f"
 launcherHighlightText = "#ffffff"  # same as foreground
 launcherDetailText = "#8a8a8a"
 launcherPrompt = "\uEA6D"
-launcherMaxRows = 12
+launcherMaxRows = 12  # 4..20
 launcherIconPin = "\uEBA0"
 launcherIconSelect = "\U000F0311"
 launcherIconActive = "\uF00C"
@@ -245,21 +263,21 @@ launcherSpotlightWidth = 560
 launcherSpotlightInputHeight = 52
 launcherSpotlightQuerySize = 32
 launcherSpotlightFontSize = 20
-launcherSpotlightMaxRows = 8
+launcherSpotlightMaxRows = 8  # 4..16
 launcherSpotlightTop = 0.25  # fraction of the screen height
 launcherGrid = false  # true = app icon grid under the spotlight field
-launcherGridColumns = 7
-launcherGridRows = 4
+launcherGridColumns = 7  # 3..10
+launcherGridRows = 4  # 2..8
 launcherGridCell = 132
 launcherGridCellHeight = 124
 launcherGridIconSize = 64
 launcherGridLabelSize = 14
-launcherMove = "forget"  # super+drag: "remember" keeps the spot, "forget" resets each open
+launcherMove = "forget"  # remember | forget
 
-# wallpaper picker
+# Wallpaper picker
 [wallpaper]
-wallpaperTransitionMs = 400
-wallpaperEmpty = "No wallpapers found"
+wallpaperTransitionMs = 400  # 0..2000
+wallpaperEmpty = "No wallpapers found"  # hidden
 wallpaperPickerWidth = 1100
 wallpaperWatchMs = 300
 wallpaperPreviewRatio = 1.78
@@ -267,7 +285,7 @@ wallpaperRowHeight = 230
 wallpaperRowMin = 115
 wallpaperSlimRatio = 0.42
 wallpaperNameSize = 13
-themeEmpty = "No themes installed"
+themeEmpty = "No themes installed"  # hidden
 themeNameSize = 24
 wallpaperPickerPadding = 16
 wallpaperTileGap = 8
@@ -278,7 +296,7 @@ wallpaperFadeMs = 160
 wallpaperScrim = 0.45
 wallpaperScrimMs = 180
 
-# window switcher
+# Window switcher
 [windows]
 windowsGridCell = 92
 windowsRowMargin = 60
@@ -288,7 +306,7 @@ windowStepMs = 80
 windowsIconSize = 76
 windowsTitleSize = 11
 
-# power menu and battery
+# Power
 [power]
 powerActions = [
 	{ name = "Shut down", command = "systemctl poweroff", glyph = "\uF011" },
@@ -305,22 +323,22 @@ powerBase = "#7bd88f"
 powerBaseMono = "#ffffff"  # same as foreground
 powerWarn = "#d8b04a"
 powerDanger = "#e05252"  # same as red
-powerWarnAt = 30
-powerDangerAt = 15
+powerWarnAt = 30  # 0..100
+powerDangerAt = 15  # 0..100
 powerTooltipWidth = 240  # same as cpuTooltipWidth
 powerTooltipPadding = 12  # same as cpuTooltipPadding
 powerDemo = false  # fake battery on a desktop, for testing the flow
 powerFlowHeight = 40
-powerGovernorTitle = "Governor"
-powerAwakeOff = "Off"
-powerAwakeAuto = "While working"
-powerAwakeOn = "Always on"
+powerGovernorTitle = "Governor"  # hidden
+powerAwakeOff = "Off"  # hidden
+powerAwakeAuto = "While working"  # hidden
+powerAwakeOn = "Always on"  # hidden
 
-# lock screen
+# Lock screen
 [lock]
 lockAfterMinutes = 10  # idle before the shell locks, 0 disables
 lockSleepAfterMinutes = 30  # idle while locked before suspend, 0 disables
-lockFontSize = 15  # grid font size, the greeter uses the same
+lockFontSize = 15  # 8..32
 lockClockFormat = "h:mm AP"  # Qt time format like clockFormat; HH H hh h mm ss AP, glyphs from lockDigits
 lockDigits = [  # block clock font: glyph, then 5 rows; each # is two cells
 	["0", "###", "# #", "# #", "# #", "###"],
@@ -340,16 +358,16 @@ lockDigits = [  # block clock font: glyph, then 5 rows; each # is two cells
 	["M", "#   #", "## ##", "# # #", "#   #", "#   #"]
 ]
 lockCooldownMs = 3000
-lockPamService = "quickshell"
-lockWrongText = "Wrong password"
-lockPamError = "Authentication unavailable"
+lockPamService = "quickshell"  # hidden
+lockWrongText = "Wrong password"  # hidden
+lockPamError = "Authentication unavailable"  # hidden
 
-# calendar, meters and the life dial
+# Calendar
 [calendar]
 calendarCellWidth = 60
 calendarCellHeight = 34
 calendarRows = 6
-calendarWeekStart = 1
+calendarWeekStart = 1  # 0..6
 calendarCursor = "#ffffff"  # same as foreground
 calendarCursorBorder = 1
 calendarPadding = 16
@@ -388,10 +406,10 @@ calendarDialCream = "#f7e3a1"
 calendarDialNoon = "#fdf3cf"
 calendarDialDay = "#7cc4f0"
 calendarBirthYear = 0
-calendarLifeExpectancy = 90
+calendarLifeExpectancy = 90  # 50..110
 calendarOutside = "#3f3f3f"  # same as dim
 
-# weather card and its code table
+# Weather
 [weather]
 weatherLocation = ""
 weatherPlaceDefaults = ["San Francisco", "Miami"]
@@ -402,8 +420,8 @@ weatherIcon = "\U000F0F2F"
 weatherLoadingIcon = "\U000F18F6"
 weatherBase = "#7cc4f0"
 weatherBaseMono = "#ffffff"  # same as foreground
-weatherTempUnit = "fahrenheit"
-weatherDays = 7
+weatherTempUnit = "fahrenheit"  # fahrenheit | celsius
+weatherDays = 7  # 1..14
 weatherCardWidth = 470
 weatherCardPadding = 18
 weatherCardGap = 16
@@ -458,11 +476,11 @@ weatherCodes = [
 	{ code = 99, name = "Storm with hail", glyph = "\U000F067E" }
 ]
 
-# notification toasts
+# Notifications
 [notify]
 notifyBase = "#ffffff"  # same as foreground
 # the size of a notification; 1 is the house size, 1.25 is the roomy one
-notifyScale = 1.25
+notifyScale = 1.25  # 0.75..2
 # the width stays fixed, so a toast does not change size with its text
 notifyWidth = 350  # Math.round(280 * notifyScale)
 notifyPadding = 15  # Math.round(12 * notifyScale)
@@ -473,43 +491,33 @@ notifySlot = 33  # Math.round(26 * notifyScale)
 notifySlotGap = 13  # Math.round(10 * notifyScale)
 notifyBellSize = 30  # Math.round(24 * notifyScale)
 notifyAppFontSize = 14  # Math.round(11 * notifyScale)
-notifyVisibleRows = 5
+notifyVisibleRows = 5  # 1..12
 notifyHistory = 50
 notifyGoneOpacity = 0.55
-notifyEmpty = "Nothing yet"
+notifyEmpty = "Nothing yet"  # hidden
 notifySeparator = 1
 notifySeparatorColor = "#3f3f3f"  # same as dim
 notifySweepWidth = 30
-notifyTimeout = 6000
-notifyDismissKey = "d"
-notifyClearKey = "x"
+notifyTimeout = 6000  # 1000..20000
+notifyDismissKey = "d"  # hidden
+notifyClearKey = "x"  # hidden
 
-# contribution graph
+# GitHub graph
 [contrib]
 contribBase = "#7bd88f"
 contribBaseMono = "#ffffff"  # same as foreground
 contribEmpty = "#1f1f1f"
-contribWeeks = 19
+contribWeeks = 19  # 4..52
 contribCell = 10
 contribGap = 3
 contribTooltipWidth = 244
 contribTooltipPadding = 12  # same as cpuTooltipPadding
 contribAvatar = 24
 
-# display panel
+# Sliders and scale
 [display]
-displayFile = "cache/display.lua"
 displayBase = "#7aa2f7"
 displayBaseMono = "#ffffff"  # same as foreground
-displayPanelWidth = 296
-displayPanelPadding = 12  # same as cpuTooltipPadding
-displayRowHeight = 18
-displayRowGap = 3
-displayGroupGap = 10
-displayLabelSize = 10
-displayDetailSize = 10
-displayDetailGap = 3
-displayValueGap = 6
 stepBarHeight = 6
 stepBarGap = 2
 stepBarGlyphSize = 10
@@ -517,26 +525,17 @@ stepBarKnobWidth = 12
 stepBarDot = 3
 stepBarDotGap = 4
 stepBarGlyphRadius = 3
-stepBarGlyphBorder = 1
 stepBarGlyphShade = 1.8
-stepBarGlyphTrack = 0.18
 stepBarGlyphFill = 0.09
 stepBarGlyphTick = 80
-displaySeparatorColor = "#3f3f3f"  # same as dim
-displaySeparatorHeight = 1
 displayScaleMin = 1
 displayScaleMax = 2
-displayFonts = [10, 11, 12, 13, 14, 16, 18]
-displayResolutionLimit = 6
-displayTitle = "Display"
-displayResolutionTitle = "Resolution"
-displayRefreshTitle = "Refresh"
-displayScaleTitle = "Scale"
-displayFontTitle = "Font"
-displayNothing = "No display found"
+displayRefreshTitle = "Refresh"  # hidden
+displayScaleTitle = "Scale"  # hidden
+displayNothing = "No display found"  # hidden
 displayIconRefresh = "\uF021"
 
-# network and speed test
+# Network
 [network]
 networkBase = "#61afef"
 networkBaseMono = "#ffffff"  # same as foreground
@@ -557,12 +556,12 @@ networkBarWidth = 3
 networkBarGap = 2
 networkBarStep = 3
 networkBarsOff = "#2f2f2f"
-networkSpeedCancelKey = "k"
-networkSpeedNone = "Run a speed test"
-networkSpeedUnit = "Mbps"
-networkSpeedTestingDown = "Testing download speed\u2026"
-networkSpeedTestingUp = "Testing upload speed\u2026"
-networkSpeedAgain = "Enter to try again"
+networkSpeedCancelKey = "k"  # hidden
+networkSpeedNone = "Run a speed test"  # hidden
+networkSpeedUnit = "Mbps"  # hidden
+networkSpeedTestingDown = "Testing download speed\u2026"  # hidden
+networkSpeedTestingUp = "Testing upload speed\u2026"  # hidden
+networkSpeedAgain = "Enter to try again"  # hidden
 speedGaugeSize = 160
 speedRingSegs = 44
 speedRingWidth = 9
@@ -576,11 +575,11 @@ speedNeedleLen = 22
 speedNeedleWidth = 2
 speedButtonPadX = 10
 speedButtonPadY = 4
-networkTitle = "Network"
-networkWiredNothing = "No connection"
-networkPasswordHint = "Password"
+networkTitle = "Network"  # hidden
+networkWiredNothing = "No connection"  # hidden
+networkPasswordHint = "Password"  # hidden
 
-# agent panel
+# Agent
 [agent]
 agentFaceSize = 44
 agentMorphMs = 420
@@ -594,22 +593,22 @@ agentRingWidth = 3
 agentRingGap = 12
 agentRingWarnPercent = 60
 agentRingAlarmPercent = 90
-agentIdleText = "Idle"
-agentWorkingText = "Working"
-agentBlockedText = "a session needs attention"
-agentErrorText = "Error"
-agentPanelTitle = "Agent"
-agentNameFile = "cache/agent-name"
-agentTasksTitle = "Tasks"
-agentDoneTitle = "Done"
-agentIconQuestion = "?"
+agentIdleText = "Idle"  # hidden
+agentWorkingText = "Working"  # hidden
+agentBlockedText = "a session needs attention"  # hidden
+agentErrorText = "Error"  # hidden
+agentPanelTitle = "Agent"  # hidden
+agentNameFile = "cache/agent-name"  # hidden
+agentTasksTitle = "Tasks"  # hidden
+agentDoneTitle = "Done"  # hidden
+agentIconQuestion = "?"  # hidden
 agentIconDone = "\uF00C"
 agentIconClose = "\uF00D"
-agentPlanTitle = "Subscription"
-agentPlanName = "OpenCode Go"
-agentPlanIcon = "opencode"
+agentPlanTitle = "Subscription"  # hidden
+agentPlanName = "OpenCode Go"  # hidden
+agentPlanIcon = "opencode"  # hidden
 
-# disk map
+# Disk map
 [disk]
 diskIconDir = "\uF07B"
 diskIconFile = "\uF15B"
