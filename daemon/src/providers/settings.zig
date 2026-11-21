@@ -22,8 +22,6 @@ const OutputOut = struct {
 };
 
 const Out = struct {
-	fontSize: i64,
-	iconSize: i64,
 	fallbackMode: []const u8,
 	fallbackScale: f64,
 	outputs: []OutputOut,
@@ -36,8 +34,6 @@ pub const Settings = struct {
 	hub: *Hub,
 	mutex: std.Io.Mutex = .init,
 	scratch: std.heap.ArenaAllocator,
-	font_size: i64 = 0,
-	icon_size: i64 = 0,
 	fallback_mode: []u8 = &.{},
 	fallback_scale: f64 = 1,
 	outputs: std.ArrayListUnmanaged(Output) = .empty,
@@ -113,16 +109,6 @@ pub const Settings = struct {
 		while (lines.next()) |raw| {
 			const line = std.mem.trim(u8, raw, " \t\r");
 
-			if (startsWithKey(line, "fontSize")) {
-				self.font_size = numberAfter(line);
-				continue;
-			}
-
-			if (startsWithKey(line, "iconSize")) {
-				self.icon_size = numberAfter(line);
-				continue;
-			}
-
 			if (startsWithKey(line, "fallback")) {
 				const mode_at = std.mem.indexOf(u8, line, "mode") orelse 0;
 				const mode = quoted(line[mode_at..]) orelse "";
@@ -147,15 +133,6 @@ pub const Settings = struct {
 				}) catch continue;
 			}
 		}
-	}
-
-	pub fn setFontSize(self: *Settings, size: i64) void {
-		self.mutex.lockUncancelable(self.io);
-		self.font_size = @max(1, size);
-		self.renderToFile();
-		self.mutex.unlock(self.io);
-
-		self.hub.publish();
 	}
 
 	pub fn setOutput(self: *Settings, name: []const u8, mode: ?[]const u8, scale: ?f64) void {
@@ -198,9 +175,7 @@ pub const Settings = struct {
 		var out: std.Io.Writer.Allocating = .init(self.allocator);
 		defer out.deinit();
 
-		out.writer.print("return {{\n\tfontSize = {d},\n\ticonSize = {d},\n\tfallback = {{ mode = \"{s}\", scale = {d:.6} }},\n\toutputs = {{\n", .{
-			self.font_size,
-			self.icon_size,
+		out.writer.print("return {{\n\tfallback = {{ mode = \"{s}\", scale = {d:.6} }},\n\toutputs = {{\n", .{
 			self.fallback_mode,
 			self.fallback_scale,
 		}) catch return;
@@ -232,8 +207,6 @@ pub const Settings = struct {
 		}
 
 		const out = Out{
-			.fontSize = self.font_size,
-			.iconSize = self.icon_size,
 			.fallbackMode = self.fallback_mode,
 			.fallbackScale = self.fallback_scale,
 			.outputs = outputs.items,
@@ -282,7 +255,7 @@ fn scaleAfter(line: []const u8) f64 {
 }
 
 test "lua display state parses" {
-	const body = "return {\n\tfontSize = 12,\n\ticonSize = 10,\n\tfallback = { mode = \"2560x1440@144.00Hz\", scale = 1.5 },\n\toutputs = {\n\t\t[\"DP-2\"] = { mode = \"2560x1440@240.00Hz\", scale = 1.25 },\n\t},\n}";
+	const body = "return {\n\tfallback = { mode = \"2560x1440@144.00Hz\", scale = 1.5 },\n\toutputs = {\n\t\t[\"DP-2\"] = { mode = \"2560x1440@240.00Hz\", scale = 1.25 },\n\t},\n}";
 
 	var hub: hubmod.Hub = .{ .allocator = std.testing.allocator, .io = std.Io.Threaded.global_single_threaded.io() };
 	const self = try Settings.create(std.testing.allocator, hub.io, &hub);
@@ -300,8 +273,6 @@ test "lua display state parses" {
 	self.parse(body);
 	self.mutex.unlock(self.io);
 
-	try std.testing.expectEqual(@as(i64, 12), self.font_size);
-	try std.testing.expectEqual(@as(i64, 10), self.icon_size);
 	try std.testing.expectEqualStrings("2560x1440@144.00Hz", self.fallback_mode);
 	try std.testing.expectApproxEqAbs(@as(f64, 1.5), self.fallback_scale, 0.001);
 	try std.testing.expectEqual(@as(usize, 1), self.outputs.items.len);

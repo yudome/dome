@@ -343,10 +343,6 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 	}
 
 	if (json.field(value, "settings")) |settings_cmd| {
-		if (json.field(settings_cmd, "font")) |size| {
-			context.settings.setFontSize(json.integer(size));
-		}
-
 		if (json.field(settings_cmd, "output")) |output| {
 			const name = json.textAt(output, "name");
 			const mode = json.field(output, "mode");

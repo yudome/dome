@@ -464,6 +464,15 @@ AppWindow {
 				}
 
 				Text {
+					visible: !win.searching && win.pages.length === 0
+					width: parent.width
+					font.family: Config.fontFamily
+					font.pixelSize: Config.settingsFontSize + 1
+					color: Config.settingsLabel
+					text: "Settings needs the current yudaemond: restart it and reopen this window"
+				}
+
+				Text {
 					visible: win.searching && win.found.length === 0
 					width: parent.width
 					font.family: Config.fontFamily
