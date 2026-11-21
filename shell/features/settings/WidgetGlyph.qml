@@ -7,7 +7,7 @@ Item {
 	id: root
 
 	property string widgetId: ""
-	property var face: null
+	property var templates: null
 	property real slot: 22
 	property color ink: Config.foreground
 
@@ -48,7 +48,7 @@ Item {
 	function glyph() {
 		const pct = root.volume() * 100;
 		switch (root.widgetId) {
-		case "workspaces": return Config.glyph("workspaces");
+		case "workspaces": return "";
 		case "clock": return Config.glyph("day");
 		case "notify": return Config.glyph("bell");
 		case "cpu": return Config.glyph("cpu");
@@ -66,13 +66,13 @@ Item {
 	}
 
 	WidgetIcon {
-		visible: root.widgetId === "agent"
-		source: root.face
+		visible: root.widgetId === "agent" || root.widgetId === "workspaces"
+		source: root.templates ? root.templates.componentFor(root.widgetId) : null
 		slot: root.slot
 	}
 
 	Glyph {
-		visible: root.widgetId !== "agent"
+		visible: root.widgetId !== "agent" && root.widgetId !== "workspaces"
 		anchors.centerIn: parent
 		width: root.slot
 		height: root.slot

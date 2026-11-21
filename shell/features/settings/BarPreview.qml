@@ -1,5 +1,5 @@
 import QtQuick
-import Qt5Compat.GraphicalEffects
+import QtQuick.Effects
 import qs
 import qs.ui
 import qs.services
@@ -34,7 +34,8 @@ Item {
 
 		anchors.fill: parent
 		layer.enabled: true
-		layer.effect: OpacityMask {
+		layer.effect: MultiEffect {
+			maskEnabled: true
 			maskSource: mask
 		}
 
@@ -50,8 +51,6 @@ Item {
 		height: root.screenHeight
 		fillMode: Image.PreserveAspectCrop
 		asynchronous: true
-		sourceSize.width: root.shot * 2
-		sourceSize.height: root.screenHeight * 2
 		mipmap: true
 		source: Yudae.wallpaper.active ? "file://" + Yudae.wallpaper.active : ""
 		}
@@ -98,19 +97,11 @@ Item {
 	}
 
 	Rectangle {
-		anchors.fill: parent
-		radius: 16
-		color: "transparent"
-		border.width: 1
-		border.color: Config.settingsRule
-		z: 2
-	}
-
-	Rectangle {
 		id: mask
 
 		anchors.fill: parent
 		radius: 16
+		layer.enabled: true
 		visible: false
 	}
 

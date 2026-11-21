@@ -82,10 +82,31 @@ Item {
 
 	function indexAt(slot, x, y) {
 		const p = slot.flow.mapFromItem(root, x, y);
-		let index = 0;
-		for (let i = 0; i < slot.list.count; i++) {
+		const count = slot.list.count;
+		if (count === 0)
+			return 0;
+
+		let rowY = null;
+		for (let i = 0; i < count; i++) {
 			const c = slot.list.itemAt(i);
-			if (c && (c.y + c.height <= p.y || (c.y <= p.y && c.x + c.width / 2 < p.x)))
+			if (c && p.y >= c.y - 1 && p.y <= c.y + c.height + 1) {
+				rowY = c.y;
+				break;
+			}
+		}
+		const first = slot.list.itemAt(0);
+		const last = slot.list.itemAt(count - 1);
+		if (rowY === null)
+			rowY = p.y < first.y ? first.y : last.y;
+
+		let index = count;
+		for (let i = 0; i < count; i++) {
+			const c = slot.list.itemAt(i);
+			if (!c || Math.abs(c.y - rowY) > 2)
+				continue;
+			if (index === count)
+				index = i;
+			if (c.x + c.width / 2 < p.x)
 				index = i + 1;
 		}
 		return index;
@@ -266,7 +287,7 @@ Item {
 
 											WidgetGlyph {
 												widgetId: chip.modelData.id
-												face: templates.componentFor("agent")
+												templates: templates
 												slot: Config.settingsChipHeight - 8
 											}
 
@@ -365,7 +386,7 @@ Item {
 
 								anchors.verticalCenter: parent.verticalCenter
 								widgetId: feature.modelData.id
-								face: templates.componentFor("agent")
+								templates: templates
 								slot: 22
 							}
 
@@ -431,7 +452,7 @@ Item {
 
 			WidgetGlyph {
 				widgetId: root.drag ? root.drag.id : ""
-				face: templates.componentFor("agent")
+				templates: templates
 				slot: Config.settingsChipHeight - 6
 			}
 
