@@ -2,8 +2,8 @@
 [settings]
 settingsApply = "instant"  # instant | manual
 settingsPages = [
-	{ name = "General", glyph = "settings", sections = ["settings"] },
-	{ name = "Appearance", glyph = "appearance", sections = ["colors", "shell", "bar", "tray"] },
+	{ name = "General", glyph = "settings", sections = ["settings", "shell"] },
+	{ name = "Appearance", glyph = "appearance", sections = ["colors", "bar", "tray"] },
 	{ name = "Display", glyph = "display", sections = ["display"] },
 	{ name = "Wallpaper", glyph = "wallpaper", sections = ["wallpaper"] },
 	{ name = "Notifications", glyph = "bell", sections = ["notify", "popup", "tooltip"] },
@@ -606,7 +606,8 @@ agentIconDone = "\uF00C"
 agentIconClose = "\uF00D"
 agentPlanTitle = "Subscription"  # hidden
 agentPlanName = "OpenCode Go"  # hidden
-agentPlanIcon = "opencode"  # hidden
+agentPlanIcon = "opencode"
+agentFinishedToast = false  # toast when an agent session finishes
 
 # Disk map
 [disk]

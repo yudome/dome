@@ -42,7 +42,9 @@ The Settings app (`shell/app-settings.qml`, `features/settings/`) draws itself f
 - A section is a `[section]` table; the comment line above it is the panel title. A key needs no registration: its type comes from its value, and its label from the key with the section prefix dropped (`barCells` in `[bar]` is "Cells").
 - A trailing comment adds the rest without code: `# 4..30` gives the slider range, `# icon | text` makes a choice, `hidden` keeps a key out of the app, and any other sentence is shown as the row's note.
 - A page is one entry in `settingsPages` with a name, a glyph from the icon list and the sections it holds, in order. Sections not listed in any page fall under "Other".
-- `settingsApply` is `instant` (every change is written as it is made) or `manual` (changes wait behind one Apply). It is itself a setting.
+- `[agent] agentFinishedToast` turns the "Task finished" toast off; the finished list in the agent panel stays.
+
+`settingsApply` is `instant` (every change is written as it is made) or `manual` (changes wait behind one Apply). It is itself a setting.
 
 `config.toml` stays the only store. Edits are one line each, keeping indent, trailing comment and file order; the result is parsed before the atomic write, so a bad edit never lands.
 

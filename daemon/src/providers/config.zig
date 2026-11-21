@@ -179,7 +179,7 @@ pub fn openApp(io: Io, alloc: Allocator, name: []const u8, pane: []const u8) ![]
 }
 
 fn appArgv(alloc: Allocator, script: []const u8, name: []const u8, pane: []const u8) ![]const []const u8 {
-	if (std.mem.indexOfNone(u8, pane, "abcdefghijklmnopqrstuvwxyz") != null) return error.BadPane;
+	if (std.mem.indexOfNone(u8, pane, "abcdefghijklmnopqrstuvwxyz ") != null) return error.BadPane;
 	if (pane.len == 0) return alloc.dupe([]const u8, &.{ "setsid", script, "app", "open", name });
 	return alloc.dupe([]const u8, &.{ "setsid", script, "app", "open", name, "--pane", pane });
 }
@@ -197,7 +197,7 @@ test "settings.app opens the settings app, on a pane when one is named" {
 	try std.testing.expectEqualStrings("--pane", pane[5]);
 	try std.testing.expectEqualStrings("display", pane[6]);
 
-	try std.testing.expectError(error.BadPane, appArgv(a, "/r/scripts/yudae", "settings", "a b"));
+	try std.testing.expectError(error.BadPane, appArgv(a, "/r/scripts/yudae", "settings", "a/b"));
 }
 
 const Literal = enum { string, integer, float, boolean };

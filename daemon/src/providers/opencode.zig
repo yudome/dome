@@ -9,6 +9,7 @@ const fmt = @import("../primitives/fmt.zig");
 const sleep = @import("../primitives/sleep.zig");
 const exec = @import("../primitives/exec.zig");
 const notify = @import("notifications.zig");
+const config = @import("../primitives/config.zig");
 
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
@@ -409,12 +410,19 @@ pub const Opencode = struct {
 
 		if (self.notifications) |notifications| {
 			if (note_title) |text| {
-				notifications.post(app, text, "Task finished", 5000);
+				if (finishedToastWanted(self.io, self.allocator)) notifications.post(app, text, "Task finished", 5000);
 				self.allocator.free(text);
 			}
 		}
 
 		self.hub.publish();
+	}
+
+	fn finishedToastWanted(io: Io, allocator: Allocator) bool {
+		const cfg = config.Config.load(io, allocator) catch return true;
+		defer cfg.deinit();
+
+		return cfg.boolean("agentFinishedToast", true);
 	}
 
 	fn dropDoneLocked(self: *Opencode, id: []const u8) void {
