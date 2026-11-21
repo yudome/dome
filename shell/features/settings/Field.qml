@@ -4,8 +4,6 @@ import QtQuick
 import QtQuick.Dialogs
 import qs
 import qs.ui
-import qs.services
-import "Toml.js" as Toml
 
 Item {
 	id: root
@@ -19,8 +17,9 @@ Item {
 	readonly property string type: root.entry.type
 	readonly property bool numeric: root.type === "int" || root.type === "float"
 	readonly property bool spot: root.entry.key === "popupPos"
-	readonly property var options: root.numeric ? Toml.steps(root.entry.value, root.type, root.entry.key) : (Toml.enums[root.entry.key] || [])
-	readonly property string note: Toml.note(root.entry.comment)
+	readonly property var options: root.entry.options || []
+	readonly property var stepList: root.entry.steps || []
+	readonly property real controlWidth: Math.min(Config.settingsControlWidth, root.width * 0.5)
 	readonly property real controlHeight: root.spot ? spots.height : root.numeric ? steps.implicitHeight : Config.settingsChipHeight
 
 	width: parent ? parent.width : 0
@@ -32,7 +31,26 @@ Item {
 	}
 
 	function show(v) {
-		return root.type === "float" ? String(Number(Number(v).toFixed(3))) : String(v);
+		if (root.type === "float")
+			return String(Number(Number(v).toFixed(3)));
+		if (root.type === "glyph")
+			return root.code(String(v));
+		return String(v);
+	}
+
+	function code(text) {
+		const point = text.codePointAt(0) || 0;
+		const hex = point.toString(16).toUpperCase();
+		return point > 0xffff ? "\\U" + ("00000000" + hex).slice(-8) : "\\u" + ("0000" + hex).slice(-4);
+	}
+
+	function nearest(v) {
+		let best = 0;
+		for (let i = 1; i < root.stepList.length; i++) {
+			if (Math.abs(root.stepList[i] - v) < Math.abs(root.stepList[best] - v))
+				best = i;
+		}
+		return best;
 	}
 
 	function commit(text) {
@@ -45,14 +63,24 @@ Item {
 		}
 		if (root.type === "color" && !/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(text))
 			return false;
+		if (root.type === "glyph") {
+			const m = text.trim().match(/^\\[uU]([0-9a-fA-F]{4,8})$/);
+			if (m)
+				root.set(String.fromCodePoint(parseInt(m[1], 16)));
+			else if (text.trim().length > 0)
+				root.set(text.trim());
+			else
+				return false;
+			return true;
+		}
 		root.set(text);
 		return true;
 	}
 
-	function density(c, r, n) {
-		const ramp = " .-+xXS#";
-		const k = Math.floor((c + 0.5) / n * (ramp.length - 1) - (r === 1 ? 1.2 : 0) + Calc.hash(c, r, 0) * 0.8);
-		return ramp[Calc.clamp(k, 1, ramp.length - 1)];
+	function ruler(c, r, n) {
+		if (r === 0)
+			return c % 4 === 0 ? "|" : "'";
+		return c === n - 1 ? ">" : "=";
 	}
 
 	Rectangle {
@@ -68,7 +96,7 @@ Item {
 
 		anchors.left: parent.left
 		anchors.right: control.left
-		anchors.rightMargin: Config.settingsGap * 2
+		anchors.rightMargin: Config.settingsGap
 		anchors.verticalCenter: parent.verticalCenter
 		spacing: 3
 
@@ -84,7 +112,7 @@ Item {
 				font.family: Config.fontFamily
 				font.pixelSize: Config.settingsFontSize + 1
 				color: Config.foreground
-				text: Toml.label(root.entry.key, root.entry.section)
+				text: root.entry.label
 			}
 
 			Rectangle {
@@ -99,14 +127,14 @@ Item {
 
 		Text {
 			width: parent.width
-			visible: root.note !== ""
+			visible: text !== ""
 			wrapMode: Text.WordWrap
 			maximumLineCount: 2
 			elide: Text.ElideRight
 			font.family: Config.fontFamily
 			font.pixelSize: Config.settingsSmallSize
 			color: Config.settingsLabel
-			text: root.note
+			text: root.entry.note || ""
 		}
 	}
 
@@ -115,7 +143,7 @@ Item {
 
 		anchors.right: parent.right
 		anchors.verticalCenter: parent.verticalCenter
-		width: Config.settingsControlWidth
+		width: root.controlWidth
 		height: root.controlHeight
 
 		PillSwitch {
@@ -168,7 +196,7 @@ Item {
 						anchors.centerIn: parent
 						width: cell.chosen ? 26 : 6
 						height: cell.chosen ? 14 : 6
-						radius: cell.chosen ? 3 : 3
+						radius: 3
 						color: cell.chosen ? Config.foreground : (spotHover.containsMouse ? Config.settingsLabel : Config.dim)
 
 						Behavior on width {
@@ -198,10 +226,10 @@ Item {
 			anchors.right: valueField.left
 			anchors.rightMargin: 12
 			anchors.verticalCenter: parent.verticalCenter
-			model: root.numeric ? root.options : []
-			selected: root.numeric ? Toml.nearest(root.options, Number(root.value)) : -1
+			model: root.numeric ? root.stepList : []
+			selected: root.numeric ? root.nearest(Number(root.value)) : -1
 			ink: Config.settingsInk
-			glyph: root.density
+			glyph: root.ruler
 			follow: false
 			onPick: function (next) { root.set(next); }
 		}
@@ -243,9 +271,9 @@ Item {
 			anchors.right: valueField.left
 			anchors.rightMargin: 10
 			anchors.verticalCenter: parent.verticalCenter
-			width: 22
-			height: 22
-			size: Config.settingsFontSize + 4
+			width: 24
+			height: 24
+			size: Config.settingsFontSize + 5
 			glyph: root.type === "glyph" ? root.value : ""
 		}
 
@@ -255,7 +283,7 @@ Item {
 			visible: root.type !== "bool" && root.type !== "enum"
 			anchors.right: parent.right
 			anchors.verticalCenter: parent.verticalCenter
-			width: root.type === "text" ? parent.width : root.type === "color" ? 92 : root.type === "glyph" ? 48 : 52
+			width: root.type === "text" ? parent.width : root.type === "color" || root.type === "glyph" ? 104 : 56
 			height: Config.settingsChipHeight
 			radius: 6
 			color: input.activeFocus || fieldHover.containsMouse || root.type === "text" ? Config.launcherSearchBox : "transparent"
@@ -284,12 +312,12 @@ Item {
 				font.features: { "tnum": 1 }
 				color: Config.foreground
 				selectionColor: Config.settingsSelected
-				text: root.numeric ? root.show(root.value) : String(root.value)
+				text: root.show(root.value)
 
 				Keys.onEscapePressed: input.focus = false
 				onEditingFinished: {
 					if (!root.commit(input.text))
-						input.text = Qt.binding(function () { return root.numeric ? root.show(root.value) : String(root.value); });
+						input.text = Qt.binding(function () { return root.show(root.value); });
 				}
 			}
 		}

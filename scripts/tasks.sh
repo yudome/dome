@@ -85,7 +85,7 @@ task_lint() {
 		}
 	done < <(find "$ROOT/shell" -name '*.qml' -not -path '*/cache/*')
 
-	for check in "$ROOT"/shell/ui/*.check.js "$ROOT"/shell/features/*/*.check.js; do
+	for check in "$ROOT"/shell/ui/*.check.js; do
 		[ -e "$check" ] || continue
 		node "$check" || fail=1
 	done

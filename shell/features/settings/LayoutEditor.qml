@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs
 import qs.ui
-import "Toml.js" as Toml
 
 Item {
 	id: root
@@ -20,10 +19,43 @@ Item {
 	height: column.height
 
 	readonly property var names: ({ cpu: "CPU", github: "GitHub" })
-	readonly property var ordered: root.library.filter(function (f) { return !Toml.placed(root.store.layout, f.id); }).concat(root.library.filter(function (f) { return Toml.placed(root.store.layout, f.id); }))
+	readonly property var ordered: root.library.filter(function (f) { return !root.placed(root.store.layout, f.id); }).concat(root.library.filter(function (f) { return root.placed(root.store.layout, f.id); }))
 
 	function title(id) {
 		return root.names[id] || id.charAt(0).toUpperCase() + id.slice(1);
+	}
+
+	function copy(doc) {
+		const out = JSON.parse(JSON.stringify(doc || {}));
+		out.version = out.version || 1;
+		out.bar = out.bar || {};
+		out.bar.layout = out.bar.layout || {};
+		root.slotNames.forEach(function (slot) {
+			out.bar.layout[slot] = (out.bar.layout[slot] || []).filter(function (e) { return e && e.id; });
+		});
+		return out;
+	}
+
+	function placed(doc, id) {
+		const layout = root.copy(doc).bar.layout;
+		return root.slotNames.some(function (slot) {
+			return layout[slot].some(function (e) { return e.id === id; });
+		});
+	}
+
+	function move(doc, fromSlot, fromIndex, toSlot, toIndex) {
+		const out = root.copy(doc);
+		const layout = out.bar.layout;
+		const entry = fromSlot ? layout[fromSlot].splice(fromIndex, 1)[0] : { id: fromIndex };
+		if (!entry || (!fromSlot && root.placed(out, entry.id)))
+			return out;
+		if (fromSlot === toSlot && toIndex > fromIndex)
+			toIndex -= 1;
+		if (toSlot)
+			layout[toSlot].splice(Math.max(0, Math.min(toIndex, layout[toSlot].length)), 0, entry);
+		if (!root.placed(out, out.bar.centerAnchor))
+			out.bar.centerAnchor = layout.center.length > 0 ? layout.center[0].id : "";
+		return out;
 	}
 
 	function glyphOf(id) {
@@ -65,12 +97,12 @@ Item {
 				if (c && (c.y + c.height <= p.y || (c.y <= p.y && c.x + c.width / 2 < p.x)))
 					index = i + 1;
 			}
-			root.store.setLayout(Toml.move(root.store.layout, d.from, d.from ? d.index : d.id, slot.name, index));
+			root.store.setLayout(root.move(root.store.layout, d.from, d.from ? d.index : d.id, slot.name, index));
 			return;
 		}
 
 		if (d.from && root.inside(libraryBox))
-			root.store.setLayout(Toml.move(root.store.layout, d.from, d.index, null, 0));
+			root.store.setLayout(root.move(root.store.layout, d.from, d.index, null, 0));
 	}
 
 	component Heading: Text {
@@ -286,7 +318,7 @@ Item {
 							required property var modelData
 							required property int index
 
-							readonly property bool placed: Toml.placed(root.store.layout, feature.modelData.id)
+							readonly property bool placed: root.placed(root.store.layout, feature.modelData.id)
 
 							width: libraryColumn.width
 							height: Config.settingsRowHeight

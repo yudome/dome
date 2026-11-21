@@ -1,5 +1,4 @@
 {
   "name": "display",
-  "daemon": "screen",
-  "panel": "DisplayPanel"
+  "daemon": "screen"
 }

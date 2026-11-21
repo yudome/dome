@@ -14,7 +14,7 @@ target("checks")
         end
 
         if name == "qml" then
-            return os.execv("sh", {"-c", "node shell/ui/AgentFace.check.js && node shell/features/settings/Toml.check.js"}, {try = true}) == 0
+            return os.execv("sh", {"-c", "node shell/ui/AgentFace.check.js"}, {try = true}) == 0
         end
 
         if name == "plugins" then

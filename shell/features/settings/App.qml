@@ -7,80 +7,135 @@ import Quickshell.Io
 import qs
 import qs.services
 import qs.ui
-import "../display"
-import "Toml.js" as Toml
 
 AppWindow {
 	id: win
 
 	appTitle: "Settings"
-	appMinWidth: 900
-	appMinHeight: 560
+	appMinWidth: 760
+	appMinHeight: 520
 	implicitWidth: 1180
 	implicitHeight: 780
 
-	property string pane: {
-		const wanted = Quickshell.env("YUDAE_PANE") || "";
-		return Toml.categories.some(function (c) { return c.id === wanted; }) ? wanted : "appearance";
-	}
-	property var doc: ({ sections: [], values: {} })
+	property var schema: ({ apply: "instant", pages: [] })
+	property string page: ""
+	property var history: []
+	property string query: ""
 	property var layoutDoc: null
 	property var pending: ({})
 	property var pendingLayout: null
 	property var features: ({})
 	property string failed: ""
 
+	readonly property bool manual: win.schema.apply === "manual"
+	readonly property var pages: win.schema.pages || []
+	readonly property var current: win.pages.find(function (p) { return p.name === win.page; }) || win.pages[0] || ({ name: "", sections: [] })
 	readonly property var layout: win.pendingLayout || win.layoutDoc
 	readonly property bool dirty: Object.keys(win.pending).length > 0 || win.pendingLayout !== null
-	readonly property bool barShown: win.dirty || win.failed !== ""
-	readonly property var category: Toml.categories.find(function (c) { return c.id === win.pane; })
+	readonly property bool barShown: win.manual && (win.dirty || win.failed !== "")
+	readonly property bool searching: win.query.trim() !== ""
 	readonly property var library: Object.keys(win.features).sort().map(function (id) { return win.features[id]; })
-	readonly property var glyphs: {
-		const out = {};
-		win.library.forEach(function (f) { out[f.id] = f.glyph; });
+	readonly property var found: {
+		const q = win.query.trim().toLowerCase();
+		if (q === "")
+			return [];
+		const out = [];
+		win.pages.forEach(function (p) {
+			p.sections.forEach(function (s) {
+				const whole = s.title.toLowerCase().indexOf(q) >= 0 || p.name.toLowerCase().indexOf(q) >= 0;
+				const keys = whole ? s.keys : s.keys.filter(function (k) {
+					return k.label.toLowerCase().indexOf(q) >= 0 || k.key.toLowerCase().indexOf(q) >= 0;
+				});
+				if (keys.length > 0)
+					out.push({ name: s.name, title: s.title, keys: keys });
+			});
+		});
 		return out;
 	}
-	readonly property var sections: win.category.sections.map(function (name) {
-		return win.doc.sections.find(function (s) { return s.name === name; });
-	}).filter(function (s) { return s !== undefined; })
 
-	function value(key) {
-		return win.pending[key] !== undefined ? win.pending[key] : win.doc.values[key];
+	Binding {
+		target: Config
+		property: "overlay"
+		value: win.manual ? win.pending : ({})
+	}
+
+	function load() {
+		Yudae.request("settings", "schema", {}, function (result) {
+			if (result && result.pages)
+				win.schema = result;
+			if (win.page === "" && win.pages.length > 0) {
+				const wanted = (Quickshell.env("YUDAE_PANE") || "").toLowerCase();
+				const hit = win.pages.find(function (p) { return p.name.toLowerCase() === wanted || p.name.toLowerCase().indexOf(wanted) === 0 && wanted !== ""; });
+				win.page = hit ? hit.name : win.pages[0].name;
+			}
+		});
+	}
+
+	function go(name) {
+		if (name === win.page && !win.searching)
+			return;
+		win.history = win.history.concat([win.page]);
+		win.page = name;
+		win.query = "";
+		search.clear();
+		flick.contentY = 0;
+	}
+
+	function back() {
+		if (flick.contentY > 0) {
+			flick.contentY = 0;
+			return;
+		}
+		if (win.history.length === 0)
+			return;
+		win.page = win.history[win.history.length - 1];
+		win.history = win.history.slice(0, -1);
+	}
+
+	function value(key, fallback) {
+		return win.pending[key] !== undefined ? win.pending[key] : fallback;
+	}
+
+	function send(key, next) {
+		Yudae.request("settings", "set", { key: key, value: next }, function (result) {
+			win.failed = result === null ? key : "";
+			win.load();
+		});
 	}
 
 	function setValue(key, next) {
+		if (!win.manual || key === "settingsApply") {
+			win.send(key, next);
+			return;
+		}
 		const out = Object.assign({}, win.pending);
-		if (next === win.doc.values[key])
-			delete out[key];
-		else
-			out[key] = next;
+		out[key] = next;
 		win.pending = out;
 	}
 
 	function setLayout(next) {
-		win.pendingLayout = JSON.stringify(next) === JSON.stringify(Toml.copyLayout(win.layoutDoc)) ? null : next;
-	}
-
-	function apply() {
-		win.failed = "";
-		const keys = Object.keys(win.pending);
-		const values = Object.assign({}, win.doc.values, win.pending);
-		keys.forEach(function (key) {
-			const next = win.pending[key];
-			Yudae.request("settings", "set", { key: key, value: next }, function (result) {
-				if (result === null)
-					win.failed = key;
-			});
-		});
-		if (win.pendingLayout !== null) {
-			const next = win.pendingLayout;
+		if (!win.manual) {
+			win.layoutDoc = next;
 			Yudae.request("bar", "layout", { layout: next }, function (result) {
 				if (result === null)
 					win.failed = "layout";
 			});
-			win.layoutDoc = next;
+			return;
 		}
-		win.doc = { sections: win.doc.sections, values: values };
+		win.pendingLayout = next;
+	}
+
+	function apply() {
+		win.failed = "";
+		Object.keys(win.pending).forEach(function (key) { win.send(key, win.pending[key]); });
+		if (win.pendingLayout !== null) {
+			const next = win.pendingLayout;
+			win.layoutDoc = next;
+			Yudae.request("bar", "layout", { layout: next }, function (result) {
+				if (result === null)
+					win.failed = "layout";
+			});
+		}
 		win.pending = {};
 		win.pendingLayout = null;
 	}
@@ -91,14 +146,27 @@ AppWindow {
 		win.failed = "";
 	}
 
-	FileView {
-		path: Quickshell.shellDir + "/config.toml"
-		watchChanges: true
-		printErrors: false
+	Connections {
+		target: Yudae
 
-		onFileChanged: this.reload()
-		onLoaded: win.doc = Toml.parse(this.text())
+		function onConnectedChanged() {
+			if (Yudae.connected)
+				win.load();
+		}
+
+		function onSettingsChanged() {
+			reloadTimer.restart();
+		}
 	}
+
+	Timer {
+		id: reloadTimer
+
+		interval: 150
+		onTriggered: win.load()
+	}
+
+	Component.onCompleted: if (Yudae.connected) win.load()
 
 	FileView {
 		path: Quickshell.shellDir + "/topbarlayout.json"
@@ -108,9 +176,9 @@ AppWindow {
 		onFileChanged: this.reload()
 		onLoaded: {
 			try {
-				win.layoutDoc = Toml.copyLayout(JSON.parse(this.text()));
+				win.layoutDoc = JSON.parse(this.text());
 			} catch (error) {
-				win.layoutDoc = Toml.copyLayout({});
+				win.layoutDoc = { version: 1, bar: { layout: { left: [], center: [], right: [] } } };
 			}
 		}
 	}
@@ -162,105 +230,147 @@ AppWindow {
 			color: Config.settingsRule
 		}
 
-		Item {
-			id: brand
+		Rectangle {
+			id: search
 
-			x: Config.settingsGap
-			y: Config.settingsPadding - 6
-			width: parent.width - Config.settingsGap * 2
-			height: Config.settingsRowHeight
+			x: 12
+			y: 16
+			width: parent.width - 24
+			height: 34
+			radius: 8
+			color: Config.launcherSearchBox
 
 			Glyph {
-				id: brandGlyph
+				id: searchGlyph
 
 				x: 10
 				anchors.verticalCenter: parent.verticalCenter
-				width: 20
-				height: 20
-				size: Config.settingsFontSize + 5
-				color: Config.settingsInk
-				glyph: Config.glyph("settings")
+				width: 14
+				height: 14
+				size: Config.settingsFontSize
+				color: Config.settingsLabel
+				glyph: Config.glyph("search")
 			}
 
-			Text {
-				anchors.left: brandGlyph.right
-				anchors.leftMargin: 12
+			TextInput {
+				id: searchInput
+
+				anchors.left: searchGlyph.right
+				anchors.leftMargin: 8
 				anchors.right: parent.right
+				anchors.rightMargin: 10
 				anchors.verticalCenter: parent.verticalCenter
-				elide: Text.ElideRight
+				height: parent.height
+				verticalAlignment: TextInput.AlignVCenter
+				clip: true
+				focus: true
 				font.family: Config.fontFamily
-				font.pixelSize: Config.settingsFontSize + 3
+				font.pixelSize: Config.settingsFontSize + 1
 				color: Config.foreground
-				text: "Settings"
+				selectionColor: Config.settingsSelected
+							onTextChanged: {
+					if (searchInput.text !== win.query)
+						win.query = searchInput.text;
+					flick.contentY = 0;
+				}
+
+				Keys.onDownPressed: win.go(win.pages.length > 0 ? win.pages[0].name : "")
+				Keys.onEscapePressed: searchInput.text = ""
+
+				Text {
+					anchors.verticalCenter: parent.verticalCenter
+					visible: searchInput.text === ""
+					font: searchInput.font
+					color: Config.settingsLabel
+					text: "Search"
+				}
+			}
+
+			function clear() {
+				searchInput.text = "";
 			}
 		}
 
-		Column {
-			anchors.top: brand.bottom
-			anchors.topMargin: Config.settingsGap
-			x: Config.settingsGap
-			width: parent.width - Config.settingsGap * 2
-			spacing: 2
+		Flickable {
+			anchors.top: search.bottom
+			anchors.topMargin: 12
+			anchors.bottom: parent.bottom
+			x: 12
+			width: parent.width - 24
+			contentHeight: nav.height
+			clip: true
+			boundsBehavior: Flickable.StopAtBounds
 
-			Repeater {
-				model: Toml.categories
+			Column {
+				id: nav
 
-				delegate: Item {
-					id: entry
+				width: parent.width
+				spacing: 2
 
-					required property var modelData
+				Repeater {
+					model: win.pages
 
-					readonly property bool current: win.pane === entry.modelData.id
+					delegate: Item {
+						id: entry
 
-					width: parent.width
-					height: 36
+						required property var modelData
 
-					Rectangle {
-						anchors.fill: parent
-						radius: 8
-						color: Config.settingsSelected
-						opacity: entry.current ? 1 : (entryHover.containsMouse ? 0.45 : 0)
+						readonly property bool chosen: !win.searching && win.page === entry.modelData.name
 
-						Behavior on opacity {
-							NumberAnimation {
-								duration: Config.toggleMs
+						width: nav.width
+						height: 34
+
+						Rectangle {
+							anchors.fill: parent
+							radius: 8
+							color: entry.chosen ? Config.launcherHighlight : Config.settingsSelected
+							opacity: entry.chosen ? 1 : (entryHover.containsMouse ? 0.5 : 0)
+
+							Behavior on opacity {
+								NumberAnimation {
+									duration: Config.toggleMs
+								}
 							}
 						}
-					}
 
-					Glyph {
-						id: entryGlyph
+						Rectangle {
+							id: badge
 
-						x: 10
-						anchors.verticalCenter: parent.verticalCenter
-						width: 18
-						height: 18
-						size: Config.settingsFontSize + 1
-						color: entry.current ? Config.foreground : Config.settingsLabel
-						glyph: Config.glyph(entry.modelData.glyph)
-					}
+							x: 6
+							anchors.verticalCenter: parent.verticalCenter
+							width: 24
+							height: 24
+							radius: 7
+							color: entry.chosen ? Config.foreground : Config.toggleTrack
 
-					Text {
-						anchors.left: entryGlyph.right
-						anchors.leftMargin: 12
-						anchors.right: parent.right
-						anchors.rightMargin: 10
-						anchors.verticalCenter: parent.verticalCenter
-						elide: Text.ElideRight
-						font.family: Config.fontFamily
-						font.pixelSize: Config.settingsFontSize + 1
-						color: entry.current ? Config.foreground : Config.settingsLabel
-						text: entry.modelData.name
-					}
+							Glyph {
+								anchors.fill: parent
+								size: Config.settingsFontSize
+								color: entry.chosen ? Config.surface : Config.foreground
+								glyph: Config.glyph(entry.modelData.glyph)
+							}
+						}
 
-					MouseArea {
-						id: entryHover
+						Text {
+							anchors.left: badge.right
+							anchors.leftMargin: 10
+							anchors.right: parent.right
+							anchors.rightMargin: 8
+							anchors.verticalCenter: parent.verticalCenter
+							elide: Text.ElideRight
+							font.family: Config.fontFamily
+							font.pixelSize: Config.settingsFontSize + 1
+							color: entry.chosen ? Config.foreground : Config.settingsLabel
+							text: entry.modelData.name
+						}
 
-						anchors.fill: parent
-						hoverEnabled: true
-						onClicked: {
-							win.pane = entry.modelData.id;
-							flick.contentY = 0;
+						MouseArea {
+							id: entryHover
+
+							anchors.fill: parent
+							hoverEnabled: true
+							cursorShape: Qt.PointingHandCursor
+							onClicked: win.go(entry.modelData.name)
 						}
 					}
 				}
@@ -276,21 +386,37 @@ AppWindow {
 		anchors.top: parent.top
 		anchors.bottom: parent.bottom
 
+		readonly property real column: Math.min(Config.settingsColumn, content.width - Config.settingsPadding * 2)
+
 		Flickable {
 			id: flick
 
-			anchors.fill: parent
+			anchors.top: header.bottom
+			anchors.bottom: parent.bottom
+			width: parent.width
 			contentWidth: width
-			contentHeight: body.height + Config.settingsPadding * 2 + (win.barShown ? applyBar.height + Config.settingsGap : 0)
+			contentHeight: body.height + Config.settingsPadding + (win.barShown ? applyBar.height + Config.settingsGap * 2 : Config.settingsPadding)
 			boundsBehavior: Flickable.StopAtBounds
 			clip: true
 			interactive: false
+
+			Behavior on contentY {
+				enabled: flick.easing
+
+				NumberAnimation {
+					duration: Config.popupSlideMs / 2
+					easing.type: Easing.OutCubic
+				}
+			}
+
+			property bool easing: false
 
 			MouseArea {
 				width: flick.width
 				height: Math.max(flick.height, flick.contentHeight)
 				acceptedButtons: Qt.NoButton
 				onWheel: function (wheel) {
+					flick.easing = false;
 					flick.contentY = Calc.clamp(flick.contentY - wheel.angleDelta.y, 0, Math.max(0, flick.contentHeight - flick.height));
 				}
 			}
@@ -298,52 +424,35 @@ AppWindow {
 			Column {
 				id: body
 
-				width: Math.min(Config.settingsColumn, flick.width - Config.settingsPadding * 2)
+				width: content.column
 				x: Math.round((flick.width - width) / 2)
-				y: Config.settingsPadding
+				y: 8
 				spacing: Config.settingsSectionGap
-
-				Text {
-					width: parent.width
-					elide: Text.ElideRight
-					font.family: Config.fontFamily
-					font.pixelSize: Config.settingsTitleSize
-					color: Config.foreground
-					text: win.category.name
-				}
 
 				BarPreview {
 					width: parent.width
-					visible: win.pane === "appearance" || win.pane === "bar"
-					store: win
+					visible: !win.searching && win.current.sections.some(function (s) { return s.name === "bar"; })
 					layout: win.layout
-					glyphs: win.glyphs
 				}
 
 				LayoutEditor {
-					visible: win.pane === "bar"
+					visible: !win.searching && win.current.sections.some(function (s) { return s.name === "bar"; })
 					store: win
 					library: win.library
 				}
 
-				Rectangle {
-					visible: win.pane === "display"
-					width: displayPanel.implicitWidth + 8
-					height: displayPanel.implicitHeight + 8
-					radius: Config.settingsRadius
-					color: Config.settingsCard
+				DisplayPage {
+					width: parent.width
+					visible: !win.searching && win.current.name === "Display"
+				}
 
-					DisplayPanel {
-						id: displayPanel
-
-						x: 4
-						y: 4
-						shown: win.pane === "display"
-					}
+				WallpaperPage {
+					width: parent.width
+					visible: !win.searching && win.current.name === "Wallpaper"
 				}
 
 				Repeater {
-					model: win.sections
+					model: win.searching ? win.found : win.current.sections
 
 					delegate: Section {
 						required property var modelData
@@ -353,6 +462,15 @@ AppWindow {
 						store: win
 					}
 				}
+
+				Text {
+					visible: win.searching && win.found.length === 0
+					width: parent.width
+					font.family: Config.fontFamily
+					font.pixelSize: Config.settingsFontSize + 1
+					color: Config.settingsLabel
+					text: "Nothing matches"
+				}
 			}
 		}
 
@@ -361,9 +479,62 @@ AppWindow {
 		}
 
 		Rectangle {
+			id: header
+
+			width: parent.width
+			height: 56
+			color: Config.surface
+
+			Rectangle {
+				anchors.bottom: parent.bottom
+				width: parent.width
+				height: 1
+				color: Config.settingsRule
+				opacity: flick.contentY > 0 ? 1 : 0
+
+				Behavior on opacity {
+					NumberAnimation {
+						duration: Config.toggleMs
+					}
+				}
+			}
+
+			Item {
+				x: Math.round((parent.width - content.column) / 2)
+				width: content.column
+				height: parent.height
+
+				ArrowPill {
+					id: arrow
+
+					anchors.left: parent.left
+					anchors.verticalCenter: parent.verticalCenter
+					visible: flick.contentY > 0 || win.history.length > 0
+					glyph: flick.contentY > 0 ? Config.iconUp : Config.iconChevron
+					onClicked: {
+						flick.easing = true;
+						win.back();
+					}
+				}
+
+				Text {
+					anchors.left: arrow.visible ? arrow.right : parent.left
+					anchors.leftMargin: arrow.visible ? 12 : 0
+					anchors.right: parent.right
+					anchors.verticalCenter: parent.verticalCenter
+					elide: Text.ElideRight
+					font.family: Config.fontFamily
+					font.pixelSize: Config.settingsTitleSize - 4
+					color: Config.foreground
+					text: win.searching ? "Search" : win.current.name
+				}
+			}
+		}
+
+		Rectangle {
 			id: applyBar
 
-			width: Math.min(Config.settingsColumn, content.width - Config.settingsPadding * 2)
+			width: content.column
 			height: Config.settingsRowHeight + 8
 			x: Math.round((content.width - width) / 2)
 			y: win.barShown ? content.height - height - Config.settingsGap : content.height + 8
@@ -399,7 +570,7 @@ AppWindow {
 				spacing: 8
 
 				Repeater {
-					model: [{ label: "Revert", run: win.revert, main: false }, { label: "Apply", run: win.apply, main: true }]
+					model: [{ label: "Revert", main: false }, { label: "Apply", main: true }]
 
 					delegate: Rectangle {
 						id: button
@@ -427,11 +598,22 @@ AppWindow {
 							anchors.fill: parent
 							hoverEnabled: true
 							cursorShape: Qt.PointingHandCursor
-							onClicked: button.modelData.run()
+							onClicked: button.modelData.main ? win.apply() : win.revert()
 						}
 					}
 				}
 			}
+		}
+
+		Text {
+			anchors.bottom: parent.bottom
+			anchors.bottomMargin: Config.settingsGap
+			anchors.horizontalCenter: parent.horizontalCenter
+			visible: !win.manual && win.failed !== ""
+			font.family: Config.fontFamily
+			font.pixelSize: Config.settingsSmallSize
+			color: Config.red
+			text: "Could not save " + win.failed
 		}
 	}
 }

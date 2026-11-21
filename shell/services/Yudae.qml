@@ -248,9 +248,6 @@ QtObject {
 
 	readonly property var settings: root.snapshot.settings || ({})
 	readonly property var displayState: root.snapshot.display || ({})
-	readonly property int settingsFontSize: root.displayState.fontSize || 0
-	readonly property int settingsIconSize: root.displayState.iconSize || 0
-	readonly property string settingsRecord: root.displayState.record || ""
 
 	readonly property var screenPanel: root.screenState.panel || ({})
 	readonly property var screenGroups: root.screenPanel.groups || []
