@@ -31,6 +31,10 @@ Item {
 		return String(entry);
 	}
 
+	function isGlyph(text) {
+		return text.length > 0 && text.length <= 2 && text.codePointAt(0) >= 0xe000;
+	}
+
 	function valueOf(entry) {
 		return entry !== null && entry !== undefined && entry.value !== undefined ? entry.value : entry;
 	}
@@ -49,9 +53,9 @@ Item {
 	Rectangle {
 		id: knob
 
-		x: root.active ? Config.togglePadding + root.active.x + (root.active.width - width) / 2 : Config.togglePadding
+		x: root.active ? Config.togglePadding + root.active.x : Config.togglePadding
 		y: Config.togglePadding
-		width: Math.max(root.knobSize, root.active ? root.active.labelWidth + Config.toggleLabelPad * 2 : 0)
+		width: root.active ? root.active.width : root.knobSize
 		height: root.knobSize
 		radius: height / 2
 		color: root.ink
@@ -88,28 +92,46 @@ Item {
 				required property var modelData
 				required property int index
 
-				readonly property real labelWidth: label.inkWidth
+				readonly property string text: root.labelOf(slot.modelData)
+				readonly property bool glyph: root.isGlyph(slot.text)
+				readonly property color tone: slot.index === root.selected ? root.labelInk : (hover.containsMouse ? root.ink : root.fadedInk)
 
-				width: Math.max(root.knobSize, slot.labelWidth + Config.toggleLabelPad * 2)
+				width: slot.glyph ? root.knobSize : word.implicitWidth + Config.toggleLabelPad * 2
 				height: row.height
 
 				Rectangle {
-					anchors.centerIn: parent
-
-					width: root.knobSize
+					x: 0
+					y: Config.togglePadding
+					width: parent.width
 					height: root.knobSize
-					radius: width / 2
+					radius: height / 2
 					color: root.hoverInk
-					visible: hover.containsMouse && slot.index !== root.selected
+					opacity: hover.containsMouse && slot.index !== root.selected ? 1 : 0
+
+					Behavior on opacity {
+						NumberAnimation {
+							duration: Config.toggleMs
+						}
+					}
 				}
 
 				Glyph {
-					id: label
-
 					anchors.fill: parent
+					visible: slot.glyph
 					size: Config.toggleFontSize
-					color: slot.index === root.selected ? root.labelInk : (hover.containsMouse ? root.ink : root.fadedInk)
-					glyph: root.labelOf(slot.modelData)
+					color: slot.tone
+					glyph: slot.glyph ? slot.text : ""
+				}
+
+				Text {
+					id: word
+
+					anchors.centerIn: parent
+					visible: !slot.glyph
+					font.family: Config.fontFamily
+					font.pixelSize: Config.toggleFontSize - 1
+					color: slot.tone
+					text: slot.glyph ? "" : slot.text
 				}
 
 				MouseArea {
