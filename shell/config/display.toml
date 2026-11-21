@@ -1,0 +1,19 @@
+# Sliders and scale
+[display]
+displayBase = "#7aa2f7"
+displayBaseMono = "#ffffff"  # same as foreground
+stepBarHeight = 6
+stepBarGap = 2
+stepBarGlyphSize = 10
+stepBarKnobWidth = 12
+stepBarDot = 3
+stepBarDotGap = 4
+stepBarGlyphRadius = 3
+stepBarGlyphShade = 1.8
+stepBarGlyphFill = 0.09
+stepBarGlyphTick = 80
+displayScaleMin = 1
+displayScaleMax = 2
+displayRefreshTitle = "Refresh"  # hidden
+displayScaleTitle = "Scale"  # hidden
+displayNothing = "No display found"  # hidden

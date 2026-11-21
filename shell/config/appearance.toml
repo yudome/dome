@@ -1,0 +1,42 @@
+# Colors
+[colors]
+surface = "#101010"
+surfaceTranslucent = "#ff101010"  # the bar background, alpha first
+foreground = "#ffffff"
+dim = "#3f3f3f"
+red = "#e05252"
+yellow = "#e0b24f"
+muted = "#ffffff"  # same as foreground
+mono = true
+
+# Bar
+[bar]
+barHitPadding = 4
+barStatSpacing = 16  # 0..40
+barCells = 15  # 4..30
+barInset = 8  # 0..24
+barPadding = 8  # 0..32
+barFloating = false
+barBorderWidth = 0  # barFloating ? -1 : 0
+barStatMode = "icon"  # icon | text
+barStatMono = true
+barThickness = 1.5  # 0..4
+barSweepMs = 1400
+barSlideMs = 400
+barFullscreenSlide = false
+sweepFade = 0.45
+sweepSteps = 5
+clockFormat = "ddd MMM d h:mm AP"
+borderFallbackWidth = 1
+borderFallbackColor = "#ffffff"
+
+# Tray
+[tray]
+trayIconSize = 15  # 8..32
+trayIconGap = 10  # 0..24
+trayGroupSize = 15
+trayChevronBoost = 1
+trayMenuWidth = 120
+trayMenuPadding = 6
+trayMenuRowHeight = 18
+trayMenuSeparator = 1

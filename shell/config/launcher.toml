@@ -1,0 +1,42 @@
+# Launcher
+[launcher]
+launcherWidth = 270
+launcherPadding = 12
+launcherGap = 8
+launcherInputHeight = 30
+launcherRowHeight = 28
+launcherFontSize = 16
+launcherIconSize = 20
+launcherIconSlot = 24
+launcherTextGap = 10
+launcherSearchBox = "#1f1f1f"
+launcherHighlight = "#2f2f2f"
+launcherHighlightText = "#ffffff"  # same as foreground
+launcherDetailText = "#8a8a8a"
+launcherMaxRows = 12  # 4..20
+launcherClipTimeFormat = "h:mm AP"
+launcherSpotlight = true  # false = the box with the list under the field
+launcherSpotlightWidth = 560
+launcherSpotlightInputHeight = 52
+launcherSpotlightQuerySize = 32
+launcherSpotlightFontSize = 20
+launcherSpotlightMaxRows = 8  # 4..16
+launcherSpotlightTop = 0.25  # fraction of the screen height
+launcherGrid = false  # true = app icon grid under the spotlight field
+launcherGridColumns = 7  # 3..10
+launcherGridRows = 4  # 2..8
+launcherGridCell = 132
+launcherGridCellHeight = 124
+launcherGridIconSize = 64
+launcherGridLabelSize = 14
+launcherMove = "forget"  # remember | forget
+
+# Window switcher
+[windows]
+windowsGridCell = 92
+windowsRowMargin = 60
+windowsHighlightSize = 84
+windowsLabelGap = 2
+windowStepMs = 80
+windowsIconSize = 76
+windowsTitleSize = 11

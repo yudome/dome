@@ -159,9 +159,6 @@ QtObject {
 	readonly property var iconBar: settings.iconBar !== undefined ? settings.iconBar : "\uf2d0"
 	readonly property var iconWallpaper: settings.iconWallpaper !== undefined ? settings.iconWallpaper : "\U000f0e09"
 	readonly property var iconPanels: settings.iconPanels !== undefined ? settings.iconPanels : "\uf2d2"
-	readonly property var iconTray: settings.iconTray !== undefined ? settings.iconTray : "\uf01c"
-	readonly property var iconWorkspaces: settings.iconWorkspaces !== undefined ? settings.iconWorkspaces : "\uf24d"
-	readonly property var iconAgent: settings.iconAgent !== undefined ? settings.iconAgent : "\U000f06a9"
 	readonly property var iconSpacer: settings.iconSpacer !== undefined ? settings.iconSpacer : "\uf07e"
 	readonly property var iconPowerOff: settings.iconPowerOff !== undefined ? settings.iconPowerOff : "\uf011"
 	readonly property var iconReboot: settings.iconReboot !== undefined ? settings.iconReboot : "\uead2"
@@ -672,9 +669,6 @@ QtObject {
 		bar: root.iconBar,
 		wallpaper: root.iconWallpaper,
 		panels: root.iconPanels,
-		tray: root.iconTray,
-		workspaces: root.iconWorkspaces,
-		agent: root.iconAgent,
 		spacer: root.iconSpacer,
 		awake: root.iconAwake,
 		awakeAuto: root.iconAwakeAuto,

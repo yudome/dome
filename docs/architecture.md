@@ -14,6 +14,7 @@ dotfiles/
     ui/              primitives used twice or more; AppWindow is the xdg_toplevel primitive
     native/          Yudae.Native C++ QML module (VmDisplay) + yudae-pump
     lib/ lock/ launcher/ greeter/
+    config/          one TOML per settings category; icons.toml holds every glyph
   daemon/            yudaemond (Zig); src/providers/<name>.zig pairs with features/<name>
   systemd/ scripts/
   vm/                images, overlays, guest setup, scenarios
@@ -30,7 +31,7 @@ dotfiles/
 - `AGENTS.md` is an index. Procedure goes in `.agents/skills/`, reference in `docs/`.
 - Only `xmake link` writes into `~/.config`. It refuses to overwrite a real file and prints what it would replace.
 - The shell and greeter run from the repo path, never from `~/.config`.
-- The greeter is `shell/greeterShell.qml`, run by greetd as `cage -- quickshell` through `shell/features/greeter/start`. It and the lock draw the same `features/lock/Stage.qml`: font, `lockFontSize`, `lockDigits`, `lockClockFormat` and colors come from `shell/config.toml`.
+- The greeter is `shell/greeterShell.qml`, run by greetd as `cage -- quickshell` through `shell/features/greeter/start`. It and the lock draw the same `features/lock/Stage.qml`: font, `lockFontSize`, `lockDigits`, `lockClockFormat` and colors come from `shell/config/`.
 - The greeter starts the chosen session through `shell/features/greeter/session`, which sends its output to `~/.local/state/session.log`, so nothing is printed on the VT between the greeter and the desktop.
 - The greeter's third button opens the switch menu: one row for the session name and one for the user, arrows to change each, and that choice is used for the login. Sessions come from `/usr/share/wayland-sessions`.
 

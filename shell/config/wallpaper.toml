@@ -1,0 +1,21 @@
+# Wallpaper picker
+[wallpaper]
+wallpaperTransitionMs = 400  # 0..2000
+wallpaperEmpty = "No wallpapers found"  # hidden
+wallpaperPickerWidth = 1100
+wallpaperWatchMs = 300
+wallpaperPreviewRatio = 1.78
+wallpaperRowHeight = 230
+wallpaperRowMin = 115
+wallpaperSlimRatio = 0.42
+wallpaperNameSize = 13
+themeEmpty = "No themes installed"  # hidden
+themeNameSize = 24
+wallpaperPickerPadding = 16
+wallpaperTileGap = 8
+wallpaperTileDim = 0.6
+wallpaperRingWidth = 2
+wallpaperMarkSize = 11
+wallpaperFadeMs = 160
+wallpaperScrim = 0.45
+wallpaperScrimMs = 180
