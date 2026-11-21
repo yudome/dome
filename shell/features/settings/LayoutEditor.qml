@@ -2,7 +2,9 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs
+import qs.services
 import qs.ui
+import "../../bar"
 
 Item {
 	id: root
@@ -14,12 +16,14 @@ Item {
 	readonly property var slotNames: ["left", "center", "right"]
 	property var drag: null
 	property var targets: []
+	property string hoverSlot: ""
+	property int hoverIndex: -1
 
 	width: parent ? parent.width : 0
 	height: column.height
 
 	readonly property var names: ({ cpu: "CPU", github: "GitHub" })
-	readonly property var ordered: root.library.filter(function (f) { return !root.placed(root.store.layout, f.id); }).concat(root.library.filter(function (f) { return root.placed(root.store.layout, f.id); }))
+	readonly property var available: root.library.filter(function (f) { return f.id === "spacer" || !root.placed(root.store.layout, f.id); })
 
 	function title(id) {
 		return root.names[id] || id.charAt(0).toUpperCase() + id.slice(1);
@@ -47,7 +51,7 @@ Item {
 		const out = root.copy(doc);
 		const layout = out.bar.layout;
 		const entry = fromSlot ? layout[fromSlot].splice(fromIndex, 1)[0] : { id: fromIndex };
-		if (!entry || (!fromSlot && root.placed(out, entry.id)))
+		if (!entry || (!fromSlot && entry.id !== "spacer" && root.placed(out, entry.id)))
 			return out;
 		if (fromSlot === toSlot && toIndex > fromIndex)
 			toIndex -= 1;
@@ -56,11 +60,6 @@ Item {
 		if (!root.placed(out, out.bar.centerAnchor))
 			out.bar.centerAnchor = layout.center.length > 0 ? layout.center[0].id : "";
 		return out;
-	}
-
-	function glyphOf(id) {
-		const found = root.library.find(function (f) { return f.id === id; });
-		return found ? Config.glyph(found.glyph) : "";
 	}
 
 	function begin(from, index, id, item, mouse) {
@@ -73,35 +72,59 @@ Item {
 			return;
 		const at = item.mapToItem(root, mouse.x, mouse.y);
 		root.drag = Object.assign({}, root.drag, { x: at.x, y: at.y });
+		root.aim(at.x, at.y);
 	}
 
-	function inside(target) {
-		const at = target.mapFromItem(root, root.drag.x, root.drag.y);
+	function insideAt(target, x, y) {
+		const at = target.mapFromItem(root, x, y);
 		return at.x >= 0 && at.y >= 0 && at.x <= target.width && at.y <= target.height;
+	}
+
+	function indexAt(slot, x, y) {
+		const p = slot.flow.mapFromItem(root, x, y);
+		let index = 0;
+		for (let i = 0; i < slot.list.count; i++) {
+			const c = slot.list.itemAt(i);
+			if (c && (c.y + c.height <= p.y || (c.y <= p.y && c.x + c.width / 2 < p.x)))
+				index = i + 1;
+		}
+		return index;
+	}
+
+	function aim(x, y) {
+		root.hoverSlot = "";
+		root.hoverIndex = -1;
+		if (x === undefined)
+			return;
+		for (let s = 0; s < root.targets.length; s++) {
+			const slot = root.targets[s];
+			if (!root.insideAt(slot.area, x, y))
+				continue;
+			root.hoverSlot = slot.name;
+			root.hoverIndex = root.indexAt(slot, x, y);
+			return;
+		}
+		if (root.insideAt(libraryBox, x, y))
+			root.hoverSlot = "library";
 	}
 
 	function finish() {
 		const d = root.drag;
-		root.drag = null;
-		if (!d)
-			return;
-
-		for (let s = 0; s < root.targets.length; s++) {
-			const slot = root.targets[s];
-			if (!root.inside(slot.area))
-				continue;
-			const p = slot.flow.mapFromItem(root, d.x, d.y);
-			let index = 0;
-			for (let i = 0; i < slot.list.count; i++) {
-				const c = slot.list.itemAt(i);
-				if (c && (c.y + c.height <= p.y || (c.y <= p.y && c.x + c.width / 2 < p.x)))
-					index = i + 1;
-			}
-			root.store.setLayout(root.move(root.store.layout, d.from, d.from ? d.index : d.id, slot.name, index));
+		if (!d) {
+			root.drag = null;
 			return;
 		}
 
-		if (d.from && root.inside(libraryBox))
+		root.aim(d.x, d.y);
+		const slot = root.hoverSlot;
+		const index = root.hoverIndex;
+		root.drag = null;
+		root.hoverSlot = "";
+		root.hoverIndex = -1;
+
+		if (slot !== "" && slot !== "library")
+			root.store.setLayout(root.move(root.store.layout, d.from, d.from ? d.index : d.id, slot, index));
+		else if (slot === "library" && d.from)
 			root.store.setLayout(root.move(root.store.layout, d.from, d.index, null, 0));
 	}
 
@@ -160,22 +183,33 @@ Item {
 							width: slotColumn.width
 							height: Math.max(Config.settingsRowHeight + 8, chips.height + 24)
 
-							Rectangle {
+							Item {
 								id: box
 
-								x: -Config.settingsGap + 6
+								x: 0
 								y: 4
-								width: parent.width + (Config.settingsGap - 6) * 2
+								width: parent.width
 								height: parent.height - 8
-								radius: Config.settingsRadius - 4
-								color: Config.settingsSelected
-								opacity: root.drag && root.inside(box) ? 1 : 0
+							}
 
-								Behavior on opacity {
-									NumberAnimation {
-										duration: Config.toggleMs
+							Rectangle {
+								z: 2
+								visible: root.hoverSlot === slot.name && root.drag !== null
+								x: {
+									if (root.hoverIndex < 0 || chipRepeater.count === 0)
+										return chipRepeater.count === 0 ? chips.x : chips.x;
+									if (root.hoverIndex >= chipRepeater.count) {
+										const last = chipRepeater.itemAt(chipRepeater.count - 1);
+										return last ? last.x + last.width + chips.x + 3 : chips.x;
 									}
+									const at = chipRepeater.itemAt(root.hoverIndex);
+									return at ? at.x + chips.x - 3 : chips.x;
 								}
+								y: chips.y + 2
+								width: 2
+								height: Config.settingsChipHeight - 4
+								radius: 1
+								color: Config.foreground
 							}
 
 							Rectangle {
@@ -196,17 +230,6 @@ Item {
 								font.pixelSize: Config.settingsFontSize + 1
 								color: Config.foreground
 								text: root.title(slot.name)
-							}
-
-							Text {
-								anchors.left: slotTitle.right
-								anchors.leftMargin: Config.settingsGap
-								anchors.verticalCenter: parent.verticalCenter
-								visible: chipRepeater.count === 0
-								font.family: Config.fontFamily
-								font.pixelSize: Config.settingsSmallSize
-								color: Config.settingsLabel
-								text: "Empty"
 							}
 
 							Flow {
@@ -241,11 +264,10 @@ Item {
 											anchors.centerIn: parent
 											spacing: 7
 
-											Glyph {
-												width: 14
-												height: Config.settingsChipHeight
-												size: Config.settingsFontSize
-												glyph: root.glyphOf(chip.modelData.id)
+											WidgetGlyph {
+												widgetId: chip.modelData.id
+												face: templates.componentFor("agent")
+												slot: Config.settingsChipHeight - 8
 											}
 
 											Text {
@@ -288,6 +310,15 @@ Item {
 				text: "Widgets"
 			}
 
+			BarBody {
+				id: templates
+
+				visible: false
+				width: 1
+				height: 1
+				sample: true
+			}
+
 			Rectangle {
 				id: libraryBox
 
@@ -295,7 +326,7 @@ Item {
 				width: parent.width
 				height: libraryColumn.height
 				radius: Config.settingsRadius
-				color: root.drag && root.drag.from && root.inside(libraryBox) ? Config.settingsSelected : Config.settingsCard
+				color: root.hoverSlot === "library" && root.drag !== null ? Config.settingsSelected : Config.settingsCard
 
 				Behavior on color {
 					ColorAnimation {
@@ -310,7 +341,7 @@ Item {
 					width: parent.width - x * 2
 
 					Repeater {
-						model: root.ordered
+						model: root.available
 
 						delegate: Item {
 							id: feature
@@ -318,28 +349,24 @@ Item {
 							required property var modelData
 							required property int index
 
-							readonly property bool placed: root.placed(root.store.layout, feature.modelData.id)
-
 							width: libraryColumn.width
 							height: Config.settingsRowHeight
 
 							Rectangle {
-								visible: feature.index < root.library.length - 1
+								visible: feature.index < root.available.length - 1
 								anchors.bottom: parent.bottom
 								width: parent.width
 								height: 1
 								color: Config.settingsRule
 							}
 
-							Glyph {
+							WidgetGlyph {
 								id: featureGlyph
 
 								anchors.verticalCenter: parent.verticalCenter
-								width: 18
-								height: 18
-								size: Config.settingsFontSize + 1
-								color: feature.placed ? Config.settingsLabel : Config.foreground
-								glyph: Config.glyph(feature.modelData.glyph)
+								widgetId: feature.modelData.id
+								face: templates.componentFor("agent")
+								slot: 22
 							}
 
 							Text {
@@ -352,14 +379,14 @@ Item {
 								elide: Text.ElideRight
 								font.family: Config.fontFamily
 								font.pixelSize: Config.settingsFontSize + 1
-								color: feature.placed ? Config.settingsLabel : Config.foreground
+								color: Config.foreground
 								text: root.title(feature.modelData.id)
 							}
 
 							Text {
 								anchors.left: featureName.right
 								anchors.leftMargin: Config.settingsGap
-								anchors.right: placeMark.left
+								anchors.right: parent.right
 								anchors.rightMargin: Config.settingsGap
 								anchors.verticalCenter: parent.verticalCenter
 								elide: Text.ElideRight
@@ -369,22 +396,9 @@ Item {
 								text: feature.modelData.description || ""
 							}
 
-							Text {
-								id: placeMark
-
-								anchors.right: parent.right
-								anchors.verticalCenter: parent.verticalCenter
-								width: 64
-								horizontalAlignment: Text.AlignRight
-								font.family: Config.fontFamily
-								font.pixelSize: Config.settingsSmallSize
-								color: Config.settingsLabel
-								text: feature.placed ? "On bar" : ""
-							}
-
 							MouseArea {
 								anchors.fill: parent
-								enabled: !feature.placed
+								enabled: true
 								cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
 								preventStealing: true
 								onPressed: function (mouse) { root.begin(null, -1, feature.modelData.id, feature, mouse); }
@@ -407,7 +421,7 @@ Item {
 		width: ghostRow.width + 22
 		height: Config.settingsChipHeight
 		radius: height / 2
-		color: Config.foreground
+		color: Config.launcherHighlight
 
 		Row {
 			id: ghostRow
@@ -415,19 +429,17 @@ Item {
 			anchors.centerIn: parent
 			spacing: 7
 
-			Glyph {
-				width: 14
-				height: Config.settingsChipHeight
-				size: Config.settingsFontSize
-				color: Config.surface
-				glyph: root.drag ? root.glyphOf(root.drag.id) : ""
+			WidgetGlyph {
+				widgetId: root.drag ? root.drag.id : ""
+				face: templates.componentFor("agent")
+				slot: Config.settingsChipHeight - 6
 			}
 
 			Text {
 				anchors.verticalCenter: parent.verticalCenter
 				font.family: Config.fontFamily
 				font.pixelSize: Config.settingsFontSize
-				color: Config.surface
+				color: Config.foreground
 				text: root.drag ? root.title(root.drag.id) : ""
 			}
 		}

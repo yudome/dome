@@ -48,10 +48,10 @@ The Settings app (`shell/app-settings.qml`, `features/settings/`) draws itself f
 
 `config.toml` stays the only store. Edits are one line each, keeping indent, trailing comment and file order; the result is parsed before the atomic write, so a bad edit never lands.
 
-- `settings.schema` returns the pages, sections and keys with type, value, label, note, choices and slider steps; the app re-reads it whenever the config changes.
+- `settings.schema` returns the pages, sections and keys with type, value, label, note, choices and slider steps; the app re-reads it whenever the config changes. Glyph keys are collected on the page named `Icons` and left out of every other page.
 - `settings.get {key?}` returns one value, or the whole flattened map without a key.
 - `settings.set {key, value}` writes one key and then the keys that copy or derive from it: `# same as <key>`, and arithmetic or `a ? b : c` comments that name the changed key (`notifyWidth` follows `notifyScale`, `barBorderWidth` follows `barFloating`). The value must have the key's current type: string, bool, integer (a whole float is accepted) or float (an integer is written as `N.0`). Non-ASCII text is written as `\uXXXX` / `\UXXXXXXXX`. Errors: `UnknownKey`, `WrongType`, `Unsupported` (arrays and tables), `NoKey`, `NoValue`.
-- `bar.layout {layout}` writes the whole `topbarlayout.json` document atomically after the same `normalize` the bar reader uses accepts it (`NoBar`, `NoLayout`).
+- `bar.layout {layout}` writes the whole `topbarlayout.json` document atomically after the same `normalize` the bar reader uses accepts it (`NoBar`, `NoLayout`). One widget per line, like the checked-in file.
 - `settings.app {pane?}` opens the app (`setsid scripts/yudae app open settings [--pane <pane>]`), like `vms.app` and `disk.app`. The pane is a page name; Super+P opens the app on `display`.
 
 The bar preview in the app draws the real bar: `bar/BarBody.qml` is the rows, widget components and border that `Bar.qml` uses, so the preview and the live bar are one piece of code. In `manual` mode the app feeds pending values through `Config.overlay`. The display controls (scale, refresh, resolution) live only in the Display page; there is no display widget and no font size in the display panel, so `fontSize` in `[shell]` is the one font size everywhere.

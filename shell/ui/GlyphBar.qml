@@ -204,6 +204,14 @@ Item {
 		x: root.knobAt - width / 2
 		y: -2
 
+		Rectangle {
+			anchors.centerIn: parent
+			width: 2
+			height: parent.height * 0.4
+			radius: 1
+			color: Config.dim
+		}
+
 		Behavior on scale {
 			NumberAnimation {
 				duration: 120

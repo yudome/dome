@@ -159,7 +159,7 @@ Column {
 							ink: Config.settingsInk
 							glyph: group.modelData.kind === "refresh" ? root.wave : root.density
 							animated: group.modelData.kind === "refresh"
-							follow: true
+							follow: false
 							onPick: function (next) { Yudae.cmd("screen", { pick: { kind: group.modelData.kind, value: next } }); }
 						}
 

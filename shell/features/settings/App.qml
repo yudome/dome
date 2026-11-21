@@ -21,9 +21,12 @@ AppWindow {
 	property string page: ""
 	property var history: []
 	property string query: ""
+	property string widgetGroup: "All"
 	property var layoutDoc: null
 	property var pending: ({})
 	property var pendingLayout: null
+	property var expect: ({})
+	property int writes: 0
 	property var features: ({})
 	property string failed: ""
 
@@ -35,6 +38,24 @@ AppWindow {
 	readonly property bool barShown: win.manual && (win.dirty || win.failed !== "")
 	readonly property bool searching: win.query.trim() !== ""
 	readonly property var library: Object.keys(win.features).sort().map(function (id) { return win.features[id]; })
+	readonly property var widgetGroups: [
+		{ name: "All", sections: [] },
+		{ name: "System", sections: ["cpu", "memory"] },
+		{ name: "Sound", sections: ["mixer", "media"] },
+		{ name: "Network", sections: ["network", "weather"] },
+		{ name: "Time", sections: ["calendar", "contrib"] },
+		{ name: "Agent", sections: ["agent"] },
+		{ name: "Storage", sections: ["disk"] }
+	]
+	readonly property var pageSections: {
+		const sections = win.current.sections || [];
+		if (win.widgetGroup === "All")
+			return sections;
+		const group = win.widgetGroups.find(function (g) { return g.name === win.widgetGroup; });
+		if (!group)
+			return sections;
+		return sections.filter(function (section) { return group.sections.indexOf(section.name) >= 0; });
+	}
 	readonly property var found: {
 		const q = win.query.trim().toLowerCase();
 		if (q === "")
@@ -62,7 +83,7 @@ AppWindow {
 	function load() {
 		Yudae.request("settings", "schema", {}, function (result) {
 			if (result && result.pages)
-				win.schema = result;
+				win.schema = win.withExpect(result);
 			if (win.page === "" && win.pages.length > 0) {
 				const wanted = (Quickshell.env("YUDAE_PANE") || "").toLowerCase();
 				const hit = win.pages.find(function (p) { return p.name.toLowerCase() === wanted || p.name.toLowerCase().indexOf(wanted) === 0 && wanted !== ""; });
@@ -97,19 +118,63 @@ AppWindow {
 	}
 
 	function send(key, next) {
+		win.writes += 1;
 		Yudae.request("settings", "set", { key: key, value: next }, function (result) {
 			win.failed = result === null ? key : "";
+			win.writes = Math.max(0, win.writes - 1);
 			win.load();
+			if (win.writes === 0)
+				win.expect = ({});
 		});
 	}
 
+	function withExpect(next) {
+		if (Object.keys(win.expect).length === 0)
+			return next;
+		const pages = next.pages.map(function (page) {
+			return {
+				name: page.name,
+				glyph: page.glyph,
+				sections: page.sections.map(function (section) {
+					return {
+						name: section.name,
+						title: section.title,
+						keys: section.keys.map(function (key) {
+							return win.expect[key.key] === undefined ? key : Object.assign({}, key, { value: win.expect[key.key] });
+						})
+					};
+				})
+			};
+		});
+		return { apply: next.apply, pages: pages };
+	}
+
+	function original(key) {
+		for (let p = 0; p < win.pages.length; p++) {
+			const sections = win.pages[p].sections;
+			for (let s = 0; s < sections.length; s++) {
+				const keys = sections[s].keys;
+				for (let k = 0; k < keys.length; k++) {
+					if (keys[k].key === key)
+						return keys[k].value;
+				}
+			}
+		}
+		return undefined;
+	}
+
 	function setValue(key, next) {
+		const unchanged = next === win.original(key);
 		if (!win.manual || key === "settingsApply") {
-			win.send(key, next);
+			if (!unchanged)
+				win.send(key, next);
 			return;
 		}
 		const out = Object.assign({}, win.pending);
-		out[key] = next;
+		if (unchanged)
+			delete out[key];
+		else
+			out[key] = next;
 		win.pending = out;
 	}
 
@@ -122,11 +187,32 @@ AppWindow {
 			});
 			return;
 		}
-		win.pendingLayout = next;
+		win.pendingLayout = JSON.stringify(next) === JSON.stringify(win.layoutDoc) ? null : next;
+	}
+
+	function merged() {
+		const pages = win.pages.map(function (page) {
+			return {
+				name: page.name,
+				glyph: page.glyph,
+				sections: page.sections.map(function (section) {
+					return {
+						name: section.name,
+						title: section.title,
+						keys: section.keys.map(function (key) {
+							return win.pending[key.key] === undefined ? key : Object.assign({}, key, { value: win.pending[key.key] });
+						})
+					};
+				})
+			};
+		});
+		return { apply: win.schema.apply, pages: pages };
 	}
 
 	function apply() {
 		win.failed = "";
+		win.expect = Object.assign({}, win.expect, win.pending);
+		win.schema = win.merged();
 		Object.keys(win.pending).forEach(function (key) { win.send(key, win.pending[key]); });
 		if (win.pendingLayout !== null) {
 			const next = win.pendingLayout;
@@ -143,6 +229,7 @@ AppWindow {
 	function revert() {
 		win.pending = {};
 		win.pendingLayout = null;
+		win.expect = ({});
 		win.failed = "";
 	}
 
@@ -429,6 +516,48 @@ AppWindow {
 				y: 8
 				spacing: Config.settingsSectionGap
 
+				Flow {
+					visible: !win.searching && win.current.name === "Widgets"
+					width: parent.width
+					spacing: 6
+
+					Repeater {
+						model: win.widgetGroups
+
+						delegate: Rectangle {
+							id: chip
+
+							required property var modelData
+
+							readonly property bool chosen: win.widgetGroup === chip.modelData.name
+
+							width: chipLabel.implicitWidth + 20
+							height: 28
+							radius: 14
+							color: chip.chosen ? Config.launcherHighlight : (chipHover.containsMouse ? Config.settingsSelected : "transparent")
+
+							Text {
+								id: chipLabel
+
+								anchors.centerIn: parent
+								font.family: Config.fontFamily
+								font.pixelSize: Config.settingsSmallSize
+								color: chip.chosen ? Config.foreground : Config.settingsLabel
+								text: chip.modelData.name
+							}
+
+							MouseArea {
+								id: chipHover
+
+								anchors.fill: parent
+								hoverEnabled: true
+								cursorShape: Qt.PointingHandCursor
+								onClicked: win.widgetGroup = chip.modelData.name
+							}
+						}
+					}
+				}
+
 				BarPreview {
 					width: parent.width
 					visible: !win.searching && win.current.sections.some(function (s) { return s.name === "bar"; })
@@ -452,7 +581,7 @@ AppWindow {
 				}
 
 				Repeater {
-					model: win.searching ? win.found : win.current.sections
+					model: win.searching ? win.found : win.pageSections
 
 					delegate: Section {
 						required property var modelData
