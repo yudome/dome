@@ -151,12 +151,14 @@ QtObject {
 	readonly property var iconEyeOff: settings.iconEyeOff !== undefined ? settings.iconEyeOff : "\uf070"
 	readonly property var iconSearch: settings.iconSearch !== undefined ? settings.iconSearch : "\uf002"
 	readonly property var iconRefresh: settings.iconRefresh !== undefined ? settings.iconRefresh : "\uf021"
+	readonly property var iconMonitor: settings.iconMonitor !== undefined ? settings.iconMonitor : "\uf108"
+	readonly property var iconPuzzle: settings.iconPuzzle !== undefined ? settings.iconPuzzle : "\uf12e"
+	readonly property var iconStar: settings.iconStar !== undefined ? settings.iconStar : "\uf005"
 	readonly property var iconSettings: settings.iconSettings !== undefined ? settings.iconSettings : "\uf013"
 	readonly property var iconAppearance: settings.iconAppearance !== undefined ? settings.iconAppearance : "\uf1fc"
 	readonly property var iconBar: settings.iconBar !== undefined ? settings.iconBar : "\uf2d0"
 	readonly property var iconWallpaper: settings.iconWallpaper !== undefined ? settings.iconWallpaper : "\U000f0e09"
 	readonly property var iconPanels: settings.iconPanels !== undefined ? settings.iconPanels : "\uf2d2"
-	readonly property var iconWidgets: settings.iconWidgets !== undefined ? settings.iconWidgets : "\uf009"
 	readonly property var iconTray: settings.iconTray !== undefined ? settings.iconTray : "\uf01c"
 	readonly property var iconWorkspaces: settings.iconWorkspaces !== undefined ? settings.iconWorkspaces : "\uf24d"
 	readonly property var iconAgent: settings.iconAgent !== undefined ? settings.iconAgent : "\U000f06a9"
@@ -663,11 +665,13 @@ QtObject {
 		settings: root.iconSettings,
 		search: root.iconSearch,
 		refresh: root.iconRefresh,
+		monitor: root.iconMonitor,
+		puzzle: root.iconPuzzle,
+		star: root.iconStar,
 		appearance: root.iconAppearance,
 		bar: root.iconBar,
 		wallpaper: root.iconWallpaper,
 		panels: root.iconPanels,
-		widgets: root.iconWidgets,
 		tray: root.iconTray,
 		workspaces: root.iconWorkspaces,
 		agent: root.iconAgent,

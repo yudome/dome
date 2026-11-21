@@ -4,13 +4,13 @@ settingsApply = "instant"  # instant | manual
 settingsPages = [
 	{ name = "General", glyph = "settings", sections = ["settings", "shell"] },
 	{ name = "Appearance", glyph = "appearance", sections = ["colors", "bar", "tray"] },
-	{ name = "Display", glyph = "display", sections = ["display"] },
+	{ name = "Display", glyph = "monitor", sections = ["display"] },
 	{ name = "Wallpaper", glyph = "wallpaper", sections = ["wallpaper"] },
 	{ name = "Notifications", glyph = "bell", sections = ["notify", "popup", "tooltip"] },
 	{ name = "Launcher", glyph = "panels", sections = ["launcher", "windows"] },
-	{ name = "Widgets", glyph = "widgets", sections = ["cpu", "memory", "mixer", "media", "network", "weather", "calendar", "contrib", "agent", "disk"] },
+	{ name = "Widgets", glyph = "puzzle", sections = ["cpu", "memory", "mixer", "media", "network", "weather", "calendar", "contrib", "agent", "disk"] },
 	{ name = "Lock and power", glyph = "lock", sections = ["lock", "power"] },
-	{ name = "Icons", glyph = "app", sections = ["icons"] }
+	{ name = "Icons", glyph = "star", sections = ["icons"] }
 ]
 
 # Colors
@@ -143,12 +143,14 @@ iconEye = "\uF06E"
 iconEyeOff = "\uF070"
 iconSearch = "\uF002"
 iconRefresh = "\uF021"
+iconMonitor = "\uF108"
+iconPuzzle = "\uF12E"
+iconStar = "\uF005"
 iconSettings = "\uF013"
 iconAppearance = "\uF1FC"
 iconBar = "\uF2D0"
 iconWallpaper = "\U000F0E09"
 iconPanels = "\uF2D2"
-iconWidgets = "\uF009"
 iconTray = "\uF01C"
 iconWorkspaces = "\uF24D"
 iconAgent = "\U000F06A9"
