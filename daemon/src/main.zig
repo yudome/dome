@@ -490,6 +490,7 @@ pub fn main() !void {
 	const command = if (args.len > 1) args[1] else if (cli.json_out) "state" else "run";
 
 	if (std.mem.eql(u8, command, "state")) return cli.state(io, args);
+	if (std.mem.eql(u8, command, "restart")) return cli.restart(io);
 
 	if (std.mem.eql(u8, command, "call")) return cli.call(io, args);
 	if (std.mem.eql(u8, command, "plugin")) return cli.plugin(io, args);
@@ -511,7 +512,7 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "files-index")) return files.command(io, args);
 
 	if (!std.mem.eql(u8, command, "run")) {
-		std.debug.print("usage: yudae [--json] [run|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|settings|bar|ui|spawn-check|logout|files rebuild]\n", .{});
+		std.debug.print("usage: yudae [--json] [run|restart|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|settings|bar|ui|spawn-check|logout|files rebuild]\n", .{});
 		return;
 	}
 

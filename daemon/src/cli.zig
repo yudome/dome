@@ -122,6 +122,52 @@ pub fn doctor(io: Io) !void {
 	printResult(io, std.mem.trimEnd(u8, text.written(), "\n"));
 }
 
+pub fn restart(io: Io) !void {
+	const allocator = std.heap.smp_allocator;
+	const user = exec.run(io, allocator, &.{ "systemctl", "--user", "restart", "yudaemond" }) catch {
+		std.debug.print("yudae: systemctl is not available\n", .{});
+		std.process.exit(1);
+	};
+	defer user.deinit(allocator);
+	if (user.code != 0) {
+		const system = exec.run(io, allocator, &.{ "systemctl", "restart", "yudaemond" }) catch std.process.exit(1);
+		defer system.deinit(allocator);
+		if (system.code != 0) {
+			std.debug.print("yudae: restart failed: {s}", .{if (std.mem.indexOf(u8, user.err, "not found") != null) system.err else user.err});
+			std.process.exit(1);
+		}
+	}
+
+	var tries: usize = 0;
+	while (tries < 100) : (tries += 1) {
+		if (probe(io)) |pid| {
+			var buffer: [256]u8 = undefined;
+			const body = std.fmt.bufPrint(&buffer, "{{\"restarted\":true,\"pid\":{d}}}", .{pid}) catch return;
+			if (json_out) return printResult(io, body);
+			const line = std.fmt.bufPrint(&buffer, "yudaemond restarted, pid {d}", .{pid}) catch return;
+			return printResult(io, line);
+		}
+		sleep.ms(100);
+	}
+
+	std.debug.print("yudaemond did not come back within 10s\n", .{});
+	std.process.exit(1);
+}
+
+fn probe(io: Io) ?i64 {
+	var arena = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
+	defer arena.deinit();
+	const allocator = arena.allocator();
+	const path = proc.socketPath(io, allocator) catch return null;
+	var read_buffer: [1048576]u8 = undefined;
+	var connection = sock.Connection.connect(path, &read_buffer) catch return null;
+	defer connection.close();
+	connection.writeLine(sock.sync) catch return null;
+	const message = (connection.readLine() catch return null) orelse return null;
+	const parsed = json.parse(allocator, message) catch return null;
+	return json.integer(json.deep(parsed.value, &.{ "daemon", "pid" }));
+}
+
 pub fn bench(io: Io, args: []const []const u8) !void {
 	if (args.len > 2 and std.mem.eql(u8, args[2], "widgets")) return bench_widgets.run(io, args);
 	if (args.len > 2 and std.mem.eql(u8, args[2], "disk")) return bench_disk.run(io, args[2..]);
