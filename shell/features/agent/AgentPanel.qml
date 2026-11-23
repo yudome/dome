@@ -104,7 +104,6 @@ PanelPage {
 
 	contentWidth: Config.agentPanelWidth
 	contentHeight: workArea.y + Math.max(doneList.y + doneList.height, planStack.height)
-	padding: Config.agentPanelPadding
 
 	clip: true
 
@@ -220,8 +219,6 @@ PanelPage {
 					selectByMouse: true
 					selectOnFocus: false
 
-					font.family: Config.fontFamily
-					font.pixelSize: Config.fontSize
 					text: root.agentName
 
 					onAccepted: root.saveAgentName(nameField.text)

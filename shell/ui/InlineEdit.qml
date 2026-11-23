@@ -99,6 +99,8 @@ Item {
 
 		anchors.fill: parent
 		clip: true
+		font.family: Config.fontFamily
+		font.pixelSize: Config.fontSize
 		color: root.color
 		selectionColor: root.selectionColor
 		selectedTextColor: root.selectedTextColor
