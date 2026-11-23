@@ -1,0 +1,8 @@
+id = "shadow"
+kind = "hypr"
+version = "1.0.0"
+build = "make"
+provides = ["shadow.so"]
+
+[requires]
+hyprland = ">=0.57"
