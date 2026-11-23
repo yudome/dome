@@ -105,7 +105,6 @@ ProcessPanel {
 		return Input.network(event, root);
 	}
 	contentWidth: Config.networkTooltipWidth
-	padding: Config.networkTooltipPadding
 
 	function adapterOf(kind) {
 		for (let i = 0; i < root.adapters.length; i++) {
@@ -233,33 +232,14 @@ ProcessPanel {
 							root.useKind("wifi");
 					}
 
-					Item {
-						width: Config.toggleHeight
-						height: Config.toggleHeight
+					IconButton {
+						box: Config.toggleHeight
+						size: Config.fontSize
 						visible: root.radio
-
-						Rectangle {
-							anchors.fill: parent
-							radius: width / 2
-							color: Config.toggleHover
-							visible: chevronHit.containsMouse
-						}
-
-						Glyph {
-							anchors.fill: parent
-							size: Config.fontSize
-							color: Config.foreground
-							glyph: root.listOpen ? Config.iconUp : Config.iconDown
-						}
-
-						MouseArea {
-							id: chevronHit
-
-							anchors.fill: parent
-							hoverEnabled: true
-
-							onClicked: root.listOpen = !root.listOpen
-						}
+						selected: root.listOpen
+						name: root.listOpen ? "up" : "down"
+						label: "Networks"
+						onClicked: root.listOpen = !root.listOpen
 					}
 
 					PillSwitch {
@@ -442,7 +422,7 @@ ProcessPanel {
 				elide: Text.ElideRight
 				horizontalAlignment: Text.AlignRight
 
-				ink: dnsRow.hot ? Config.launcherHighlightText : Config.foreground
+				ink: dnsRow.hot ? Config.foreground : Config.foreground
 				text: root.net.dnsError || root.dns
 			}
 
@@ -458,8 +438,6 @@ ProcessPanel {
 				horizontalAlignment: TextInput.AlignRight
 				selectByMouse: true
 
-				font.family: Config.fontFamily
-				font.pixelSize: Config.fontSize
 				text: root.dnsDraft
 
 				onEdited: root.dnsDraft = text
@@ -500,44 +478,14 @@ ProcessPanel {
 				arrowSide: root.speed.stage === "up" ? "left" : "right"
 			}
 		},
-		Rectangle {
+		Button {
 			id: runButton
 
-			width: Math.min(runLabel.implicitWidth + 2 * Config.speedButtonPadX, parent.width)
-			height: runLabel.implicitHeight + 2 * Config.speedButtonPadY
 			anchors.horizontalCenter: parent.horizontalCenter
+			width: Math.min(implicitWidth, parent.width)
 			focus: true
-			color: "transparent"
-			radius: 0
-
-			Highlight {
-				anchors.fill: parent
-
-				radius: height / 2
-				active: runButton.activeFocus || runHit.containsMouse
-			}
-
-			Label {
-				id: runLabel
-
-				anchors.centerIn: parent
-				width: Math.min(implicitWidth, parent.width)
-
-				elide: Text.ElideRight
-				horizontalAlignment: Text.AlignHCenter
-
-				ink: runButton.activeFocus || runHit.containsMouse ? Config.launcherHighlightText : root.done ? root.downInk : Config.foreground
-				text: root.buttonText
-			}
-
-			MouseArea {
-				id: runHit
-
-				anchors.fill: parent
-				hoverEnabled: true
-
-				onClicked: root.primaryAction()
-			}
+			text: root.buttonText
+			onClicked: root.primaryAction()
 		},
 
 	]

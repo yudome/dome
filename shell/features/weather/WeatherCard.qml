@@ -39,7 +39,6 @@ PanelPage {
 	readonly property real dayCardHeight: Config.weatherDayGap * 6 + dayLabelMetrics.height + dayGlyphMetrics.height + dayTempMetrics.height * 3
 
 	contentWidth: Config.weatherCardWidth
-	padding: Config.weatherCardPadding
 
 	onQueryChanged: {
 		root.pickIndex = 0;
@@ -235,14 +234,6 @@ PanelPage {
 		text: "100°"
 	}
 
-	TextMetrics {
-		id: suggestMetrics
-
-		font.family: Config.fontFamily
-		font.pixelSize: Config.weatherPlaceSize
-		text: "Region"
-	}
-
 	Column {
 		id: card
 
@@ -404,7 +395,6 @@ PanelPage {
 						candidate: root.match ? String(root.match.name || "") : ""
 						suggestions: root.suggestionRows
 
-						font.family: Config.fontFamily
 						font.pixelSize: Config.weatherPlaceSize
 
 						onEdited: root.query = inputBox.text
@@ -494,64 +484,32 @@ PanelPage {
 		Repeater {
 			model: root.editing ? root.suggestionRows : []
 
-			delegate: Item {
+			delegate: PanelRow {
 				id: suggestRow
 
 				required property var modelData
 				required property int index
 
-				readonly property bool chosen: suggestRow.index === root.pickIndex
-
 				width: card.width
-				height: suggestMetrics.height + Config.weatherCardGap
-
-				Highlight {
-					active: suggestRow.chosen || suggestHit.containsMouse
-				}
-
-				Label {
-					id: suggestName
-
-					anchors.left: parent.left
-					anchors.leftMargin: Config.weatherCardGap
-					anchors.verticalCenter: parent.verticalCenter
-					width: Math.min(implicitWidth, suggestRow.width * 0.55)
-					elide: Text.ElideRight
-					font.pixelSize: Config.weatherPlaceSize
-					ink: suggestRow.chosen || suggestHit.containsMouse ? Config.launcherHighlightText : Config.foreground
-					text: String(suggestRow.modelData.name || "")
-				}
+				selected: suggestRow.index === root.pickIndex
+				title: String(suggestRow.modelData.name || "")
+				onHoveredChanged: if (suggestRow.hovered) root.pickIndex = suggestRow.index
+				onActivated: root.pick(suggestRow.modelData)
 
 				Label {
-					anchors.left: suggestName.right
-					anchors.leftMargin: Config.weatherCardGap
-					anchors.right: parent.right
-					anchors.rightMargin: Config.weatherCardGap
 					anchors.verticalCenter: parent.verticalCenter
-					elide: Text.ElideRight
-					font.pixelSize: Config.weatherPlaceSize
-					ink: suggestRow.chosen || suggestHit.containsMouse ? Config.launcherHighlightText : Config.muted
-					text: suggestRow.modelData.region
-				}
-
-				MouseArea {
-					id: suggestHit
-
-					anchors.fill: parent
-					hoverEnabled: true
-
-					onEntered: root.pickIndex = suggestRow.index
-					onClicked: root.pick(suggestRow.modelData)
+					width: Math.min(implicitWidth, suggestRow.width * 0.4)
+					role: "caption"
+					text: suggestRow.modelData.region || ""
 				}
 			}
 		}
 
-		Rectangle {
+		Separator {
 			id: separator
 
 			width: card.width
-			height: Config.weatherSeparator
-			color: Config.weatherSeparatorColor
+			color: Config.rule
 		}
 
 		Item {
@@ -578,8 +536,8 @@ PanelPage {
 
 						width: root.dayCellWidth
 						height: root.dayCardHeight
-						radius: Config.weatherDayCardRadius
-						color: Config.weatherDayCardColor
+						radius: Config.appControlRadius
+						color: Config.surfaceRaised
 
 						Column {
 							width: parent.width
@@ -591,7 +549,7 @@ PanelPage {
 								height: dayLabelMetrics.height
 								horizontalAlignment: Text.AlignHCenter
 								font.pixelSize: Config.weatherDayLabelSize
-								ink: Config.weatherDayLabelColor
+								ink: Config.foreground
 								text: dayCell.row ? dayCell.row.day : ""
 							}
 
