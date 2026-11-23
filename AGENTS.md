@@ -11,12 +11,20 @@ NEVER install ANYTHING without telling the user first — packages, skills, MCP 
 No on-screen instructions or shortcut hints in widgets: never render "press X", key lists, hints, or counters. The UI is discovered by using it.
 If a VM task needs an action the daemon does not expose, do not write a throwaway script for it. Ask the user whether to add it to yudaemond; if yes, implement, test and document the verb, then use it.
 Every surface shows the same icon for the same thing: the VM app, its machines and the launcher entry use one glyph.
-Icons live once, in the icon list (`iconX` in `shell/services/Config.qml` and `shell/config.toml`, plus the `icons` map). Before using an icon, look it up in that list and reuse it everywhere, switches and rows included. Add one only when the list has none, and never invent a second glyph for something that already has one.
+Icons live once, in the icon list (`iconX` in `shell/services/Config.qml` and `shell/config/icons.toml`, plus the `icons` map). Before using an icon, look it up in that list and reuse it everywhere, switches and rows included. Add one only when the list has none, and never invent a second glyph for something that already has one.
 Nerd font glyphs are always drawn through `shell/ui/Glyph.qml`, which centers the glyph ink in its box; never a bare `Text` inside a circle, badge, switch or slot.
 Text never overlaps other text: every `Text` in a row has a bounded width, anchors to its neighbours and elides; never position text by fractions of the parent width.
 Never put "·" or similar dot separators between pieces of text in the UI; separate with spacing.
 Scrollbars sit on the right border of their container, never floating inside it; Scrollbar.qml does this by default.
 Every QML color comes from `shell/services/Config.qml`; `xmake lint` rejects color literals in QML.
+
+# UI architecture
+
+- Apps and widgets are composed from `shell/ui`, `shell/appkit` and `shell/panelkit`. A feature never hand-builds a window frame, header, sidebar, button, row, icon or scrollbar when the kit has one.
+- If a component is missing, add it to the kit first. Keep one-off visuals in their feature; promote a component to the kit on its second real use and delete the old one in the same change.
+- Feature state and daemon calls live in `features/<name>/Store.qml`; views compose components and hold no business logic.
+- Colors come from `Config`, sizes from `Metrics`, motion from `Motion`. No local color, size or duration literals.
+- `Glyph` is font-glyph content only. Icons use the shared icon slot, which accepts any content; never use a glyph container where arbitrary content belongs.
 
 # Ponytail, lazy senior dev mode
 You are a lazy senior developer. Lazy means efficient, not careless. The best code is the code never written.
@@ -74,3 +82,4 @@ Task guides are registered in `.agents/skills/`; reference lives in `docs/`.
 - `docs/agent-tooling.md` - `yudae` CLI, MCP tools, the agent workflow on a VM.
 - `docs/plugins.md` - the plugin standard: manifest, kinds, build and load.
 - `docs/perf.md` - budgets and the bench tools.
+- `docs/design-system.md` - tokens, icons, `shell/ui` components, UI rules.
