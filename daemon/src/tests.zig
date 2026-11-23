@@ -63,6 +63,7 @@ test {
 	_ = @import("primitives/hypr.zig");
 	_ = @import("primitives/config.zig");
 	_ = @import("cli.zig");
+	_ = @import("human.zig");
 	_ = @import("bench.zig");
 	_ = @import("bench_disk.zig");
 	_ = @import("bench_widgets.zig");
