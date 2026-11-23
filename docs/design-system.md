@@ -44,7 +44,7 @@ Files: one TOML per category in `shell/config/`: `appearance`, `display`, `gener
 | `surfaceTranslucent` | `#ff101010` | | bar background, alpha first |
 | `mono` | `true` | | use `*Mono` variants instead of hues |
 
-Feature colors (`cpu*`, `memory*`, `launcher*`, ...) stay in their feature. The kits never read them. Every theme in `plugins/*/theme.toml` sets `surfaceRaised`, `surfaceHover` and `rule`, so apps follow the theme. `xmake lint` runs `scripts/color-check`, which rejects color literals in QML.
+Chrome colors exist once: every search box, card and calendar box is `surfaceRaised`, every hover and highlight `surfaceHover`, every separator `rule`, every track `dim`. Feature colors are data only (`cpuBase`, `memoryFree`, `contribEmpty`, ...) and stay in their feature; the kits never read them. Every theme in `plugins/*/theme.toml` sets `surfaceRaised`, `surfaceHover` and `rule`, so apps follow the theme. `xmake lint` runs `scripts/color-check`, which rejects color literals in QML; `scripts/ui-check` rejects any `Config.x` that does not exist.
 
 ### Type
 
@@ -54,7 +54,7 @@ Feature colors (`cpu*`, `memory*`, `launcher*`, ...) stay in their feature. The 
 
 App geometry (`[app]` in `appearance.toml`): `appHeaderHeight` 56, `appRowHeight` 48, `appSidebarWidth` 220, `appSidebarWideWidth` 260, `appSidebarMin`/`appSidebarMax`, `appPadding` 32, `appPaddingCompact` 16, `appPaddingWide` 48, `appColumn` 900, `appGap` 16, `appSectionGap` 40, `appRadius` 12, `appControlRadius` 8, `appControlWidth` 272, `appChipHeight` 30, `appCompactWidth` 640, `appWideWidth` 1200, window presets `appSmall*` 720x480, `appMedium*` 960x640, `appLarge*` 1200x800, floor `appFloor*` 480x360, `appScrim`, `disabledOpacity`.
 
-Shared: `spacing` 12, `gapsIn` 4, `gapsOut` 8, `rowHeight`, `rowInset`, `popupBorderWidth` 1, `scrollbarWidth` 2, `scrollbarHoverWidth` 6, `scrollbarMinThumb` 12. Bar: `barInset`, `barPadding`, `barStatSpacing`, `barCells`, `barThickness`.
+Shared: `spacing` 12, `gapsIn` 4, `gapsOut` 8, `rowHeight`, `rowInset`, `panelPadding` 12 (every bar popup), `popupBorderWidth` 1, `scrollbarWidth` 2, `scrollbarHoverWidth` 6, `scrollbarMinThumb` 12. Bar: `barInset`, `barPadding`, `barStatSpacing`, `barCells`, `barThickness`.
 
 ### Motion
 

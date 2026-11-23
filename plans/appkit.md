@@ -331,6 +331,8 @@ The largest duplication is not visual: `DisplayPage`, `LayoutEditor` and `Sectio
 - Settled: window size and sidebar width are not persisted; `AppSplit` keeps the width for the session.
 - Settled: `panelkit` stays separate; it owns `ProcessPanel` as well as the frame.
 - Settled: the duration rule covers animation `duration`; `Timer` intervals are logic, not motion.
+- Settled: per-widget chrome colors, radii and popup paddings are merged into the shared tokens (`surfaceRaised`, `surfaceHover`, `rule`, `dim`, `appControlRadius`, `panelPadding`). Widgets keep data colors only.
+- Settled: the launcher grid, wallpaper strips, power menu and lock stage are feature visuals on kit colors, not kit chrome.
 
 ## AGENTS.md rule
 
