@@ -16,7 +16,6 @@ topProcessTitle = "Top processes"  # hidden
 procRowHeight = 22
 procsGap = 2
 psIgnore = ["ps", "ps <defunct>"]
-procSearchHint = "f to type"  # hidden
 procSearchPadding = 4
 procSearchMinWidth = 140
 procKillSignal = "-9"  # hidden
@@ -103,11 +102,10 @@ networkBarGap = 2
 networkBarStep = 3
 networkBarsOff = "#2f2f2f"
 networkSpeedCancelKey = "k"  # hidden
-networkSpeedNone = "Run a speed test"  # hidden
+networkSpeedNone = "Speed test"  # hidden
 networkSpeedUnit = "Mbps"  # hidden
 networkSpeedTestingDown = "Testing download speed\u2026"  # hidden
 networkSpeedTestingUp = "Testing upload speed\u2026"  # hidden
-networkSpeedAgain = "Enter to try again"  # hidden
 speedGaugeSize = 160
 speedRingSegs = 44
 speedRingWidth = 9
@@ -117,6 +115,7 @@ speedUnitSize = 12
 speedArrowSize = 16
 speedArrowGap = 6
 speedNeedleBase = 40
+speedNeedleMs = 450
 speedNeedleLen = 22
 speedNeedleWidth = 2
 speedButtonPadX = 10
@@ -246,6 +245,9 @@ contribAvatar = 24
 [agent]
 agentFaceSize = 44
 agentMorphMs = 420
+agentBlinkOpenMs = 260
+agentBlinkCloseMs = 70
+agentOpenMs = 240
 agentSpinMs = 2100
 agentBreatheMs = 3800
 agentPanelWidth = 300
@@ -269,3 +271,7 @@ agentPlanTitle = "Subscription"  # hidden
 agentPlanName = "OpenCode Go"  # hidden
 agentPlanIcon = "opencode"
 agentFinishedToast = false  # toast when an agent session finishes
+
+# Disk
+[disk]
+diskBubbleMs = 420

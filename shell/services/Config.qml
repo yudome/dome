@@ -31,6 +31,10 @@ QtObject {
 		}
 	}
 
+	// window border and shadow live from hyprland, the frame every surface draws
+	readonly property var hyprBorder: Yudae.screenBorder || ({})
+	readonly property var hyprShadow: Yudae.screenShadow || ({})
+
 	// base surface, ink and the mono ink that replaces the hue when mono is on
 	readonly property var surface: settings.surface !== undefined ? settings.surface : "#101010"
 	readonly property var surfaceTranslucent: settings.surfaceTranslucent !== undefined ? settings.surfaceTranslucent : "#ff101010"
@@ -40,6 +44,44 @@ QtObject {
 	readonly property var yellow: settings.yellow !== undefined ? settings.yellow : "#e0b24f"
 	readonly property var muted: settings.muted !== undefined ? settings.muted : "#ffffff"
 	readonly property var mono: settings.mono !== undefined ? settings.mono : true
+	readonly property var surfaceRaised: settings.surfaceRaised !== undefined ? settings.surfaceRaised : "#1f1f1f"
+	readonly property var surfaceHover: settings.surfaceHover !== undefined ? settings.surfaceHover : "#2f2f2f"
+	readonly property var rule: settings.rule !== undefined ? settings.rule : "#2b2b2b"
+
+	// app kit geometry, window presets and the shared control contract
+	readonly property var appHeaderHeight: settings.appHeaderHeight !== undefined ? settings.appHeaderHeight : 56
+	readonly property var appRowHeight: settings.appRowHeight !== undefined ? settings.appRowHeight : 48
+	readonly property var appSidebarWidth: settings.appSidebarWidth !== undefined ? settings.appSidebarWidth : 220
+	readonly property var appSidebarWideWidth: settings.appSidebarWideWidth !== undefined ? settings.appSidebarWideWidth : 260
+	readonly property var appSidebarMin: settings.appSidebarMin !== undefined ? settings.appSidebarMin : 180
+	readonly property var appSidebarMax: settings.appSidebarMax !== undefined ? settings.appSidebarMax : 420
+	readonly property var appPadding: settings.appPadding !== undefined ? settings.appPadding : 32
+	readonly property var appPaddingCompact: settings.appPaddingCompact !== undefined ? settings.appPaddingCompact : 16
+	readonly property var appPaddingWide: settings.appPaddingWide !== undefined ? settings.appPaddingWide : 48
+	readonly property var appColumn: settings.appColumn !== undefined ? settings.appColumn : 900
+	readonly property var appGap: settings.appGap !== undefined ? settings.appGap : 16
+	readonly property var appSectionGap: settings.appSectionGap !== undefined ? settings.appSectionGap : 40
+	readonly property var appRadius: settings.appRadius !== undefined ? settings.appRadius : 12
+	readonly property var appControlRadius: settings.appControlRadius !== undefined ? settings.appControlRadius : 8
+	readonly property var appControlWidth: settings.appControlWidth !== undefined ? settings.appControlWidth : 272
+	readonly property var appChipHeight: settings.appChipHeight !== undefined ? settings.appChipHeight : 30
+	readonly property var appTitleSize: settings.appTitleSize !== undefined ? settings.appTitleSize : 22
+	readonly property var appHeadingSize: settings.appHeadingSize !== undefined ? settings.appHeadingSize : 16
+	readonly property var appCaptionSize: settings.appCaptionSize !== undefined ? settings.appCaptionSize : 12
+	readonly property var appCompactWidth: settings.appCompactWidth !== undefined ? settings.appCompactWidth : 640
+	readonly property var appWideWidth: settings.appWideWidth !== undefined ? settings.appWideWidth : 1200
+	readonly property var appSmallWidth: settings.appSmallWidth !== undefined ? settings.appSmallWidth : 720
+	readonly property var appSmallHeight: settings.appSmallHeight !== undefined ? settings.appSmallHeight : 480
+	readonly property var appMediumWidth: settings.appMediumWidth !== undefined ? settings.appMediumWidth : 960
+	readonly property var appMediumHeight: settings.appMediumHeight !== undefined ? settings.appMediumHeight : 640
+	readonly property var appLargeWidth: settings.appLargeWidth !== undefined ? settings.appLargeWidth : 1200
+	readonly property var appLargeHeight: settings.appLargeHeight !== undefined ? settings.appLargeHeight : 800
+	readonly property var appFloorWidth: settings.appFloorWidth !== undefined ? settings.appFloorWidth : 480
+	readonly property var appFloorHeight: settings.appFloorHeight !== undefined ? settings.appFloorHeight : 360
+	readonly property var appScrim: settings.appScrim !== undefined ? settings.appScrim : 0.6
+	readonly property var disabledOpacity: settings.disabledOpacity !== undefined ? settings.disabledOpacity : 0.4
+	readonly property var tooltipDelayMs: settings.tooltipDelayMs !== undefined ? settings.tooltipDelayMs : 600
+	readonly property var confirmMs: settings.confirmMs !== undefined ? settings.confirmMs : 5000
 
 	// things that are not a widget: font, spacing, workspace morph
 	readonly property var workspaceSpacing: settings.workspaceSpacing !== undefined ? settings.workspaceSpacing : 6
@@ -53,6 +95,10 @@ QtObject {
 	readonly property var spacing: settings.spacing !== undefined ? settings.spacing : 12
 	readonly property var lineLength: settings.lineLength !== undefined ? settings.lineLength : 45
 	readonly property var scrollbarWidth: settings.scrollbarWidth !== undefined ? settings.scrollbarWidth : 2
+	readonly property var scrollbarHoverWidth: settings.scrollbarHoverWidth !== undefined ? settings.scrollbarHoverWidth : 6
+	readonly property var scrollbarMinThumb: settings.scrollbarMinThumb !== undefined ? settings.scrollbarMinThumb : 12
+	readonly property var scrollbarFadeMs: settings.scrollbarFadeMs !== undefined ? settings.scrollbarFadeMs : 200
+	readonly property var scrollbarIdleMs: settings.scrollbarIdleMs !== undefined ? settings.scrollbarIdleMs : 900
 	readonly property var gapsIn: settings.gapsIn !== undefined ? settings.gapsIn : 4
 	readonly property var gapsOut: settings.gapsOut !== undefined ? settings.gapsOut : 8
 
@@ -157,11 +203,18 @@ QtObject {
 	readonly property var iconSettings: settings.iconSettings !== undefined ? settings.iconSettings : "\uf013"
 	readonly property var iconAppearance: settings.iconAppearance !== undefined ? settings.iconAppearance : "\uf1fc"
 	readonly property var iconBar: settings.iconBar !== undefined ? settings.iconBar : "\uf2d0"
-	readonly property var iconWallpaper: settings.iconWallpaper !== undefined ? settings.iconWallpaper : "\U000f0e09"
+	readonly property var iconWallpaper: settings.iconWallpaper !== undefined ? settings.iconWallpaper : "\udb83\ude09"
 	readonly property var iconPanels: settings.iconPanels !== undefined ? settings.iconPanels : "\uf2d2"
 	readonly property var iconSpacer: settings.iconSpacer !== undefined ? settings.iconSpacer : "\uf07e"
 	readonly property var iconPowerOff: settings.iconPowerOff !== undefined ? settings.iconPowerOff : "\uf011"
 	readonly property var iconReboot: settings.iconReboot !== undefined ? settings.iconReboot : "\uead2"
+	readonly property var iconAgent: settings.iconAgent !== undefined ? settings.iconAgent : "\udb81\udea9"
+	readonly property var iconWorkspaces: settings.iconWorkspaces !== undefined ? settings.iconWorkspaces : "\udb81\udd70"
+	readonly property var iconVm: settings.iconVm !== undefined ? settings.iconVm : "\udb80\udf79"
+	readonly property var iconRemove: settings.iconRemove !== undefined ? settings.iconRemove : "\uf068"
+	readonly property var iconWarning: settings.iconWarning !== undefined ? settings.iconWarning : "\uf071"
+	readonly property var iconMenu: settings.iconMenu !== undefined ? settings.iconMenu : "\uf0c9"
+	readonly property var iconMore: settings.iconMore !== undefined ? settings.iconMore : "\uf141"
 	readonly property var iconLock: settings.iconLock !== undefined ? settings.iconLock : "\uf023"
 
 	// cpu and process list
@@ -181,7 +234,6 @@ QtObject {
 	readonly property var procRowHeight: settings.procRowHeight !== undefined ? settings.procRowHeight : 22
 	readonly property var procsGap: settings.procsGap !== undefined ? settings.procsGap : 2
 	readonly property var psIgnore: settings.psIgnore !== undefined ? settings.psIgnore : ["ps", "ps <defunct>"]
-	readonly property var procSearchHint: settings.procSearchHint !== undefined ? settings.procSearchHint : "f to type"
 	readonly property var procSearchPadding: settings.procSearchPadding !== undefined ? settings.procSearchPadding : 4
 	readonly property var procSearchMinWidth: settings.procSearchMinWidth !== undefined ? settings.procSearchMinWidth : 140
 	readonly property var procKillSignal: settings.procKillSignal !== undefined ? settings.procKillSignal : "-9"
@@ -259,7 +311,6 @@ QtObject {
 	readonly property var launcherPrompt: settings.launcherPrompt !== undefined ? settings.launcherPrompt : "\uea6d"
 	readonly property var launcherMaxRows: settings.launcherMaxRows !== undefined ? settings.launcherMaxRows : 12
 	readonly property var launcherIconPin: settings.launcherIconPin !== undefined ? settings.launcherIconPin : "\ueba0"
-	readonly property var launcherIconSelect: settings.launcherIconSelect !== undefined ? settings.launcherIconSelect : "\udb80\udf11"
 	readonly property var launcherClipTimeFormat: settings.launcherClipTimeFormat !== undefined ? settings.launcherClipTimeFormat : "h:mm AP"
 	readonly property var launcherSpotlight: settings.launcherSpotlight !== undefined ? settings.launcherSpotlight : true
 	readonly property var launcherSpotlightWidth: settings.launcherSpotlightWidth !== undefined ? settings.launcherSpotlightWidth : 560
@@ -309,29 +360,10 @@ QtObject {
 	readonly property var diskIconSortAsc: settings.diskIconSortAsc !== undefined ? settings.diskIconSortAsc : "\uf0d8"
 	readonly property var diskAccent: settings.diskAccent !== undefined ? settings.diskAccent : cpuCore
 	readonly property var diskOther: settings.diskOther !== undefined ? settings.diskOther : yellow
+	readonly property var diskBubbleMs: settings.diskBubbleMs !== undefined ? settings.diskBubbleMs : 420
 
 	// settings app
-	readonly property var settingsSidebarWidth: settings.settingsSidebarWidth !== undefined ? settings.settingsSidebarWidth : 220
-	readonly property var settingsSidebar: settings.settingsSidebar !== undefined ? settings.settingsSidebar : surface
-	readonly property var settingsSelected: settings.settingsSelected !== undefined ? settings.settingsSelected : launcherHighlight
-	readonly property var settingsCard: settings.settingsCard !== undefined ? settings.settingsCard : weatherDayCardColor
-	readonly property var settingsAccent: settings.settingsAccent !== undefined ? settings.settingsAccent : cpuCore
-	readonly property var settingsLabel: settings.settingsLabel !== undefined ? settings.settingsLabel : launcherDetailText
-	readonly property var settingsPending: settings.settingsPending !== undefined ? settings.settingsPending : yellow
-	readonly property var settingsRowHeight: settings.settingsRowHeight !== undefined ? settings.settingsRowHeight : 48
-	readonly property var settingsPadding: settings.settingsPadding !== undefined ? settings.settingsPadding : 32
-	readonly property var settingsGap: settings.settingsGap !== undefined ? settings.settingsGap : 16
-	readonly property var settingsTitleSize: settings.settingsTitleSize !== undefined ? settings.settingsTitleSize : 22
-	readonly property var settingsFontSize: settings.settingsFontSize !== undefined ? settings.settingsFontSize : 13
-	readonly property var settingsSmallSize: settings.settingsSmallSize !== undefined ? settings.settingsSmallSize : 12
-	readonly property var settingsControlWidth: settings.settingsControlWidth !== undefined ? settings.settingsControlWidth : 272
-	readonly property var settingsRadius: settings.settingsRadius !== undefined ? settings.settingsRadius : 12
-	readonly property var settingsChipHeight: settings.settingsChipHeight !== undefined ? settings.settingsChipHeight : 30
 	readonly property var settingsPreviewBelow: settings.settingsPreviewBelow !== undefined ? settings.settingsPreviewBelow : 96
-	readonly property var settingsRule: settings.settingsRule !== undefined ? settings.settingsRule : "#222222"
-	readonly property var settingsColumn: settings.settingsColumn !== undefined ? settings.settingsColumn : 900
-	readonly property var settingsSectionGap: settings.settingsSectionGap !== undefined ? settings.settingsSectionGap : 40
-	readonly property var settingsInk: settings.settingsInk !== undefined ? settings.settingsInk : (mono ? displayBaseMono : displayBase)
 
 	// window switcher
 	readonly property var windowsGridCell: settings.windowsGridCell !== undefined ? settings.windowsGridCell : 92
@@ -562,6 +594,7 @@ QtObject {
 	readonly property var displayBase: settings.displayBase !== undefined ? settings.displayBase : "#7aa2f7"
 	readonly property var displayBaseMono: settings.displayBaseMono !== undefined ? settings.displayBaseMono : "#ffffff"
 	readonly property var stepBarHeight: settings.stepBarHeight !== undefined ? settings.stepBarHeight : 6
+	readonly property var stepBarMs: settings.stepBarMs !== undefined ? settings.stepBarMs : 120
 	readonly property var stepBarGap: settings.stepBarGap !== undefined ? settings.stepBarGap : 2
 	readonly property var stepBarLensPad: settings.stepBarLensPad !== undefined ? settings.stepBarLensPad : 3
 	readonly property var stepBarGlyphSize: settings.stepBarGlyphSize !== undefined ? settings.stepBarGlyphSize : 10
@@ -601,11 +634,10 @@ QtObject {
 	readonly property var networkBarStep: settings.networkBarStep !== undefined ? settings.networkBarStep : 3
 	readonly property var networkBarsOff: settings.networkBarsOff !== undefined ? settings.networkBarsOff : "#2f2f2f"
 	readonly property var networkSpeedCancelKey: settings.networkSpeedCancelKey !== undefined ? settings.networkSpeedCancelKey : "k"
-	readonly property var networkSpeedNone: settings.networkSpeedNone !== undefined ? settings.networkSpeedNone : "Run a speed test"
+	readonly property var networkSpeedNone: settings.networkSpeedNone !== undefined ? settings.networkSpeedNone : "Speed test"
 	readonly property var networkSpeedUnit: settings.networkSpeedUnit !== undefined ? settings.networkSpeedUnit : "Mbps"
 	readonly property var networkSpeedTestingDown: settings.networkSpeedTestingDown !== undefined ? settings.networkSpeedTestingDown : "Testing download speed\u2026"
 	readonly property var networkSpeedTestingUp: settings.networkSpeedTestingUp !== undefined ? settings.networkSpeedTestingUp : "Testing upload speed\u2026"
-	readonly property var networkSpeedAgain: settings.networkSpeedAgain !== undefined ? settings.networkSpeedAgain : "Enter to try again"
 	readonly property var speedGaugeSize: settings.speedGaugeSize !== undefined ? settings.speedGaugeSize : 160
 	readonly property var speedRingSegs: settings.speedRingSegs !== undefined ? settings.speedRingSegs : 44
 	readonly property var speedRingWidth: settings.speedRingWidth !== undefined ? settings.speedRingWidth : 9
@@ -615,6 +647,7 @@ QtObject {
 	readonly property var speedArrowSize: settings.speedArrowSize !== undefined ? settings.speedArrowSize : 16
 	readonly property var speedArrowGap: settings.speedArrowGap !== undefined ? settings.speedArrowGap : 6
 	readonly property var speedNeedleBase: settings.speedNeedleBase !== undefined ? settings.speedNeedleBase : 40
+	readonly property var speedNeedleMs: settings.speedNeedleMs !== undefined ? settings.speedNeedleMs : 450
 	readonly property var speedNeedleLen: settings.speedNeedleLen !== undefined ? settings.speedNeedleLen : 22
 	readonly property var speedNeedleWidth: settings.speedNeedleWidth !== undefined ? settings.speedNeedleWidth : 2
 	readonly property var speedButtonPadX: settings.speedButtonPadX !== undefined ? settings.speedButtonPadX : 10
@@ -632,6 +665,9 @@ QtObject {
 	// agent panel
 	readonly property var agentFaceSize: settings.agentFaceSize !== undefined ? settings.agentFaceSize : 44
 	readonly property var agentMorphMs: settings.agentMorphMs !== undefined ? settings.agentMorphMs : 420
+	readonly property var agentBlinkOpenMs: settings.agentBlinkOpenMs !== undefined ? settings.agentBlinkOpenMs : 260
+	readonly property var agentBlinkCloseMs: settings.agentBlinkCloseMs !== undefined ? settings.agentBlinkCloseMs : 70
+	readonly property var agentOpenMs: settings.agentOpenMs !== undefined ? settings.agentOpenMs : 240
 	readonly property var agentSpinMs: settings.agentSpinMs !== undefined ? settings.agentSpinMs : 2100
 	readonly property var agentBreatheMs: settings.agentBreatheMs !== undefined ? settings.agentBreatheMs : 3800
 	readonly property var agentPanelWidth: settings.agentPanelWidth !== undefined ? settings.agentPanelWidth : 300
@@ -659,6 +695,20 @@ QtObject {
 
 	readonly property var icons: ({
 		app: root.iconApp,
+		add: root.weatherIconAdd,
+		agent: root.iconAgent,
+		tray: root.iconChevron,
+		workspaces: root.iconWorkspaces,
+		check: root.launcherIconActive,
+		file: root.diskIconFile,
+		folder: root.diskIconDir,
+		package: root.diskIconPackage,
+		cache: root.diskIconCache,
+		menu: root.iconMenu,
+		more: root.iconMore,
+		remove: root.iconRemove,
+		vm: root.iconVm,
+		warning: root.iconWarning,
 		settings: root.iconSettings,
 		search: root.iconSearch,
 		refresh: root.iconRefresh,

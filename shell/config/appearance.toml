@@ -8,6 +8,9 @@ red = "#e05252"
 yellow = "#e0b24f"
 muted = "#ffffff"  # same as foreground
 mono = true
+surfaceRaised = "#1f1f1f"  # cards, chips, selection
+surfaceHover = "#2f2f2f"
+rule = "#2b2b2b"  # separators and card borders
 
 # Bar
 [bar]
@@ -40,3 +43,39 @@ trayMenuWidth = 120
 trayMenuPadding = 6
 trayMenuRowHeight = 18
 trayMenuSeparator = 1
+
+# Apps
+[app]
+appHeaderHeight = 56  # 40..80
+appRowHeight = 48  # 32..64
+appSidebarWidth = 220  # 160..360
+appSidebarWideWidth = 260  # 160..400
+appSidebarMin = 180
+appSidebarMax = 420
+appPadding = 32  # 8..64
+appPaddingCompact = 16  # 4..32
+appPaddingWide = 48  # 16..96
+appColumn = 900  # 600..1400
+appGap = 16  # 4..32
+appSectionGap = 40  # 8..64
+appRadius = 12  # 0..24
+appControlRadius = 8  # 0..16
+appControlWidth = 272
+appChipHeight = 30  # 20..40
+appTitleSize = 22  # 14..32
+appHeadingSize = 16  # 12..24
+appCaptionSize = 12  # 8..16
+appCompactWidth = 640
+appWideWidth = 1200
+appSmallWidth = 720
+appSmallHeight = 480
+appMediumWidth = 960
+appMediumHeight = 640
+appLargeWidth = 1200
+appLargeHeight = 800
+appFloorWidth = 480
+appFloorHeight = 360
+appScrim = 0.6
+disabledOpacity = 0.4
+tooltipDelayMs = 600
+confirmMs = 5000

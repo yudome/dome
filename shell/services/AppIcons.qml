@@ -13,7 +13,7 @@ Item {
 	readonly property var resolved: Yudae.icons.map || ({})
 	readonly property var names: Yudae.icons.names || ({})
 	readonly property string theme: Yudae.icons.theme || ""
-	readonly property var glyphs: ({ "com.yudae.vms": "\uDB80\uDF79", "com.yudae.disk": "\uF0A0", "com.yudae.settings": "\uF013" })
+	readonly property var glyphs: ({ "com.yudae.vms": Config.iconVm, "com.yudae.disk": Config.iconDisk, "com.yudae.settings": Config.iconSettings })
 	property var asked: ({})
 
 	function glyphOf(appId) {
