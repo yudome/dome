@@ -35,6 +35,16 @@ def blocks(lines, name):
         yield index + 1, direct
 
 
+def config_names():
+    text = CONFIG.read_text()
+    names = set(re.findall(r"^\s*(?:readonly )?property \w+ (\w+)", text, re.M))
+    names |= set(re.findall(r"^\s*function (\w+)", text, re.M))
+    return names
+
+
+TOKENS = config_names()
+
+
 def check(path, failures):
     text = path.read_text()
     lines = text.split("\n")
@@ -57,6 +67,9 @@ def check(path, failures):
             fail(number, "font size literal; use a Config token or a Label role")
         if re.search(r"\b(radius|duration):\s*[1-9]", code) and path != CONFIG:
             fail(number, "radius or duration literal; use a Config token")
+        for name in re.findall(r"\bConfig\.(\w+)", code):
+            if name not in TOKENS:
+                fail(number, f"Config.{name} does not exist")
         if "·" in line:
             fail(number, "dot separator; separate with spacing")
         if where in KITS and re.search(r"\bYudae\b", code):
