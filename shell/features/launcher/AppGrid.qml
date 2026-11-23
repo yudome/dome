@@ -64,36 +64,34 @@ Item {
 				width: Config.launcherGridIconSize
 				height: Config.launcherGridIconSize
 
-				Text {
+				Label {
 					anchors.centerIn: parent
 					visible: !tile.hasIcon
-					font.family: Config.fontFamily
 					font.pixelSize: Math.round(Config.launcherGridIconSize * 0.75)
-					color: Config.foreground
+					ink: Config.foreground
 					text: tile.glyph
 				}
 
-				AppIcon {
+				Icon {
 					id: image
 
 					anchors.centerIn: parent
-					implicitSize: Config.launcherGridIconSize
+					size: Config.launcherGridIconSize
 					visible: tile.icon !== ""
 					source: tile.icon
 				}
 
-				Text {
+				Icon {
 					anchors.right: parent.right
 					anchors.top: parent.top
 					visible: tile.modelData.pinned === true
-					font.family: Config.fontFamily
-					font.pixelSize: Config.launcherGridLabelSize
-					color: Config.foreground
-					text: Config.launcherIconPin
+					size: Config.launcherGridLabelSize
+					ink: Config.foreground
+					glyph: Config.launcherIconPin
 				}
 			}
 
-			Text {
+			Label {
 				id: label
 
 				anchors.top: face.bottom
@@ -104,9 +102,8 @@ Item {
 				wrapMode: Text.Wrap
 				maximumLineCount: 2
 				elide: Text.ElideRight
-				font.family: Config.fontFamily
 				font.pixelSize: Config.launcherGridLabelSize
-				color: tile.active ? Config.launcherHighlightText : Config.foreground
+				ink: tile.active ? Config.launcherHighlightText : Config.foreground
 				text: tile.modelData.name
 			}
 

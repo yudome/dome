@@ -51,37 +51,35 @@ Item {
 				width: switcher.cell
 				height: switcher.cell
 
-				AppIcon {
+				Icon {
 					anchors.centerIn: parent
-					implicitSize: Config.windowsIconSize
+					size: Config.windowsIconSize
 					visible: iconCell.icon !== ""
 					source: iconCell.icon
 				}
 
-				Text {
+				Label {
 					anchors.centerIn: parent
 
-					font.family: Config.fontFamily
 					font.pixelSize: Math.round(Config.windowsIconSize * 0.62)
-					color: Config.foreground
+					ink: Config.foreground
 					text: iconCell.icon === "" ? AppIcons.glyphOf(modelData.appId) : ""
 				}
 			}
 		}
 
-		Text {
+		Label {
 			id: emptyText
 
 			anchors.centerIn: parent
 			visible: switcher.count === 0
-			font.family: Config.fontFamily
 			font.pixelSize: Config.launcherFontSize
-			color: Config.muted
+			ink: Config.muted
 			text: switcher.emptyMessage
 		}
 	}
 
-	Text {
+	Label {
 		id: windowName
 
 		width: Math.min(implicitWidth, grid.width)
@@ -93,9 +91,8 @@ Item {
 		horizontalAlignment: Text.AlignHCenter
 		wrapMode: Text.NoWrap
 		elide: Text.ElideRight
-		font.family: Config.fontFamily
 		font.pixelSize: Config.windowsTitleSize
-		color: Config.foreground
+		ink: Config.foreground
 		text: switcher.title
 	}
 }

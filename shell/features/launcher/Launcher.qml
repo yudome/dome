@@ -1009,8 +1009,6 @@ PanelWindow {
 
 				width: parent.width
 				boxHeight: root.spotlight ? Config.launcherSpotlightInputHeight : Config.launcherInputHeight
-				hintKey: root.spotlight ? "" : Config.procHintKey
-				hintText: Config.procSearchHint
 				padding: 0
 				gap: root.spotlight ? 0 : Config.launcherTextGap
 				glyphSlot: root.spotlight ? 0 : root.iconSlot
@@ -1178,16 +1176,14 @@ PanelWindow {
 						Repeater {
 							model: [root.clipWords > 0 ? root.clipWords + (root.clipWords === 1 ? " word" : " words") : "", root.copiedLabel(root.clipTime)]
 
-							Text {
+							Label {
 								required property string modelData
 
 								width: copiedCaption.width
 								height: modelData === "" ? 0 : implicitHeight
 								horizontalAlignment: Text.AlignHCenter
 								elide: Text.ElideRight
-								font.family: Config.fontFamily
-								font.pixelSize: Config.fontSize
-								color: Config.muted
+								ink: Config.muted
 								text: modelData
 							}
 						}
@@ -1245,7 +1241,7 @@ PanelWindow {
 
 							readonly property string icon: row.modelData.icons && row.modelData.icons.length > 0 ? AppIcons.themed(row.modelData.icons) : row.modelData.kind === "proc" ? AppIcons.iconOfPid(row.modelData.pid) : (row.modelData.appId ? AppIcons.iconOf(row.modelData.appId) : "")
 
-							Text {
+							Label {
 								visible: row.modelData.kind !== "app" && (rowIcon.icon === "" || rowIconImage.status === Image.Error)
 								x: row.wide ? 0 : (parent.width - width) / 2
 								y: (parent.height - height) / 2
@@ -1255,9 +1251,8 @@ PanelWindow {
 								elide: Text.ElideNone
 								fontSizeMode: row.wide ? Text.Fit : Text.FixedSize
 								minimumPixelSize: 8
-								font.family: Config.fontFamily
 								font.pixelSize: root.iconSize
-								color: row.active ? Config.launcherHighlightText : Config.foreground
+								ink: row.active ? Config.launcherHighlightText : Config.foreground
 								text: row.modelData.glyph
 								z: 1
 							}
@@ -1271,11 +1266,11 @@ PanelWindow {
 								visible: row.modelData.kind === "app" && (rowIcon.icon === "" || rowIconImage.status === Image.Error)
 							}
 
-							AppIcon {
+							Icon {
 								id: rowIconImage
 
 								anchors.centerIn: parent
-								implicitSize: root.iconSize
+								size: root.iconSize
 								visible: rowIcon.icon !== ""
 								source: rowIcon.icon
 								z: 2
@@ -1292,84 +1287,51 @@ PanelWindow {
 								anchors.verticalCenter: parent.verticalCenter
 								spacing: root.fileRows ? 2 : 0
 
-								Text {
+								Label {
 									id: rowName
 
 									width: parent.width
 									elide: Text.ElideRight
-									font.family: Config.fontFamily
 									font.pixelSize: root.fontSize
-									color: row.active ? Config.launcherHighlightText : Config.foreground
+									ink: row.active ? Config.launcherHighlightText : Config.foreground
 									text: row.modelData.name
 								}
 
-								Text {
+								Label {
 									id: rowHint
 
 									width: parent.width
-									visible: root.mode === "emoji" || row.modelData.kind === "file"
+									visible: row.modelData.kind === "file"
 									elide: Text.ElideMiddle
-									font.family: Config.fontFamily
 									font.pixelSize: Math.round(root.fontSize * 0.72)
-									color: row.modelData.kind === "file" ? Config.launcherDetailText : Config.muted
-									text: row.modelData.kind === "file" ? row.modelData.detail : "click to copy to clipboard"
+									ink: Config.launcherDetailText
+									text: row.modelData.detail
 								}
 							}
 
-							Text {
-								id: rowAlt
-
-								readonly property int slot: row.index - list.firstVisible + 1
+							Label {
+								id: rowUsage
 
 								anchors.right: parent.right
 								anchors.rightMargin: Config.launcherPadding * 2
 								anchors.verticalCenter: parent.verticalCenter
 								width: visible ? implicitWidth : 0
-								visible: !row.active && slot >= 1 && slot <= 9 && slot <= root.rows
-								font.family: Config.fontFamily
-								font.pixelSize: Math.round(root.fontSize * 0.8)
-								color: row.active ? Config.launcherHighlightText : Config.muted
-								text: "Alt" + slot
-							}
-
-							Glyph {
-								id: rowSelect
-
-								anchors.right: parent.right
-								anchors.rightMargin: Config.launcherPadding * 2 + (rowAlt.implicitWidth - width) / 2
-								anchors.verticalCenter: parent.verticalCenter
-								width: visible ? implicitWidth : 0
-								visible: row.active
-								size: Math.round(root.iconSize * 0.75)
-								color: Config.launcherHighlightText
-								glyph: Config.launcherIconSelect
-							}
-
-							Text {
-								id: rowUsage
-
-								anchors.right: row.active ? rowSelect.left : rowAlt.left
-								anchors.rightMargin: Config.launcherTextGap
-								anchors.verticalCenter: parent.verticalCenter
-								width: visible ? implicitWidth : 0
 								visible: row.modelData.kind === "proc" || row.modelData.kind === "vm"
-								font.family: Config.fontFamily
 								font.pixelSize: root.fontSize
-								color: row.active ? Config.launcherHighlightText : Config.muted
+								ink: row.active ? Config.launcherHighlightText : Config.muted
 								text: row.modelData.detail
 							}
 
-							Text {
+							Icon {
 								id: rowPin
 
 								anchors.right: rowUsage.left
 								anchors.rightMargin: Config.launcherTextGap
 								anchors.verticalCenter: parent.verticalCenter
 								visible: row.pinned
-								font.family: Config.fontFamily
-								font.pixelSize: root.iconSize
-								color: Config.foreground
-								text: Config.launcherIconPin
+								size: root.iconSize
+								ink: Config.foreground
+								glyph: Config.launcherIconPin
 							}
 							HoverHandler {
 								onPointChanged: {
@@ -1424,7 +1386,7 @@ PanelWindow {
 						height: root.listHeight
 						visible: root.results.length === 0
 
-						Text {
+						Label {
 							anchors.left: parent.left
 							anchors.right: parent.right
 							anchors.leftMargin: Config.launcherPadding
@@ -1432,9 +1394,8 @@ PanelWindow {
 							anchors.verticalCenter: parent.verticalCenter
 							horizontalAlignment: Text.AlignHCenter
 							elide: Text.ElideRight
-							font.family: Config.fontFamily
 							font.pixelSize: root.fontSize
-							color: Config.muted
+							ink: Config.muted
 							text: root.empty
 						}
 					}

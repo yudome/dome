@@ -453,12 +453,11 @@ PanelWindow {
 					}
 				}
 
-				Text {
+				Label {
 					anchors.centerIn: parent
 					visible: root.looks.length === 0
-					font.family: Config.fontFamily
 					font.pixelSize: Config.wallpaperNameSize
-					color: Config.muted
+					ink: Config.muted
 					text: Config.themeEmpty
 				}
 
@@ -623,12 +622,11 @@ PanelWindow {
 					}
 				}
 
-				Text {
+				Label {
 					anchors.centerIn: parent
 					visible: root.wallpapers.length === 0
-					font.family: Config.fontFamily
 					font.pixelSize: Config.wallpaperNameSize
-					color: Config.muted
+					ink: Config.muted
 					text: Config.wallpaperEmpty
 				}
 
@@ -712,12 +710,11 @@ PanelWindow {
 							}
 						}
 
-						Text {
+						Label {
 							anchors.centerIn: parent
 							anchors.verticalCenterOffset: -Math.round(parent.height * 0.21)
-							font.family: Config.fontFamily
 							font.pixelSize: Config.themeNameSize
-							color: chip.modelData.foreground || Config.foreground
+							ink: chip.modelData.foreground || Config.foreground
 							text: chip.modelData.id
 							opacity: chip.current && root.row === 2 ? 1 : 0
 
@@ -801,12 +798,11 @@ PanelWindow {
 					}
 				}
 
-				Text {
+				Label {
 					anchors.centerIn: parent
 					visible: root.themes.length === 0
-					font.family: Config.fontFamily
 					font.pixelSize: Config.wallpaperNameSize
-					color: Config.muted
+					ink: Config.muted
 					text: Config.themeEmpty
 				}
 
