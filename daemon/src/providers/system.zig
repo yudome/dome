@@ -446,13 +446,13 @@ pub const System = struct {
 		var buf: [64]u8 = undefined;
 
 		if (info.threads > 0) try out.appendSlice(allocator, try std.fmt.bufPrint(&buf, "{d} threads", .{info.threads}));
-		if (info.cores > 0 and info.cores != info.threads) try out.appendSlice(allocator, try std.fmt.bufPrint(&buf, "{s}{d} cores", .{if (out.items.len > 0) " · " else "", info.cores}));
-		if (info.mhz > 0) try out.appendSlice(allocator, try std.fmt.bufPrint(&buf, "{s}{d:.1} GHz", .{if (out.items.len > 0) " · " else "", info.mhz / 1000}));
+		if (info.cores > 0 and info.cores != info.threads) try out.appendSlice(allocator, try std.fmt.bufPrint(&buf, "{s}{d} cores", .{if (out.items.len > 0) "  " else "", info.cores}));
+		if (info.mhz > 0) try out.appendSlice(allocator, try std.fmt.bufPrint(&buf, "{s}{d:.1} GHz", .{if (out.items.len > 0) "  " else "", info.mhz / 1000}));
 		if (info.cache > 0) {
 			const part = if (info.cache >= 1024)
-				try std.fmt.bufPrint(&buf, "{s}{d} MB", .{if (out.items.len > 0) " · " else "", @as(i64, @intFromFloat(@round(info.cache / 1024)))})
+				try std.fmt.bufPrint(&buf, "{s}{d} MB", .{if (out.items.len > 0) "  " else "", @as(i64, @intFromFloat(@round(info.cache / 1024)))})
 			else
-				try std.fmt.bufPrint(&buf, "{s}{d} KB", .{if (out.items.len > 0) " · " else "", @as(i64, @intFromFloat(info.cache))});
+				try std.fmt.bufPrint(&buf, "{s}{d} KB", .{if (out.items.len > 0) "  " else "", @as(i64, @intFromFloat(info.cache))});
 
 			try out.appendSlice(allocator, part);
 		}
@@ -1149,7 +1149,7 @@ test "cpuinfo names the model and the spec line" {
 	try std.testing.expectEqual(@as(f64, 32768), info.cache);
 
 	const spec = try System.specLine(allocator, info);
-	try std.testing.expectEqualStrings("2 threads · 8 cores · 4.2 GHz · 32 MB", spec);
+	try std.testing.expectEqualStrings("2 threads  8 cores  4.2 GHz  32 MB", spec);
 
 	const tiny = try System.specLine(allocator, .{ .threads = 4, .cores = 4 });
 	try std.testing.expectEqualStrings("4 threads", tiny);
