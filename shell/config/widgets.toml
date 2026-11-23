@@ -9,7 +9,6 @@ cpuCoreFloor = 0.18
 cpuIdle = "#2f2f2f"
 cpuTopCount = 5  # 1..12
 cpuTooltipWidth = 240
-cpuTooltipPadding = 12
 cpuBlockGap = 4
 cpuBlockColumns = 16
 topProcessTitle = "Top processes"  # hidden
@@ -38,12 +37,10 @@ memoryWarnMono = "#ffffff"  # same as foreground
 memoryDanger = "#e05252"  # same as red
 memoryDangerMono = "#ffffff"  # same as foreground
 memorySeparator = 3
-memorySeparatorColor = "#101010"  # same as surface
 memoryVizHeight = 12
 memoryWarnAt = 60  # 0..100
 memoryDangerAt = 85  # 0..100
 memoryTooltipWidth = 240  # same as cpuTooltipWidth
-memoryTooltipPadding = 12  # same as cpuTooltipPadding
 memoryTopCount = 5  # 1..12
 
 # Volume mixer
@@ -51,11 +48,9 @@ memoryTopCount = 5  # 1..12
 mixerWidth = 246
 mixerChannelGap = 8
 mixerFaderThickness = 4
-mixerPadding = 12
 mixerIconSize = 22
 mixerDeviceIconSize = 26
 mixerListGap = 8
-rowRadius = 4
 rowHeight = 30
 rowInset = 3
 mixerMaxVolume = 1  # 0.5..1.5
@@ -64,13 +59,10 @@ mixerStep = 0.1  # 1 / mixerStepCount
 mixerShiftStep = 0.1
 mixerOnlyPlaying = true
 mixerHoldMs = 2000
-mixerSeparator = 1
-mixerSeparatorColor = "#2b2b2b"
 
 # Now playing
 [media]
 mediaTooltipWidth = 228
-mediaTooltipPadding = 12  # same as cpuTooltipPadding
 mediaArtHeight = 228  # same as mediaTooltipWidth
 mediaTitleSize = 16
 mediaRowGap = 6
@@ -93,7 +85,6 @@ networkHistory = 60
 networkGraphHeight = 40
 networkGraphGap = 2
 networkTooltipWidth = 260
-networkTooltipPadding = 12  # same as cpuTooltipPadding
 networkRowHeight = 18
 networkRowGap = 3
 networkBarCount = 4
@@ -136,7 +127,6 @@ weatherBaseMono = "#ffffff"  # same as foreground
 weatherTempUnit = "fahrenheit"  # fahrenheit | celsius
 weatherDays = 7  # 1..14
 weatherCardWidth = 470
-weatherCardPadding = 18
 weatherCardGap = 16
 weatherCardHeaderGap = 12
 weatherHeroGlyphSize = 54
@@ -150,10 +140,6 @@ weatherDayLabelSize = 12
 weatherDayTempSize = 17
 weatherDayGap = 10
 weatherPlaceSize = 13
-weatherSeparator = 1
-weatherSeparatorColor = "#2b2b2b"
-weatherDayCardColor = "#181818"
-weatherDayCardRadius = 8
 weatherCardSearchDebounce = 60
 weatherCodes = [
 	{ code = 0, name = "Clear", glyph = "\uF522" },
@@ -192,9 +178,7 @@ calendarCellWidth = 60
 calendarCellHeight = 34
 calendarRows = 6
 calendarWeekStart = 1  # 0..6
-calendarCursor = "#ffffff"  # same as foreground
 calendarCursorBorder = 1
-calendarPadding = 16
 calendarBase = "#ffffff"  # same as foreground
 calendarMonthSize = 30
 calendarTitleGap = 12
@@ -202,8 +186,6 @@ calendarWeekdaySize = 14
 calendarDaySize = 20
 calendarArrowSize = 18
 calendarArrowGap = 12
-calendarTodayBox = "#1f1f1f"  # same as launcherSearchBox
-calendarTrack = "#1f1f1f"
 calendarGap = 16
 calendarMeterHeight = 8
 calendarMeterRow = 26
@@ -227,7 +209,6 @@ calendarDialNoon = "#fdf3cf"
 calendarDialDay = "#7cc4f0"
 calendarBirthYear = 0
 calendarLifeExpectancy = 90  # 50..110
-calendarOutside = "#3f3f3f"  # same as dim
 
 # GitHub graph
 [contrib]
@@ -238,7 +219,6 @@ contribWeeks = 19  # 4..52
 contribCell = 10
 contribGap = 3
 contribTooltipWidth = 244
-contribTooltipPadding = 12  # same as cpuTooltipPadding
 contribAvatar = 24
 
 # Agent
@@ -252,7 +232,6 @@ agentSpinMs = 2100
 agentBreatheMs = 3800
 agentPanelWidth = 300
 agentPanelHeight = 360
-agentPanelPadding = 12
 agentRingSize = 32
 agentRingWidth = 3
 agentRingGap = 12

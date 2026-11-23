@@ -12,7 +12,7 @@ Item {
 	property real rowHeight: 0
 	property real rowSpacing: Config.procsGap
 	property real scrollWidth: Config.scrollbarWidth
-	property real highlightRadius: Config.rowRadius
+	property real highlightRadius: Config.appControlRadius
 
 	readonly property int count: list.count
 	readonly property var current: list.currentItem ? list.currentItem.modelData : null

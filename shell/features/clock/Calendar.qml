@@ -22,7 +22,6 @@ PanelPage {
 	readonly property real titleX: root.mondayInk - monthMetrics.tightBoundingRect.x
 
 	contentWidth: card.implicitWidth
-	padding: Config.calendarPadding
 
 	SystemClock {
 		id: clock
@@ -198,7 +197,7 @@ PanelPage {
 						Rectangle {
 							anchors.fill: parent
 							visible: cell.day.today
-							color: Config.calendarTodayBox
+							color: Config.surfaceRaised
 						}
 
 						Rectangle {
@@ -206,13 +205,13 @@ PanelPage {
 							visible: cell.day.cursor
 							color: "transparent"
 							border.width: Config.calendarCursorBorder
-							border.color: Config.calendarCursor
+							border.color: Config.foreground
 						}
 
 						Label {
 							anchors.centerIn: parent
 							font.pixelSize: Config.calendarDaySize
-							ink: !cell.day.outside || cell.day.today || cell.day.cursor ? Config.foreground : Config.calendarOutside
+							ink: !cell.day.outside || cell.day.today || cell.day.cursor ? Config.foreground : Config.dim
 							text: cell.day.day
 						}
 					}
@@ -278,7 +277,7 @@ PanelPage {
 							anchors.right: meterValue.left
 							anchors.verticalCenter: parent.verticalCenter
 							height: Config.calendarMeterHeight
-							color: Config.calendarTrack
+							color: Config.dim
 
 							Rectangle {
 								width: Math.round(parent.width * modelData.pct / 100)

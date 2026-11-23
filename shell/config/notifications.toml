@@ -15,8 +15,6 @@ notifyVisibleRows = 5  # 1..12
 notifyHistory = 50
 notifyGoneOpacity = 0.55
 notifyEmpty = "Nothing yet"  # hidden
-notifySeparator = 1
-notifySeparatorColor = "#3f3f3f"  # same as dim
 notifySweepWidth = 30
 notifyTimeout = 6000  # 1000..20000
 notifyDismissKey = "d"  # hidden
@@ -32,6 +30,7 @@ popupPos = "top-center"  # top-left | top-center | top-right | bottom-left | bot
 popupX = -1
 popupY = -1
 popupBorderWidth = 1
+panelPadding = 12  # 4..32
 volumeOsdMs = 1500
 
 # Tooltips

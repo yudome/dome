@@ -103,7 +103,7 @@ Item {
 				maximumLineCount: 2
 				elide: Text.ElideRight
 				font.pixelSize: Config.launcherGridLabelSize
-				ink: tile.active ? Config.launcherHighlightText : Config.foreground
+				ink: tile.active ? Config.foreground : Config.foreground
 				text: tile.modelData.name
 			}
 

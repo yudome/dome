@@ -25,7 +25,6 @@ ProcessPanel {
 	onQuery: function (field, filter) { Yudae.systemCommand({ panel: { field: field, query: filter } }); }
 	onKill: function (proc) { Yudae.cmd("launcher", { kill: proc.pid }); }
 	contentWidth: Config.cpuTooltipWidth
-	padding: Config.cpuTooltipPadding
 	topCount: Config.cpuTopCount
 	psField: "pcpu"
 	rowColor: (row) => row.color || root.accentInk

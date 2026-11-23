@@ -40,18 +40,13 @@ memoryWarn = "#ebcb8b"
 memoryWarnMono = "#d8dee9"
 memoryDanger = "#bf616a"
 memoryDangerMono = "#d8dee9"
-memorySeparatorColor = "#2e3440"
 
 [mixer]
-mixerSeparatorColor = "#3b4252"
 
 [media]
 volumeBase = "#d8dee9"
 
 [launcher]
-launcherSearchBox = "#3b4252"
-launcherHighlight = "#434c5e"
-launcherHighlightText = "#d8dee9"
 
 [power]
 powerBase = "#a3be8c"
@@ -62,16 +57,9 @@ powerDanger = "#bf616a"
 [weather]
 weatherBase = "#88c0d0"
 weatherBaseMono = "#d8dee9"
-weatherSeparatorColor = "#3b4252"
-weatherDayCardColor = "#434c5e"
-weatherDayLabelColor = "#d8dee9"
 
 [calendar]
 calendarBase = "#d8dee9"
-calendarOutside = "#4c566a"
-calendarTodayBox = "#3b4252"
-calendarTrack = "#434c5e"
-calendarCursor = "#d8dee9"
 calendarDialNight = "#5e81ac"
 calendarDialRed = "#bf616a"
 calendarDialOrange = "#d08770"
@@ -82,7 +70,6 @@ calendarDialDay = "#88c0d0"
 
 [notify]
 notifyBase = "#d8dee9"
-notifySeparatorColor = "#3b4252"
 
 [contrib]
 contribBase = "#a3be8c"

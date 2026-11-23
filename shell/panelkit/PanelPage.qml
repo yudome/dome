@@ -6,7 +6,7 @@ Item {
 
 	property real contentWidth: Config.cpuTooltipWidth
 	property real contentHeight: body.childrenRect.y + body.childrenRect.height
-	property real padding: Config.cpuTooltipPadding
+	property real padding: Config.panelPadding
 
 	default property alias content: body.data
 

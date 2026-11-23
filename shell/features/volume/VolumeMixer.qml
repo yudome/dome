@@ -44,7 +44,6 @@ PanelPage {
 	readonly property var steps: Array(Config.mixerStepCount).fill(1)
 
 	contentWidth: Config.mixerWidth
-	padding: Config.mixerPadding
 
 	readonly property var selectedNode: root.rows.length > 0
 		? root.rows[Calc.clamp(root.targetIndex, 0, root.rows.length - 1)]
@@ -336,7 +335,7 @@ PanelPage {
 
 		Separator {
 			width: body.width
-			color: Config.mixerSeparatorColor
+			color: Config.rule
 			visible: root.deviceRows.length > 0 && root.appRows.length > 0
 		}
 

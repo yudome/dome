@@ -1015,7 +1015,7 @@ PanelWindow {
 				glyphSize: root.iconSize
 				size: root.spotlight ? Config.launcherSpotlightQuerySize : root.fontSize
 				glyph: root.spotlight ? "" : root.prompt
-				boxColor: root.spotlight ? "transparent" : Config.launcherSearchBox
+				boxColor: root.spotlight ? "transparent" : Config.surfaceRaised
 				candidate: root.ghostName
 
 				onEdited: {
@@ -1102,8 +1102,8 @@ PanelWindow {
 									color: Config.foreground
 									text: body
 									textFormat: TextEdit.PlainText
-									selectionColor: Config.launcherHighlight
-									selectedTextColor: Config.launcherHighlightText
+									selectionColor: Config.surfaceHover
+									selectedTextColor: Config.foreground
 								}
 							}
 						}
@@ -1252,7 +1252,7 @@ PanelWindow {
 								fontSizeMode: row.wide ? Text.Fit : Text.FixedSize
 								minimumPixelSize: 8
 								font.pixelSize: root.iconSize
-								ink: row.active ? Config.launcherHighlightText : Config.foreground
+								ink: row.active ? Config.foreground : Config.foreground
 								text: row.modelData.glyph
 								z: 1
 							}
@@ -1261,7 +1261,7 @@ PanelWindow {
 								anchors.centerIn: parent
 								width: root.iconSize
 								height: root.iconSize
-								radius: Config.rowRadius
+								radius: Config.appControlRadius
 								color: Config.surface
 								visible: row.modelData.kind === "app" && (rowIcon.icon === "" || rowIconImage.status === Image.Error)
 							}
@@ -1293,7 +1293,7 @@ PanelWindow {
 									width: parent.width
 									elide: Text.ElideRight
 									font.pixelSize: root.fontSize
-									ink: row.active ? Config.launcherHighlightText : Config.foreground
+									ink: row.active ? Config.foreground : Config.foreground
 									text: row.modelData.name
 								}
 
@@ -1304,7 +1304,7 @@ PanelWindow {
 									visible: row.modelData.kind === "file"
 									elide: Text.ElideMiddle
 									font.pixelSize: Math.round(root.fontSize * 0.72)
-									ink: Config.launcherDetailText
+									ink: Config.muted
 									text: row.modelData.detail
 								}
 							}
@@ -1318,7 +1318,7 @@ PanelWindow {
 								width: visible ? implicitWidth : 0
 								visible: row.modelData.kind === "proc" || row.modelData.kind === "vm"
 								font.pixelSize: root.fontSize
-								ink: row.active ? Config.launcherHighlightText : Config.muted
+								ink: row.active ? Config.foreground : Config.muted
 								text: row.modelData.detail
 							}
 

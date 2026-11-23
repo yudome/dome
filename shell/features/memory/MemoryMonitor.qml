@@ -24,7 +24,6 @@ ProcessPanel {
 	onQuery: function (field, filter) { Yudae.systemCommand({ panel: { field: field, query: filter } }); }
 	onKill: function (proc) { Yudae.cmd("launcher", { kill: proc.pid }); }
 	contentWidth: Config.memoryTooltipWidth
-	padding: Config.memoryTooltipPadding
 	topCount: Config.memoryTopCount
 	psField: "rss"
 	rowColor: (row) => row.color || root.accentInk
@@ -64,7 +63,7 @@ ProcessPanel {
 		];
 
 		if (divider > 0) {
-			parts.push({ value: 0, color: Config.memorySeparatorColor, divider: divider });
+			parts.push({ value: 0, color: Config.surface, divider: divider });
 			parts.push({ value: m.swapUsed, color: Config.memorySwap });
 			parts.push({ value: m.swapFree, color: Config.memoryFree });
 		}

@@ -17,7 +17,7 @@ Rectangle {
 	property real gap: Math.round(root.size * 0.625)
 	property real padding: Config.procSearchPadding
 	property real boxHeight: 0
-	property real corner: Config.rowRadius
+	property real corner: Config.appControlRadius
 	property real textOffset: 0
 
 	signal accepted()

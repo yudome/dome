@@ -140,6 +140,7 @@ QtObject {
 	readonly property var popupPos: settings.popupPos !== undefined ? settings.popupPos : "top-center"
 	readonly property var popupX: settings.popupX !== undefined ? settings.popupX : -1
 	readonly property var popupY: settings.popupY !== undefined ? settings.popupY : -1
+	readonly property var panelPadding: settings.panelPadding !== undefined ? settings.panelPadding : 12
 	readonly property var popupBorderWidth: settings.popupBorderWidth !== undefined ? settings.popupBorderWidth : 1
 	readonly property var volumeOsdMs: settings.volumeOsdMs !== undefined ? settings.volumeOsdMs : 1500
 
@@ -227,7 +228,6 @@ QtObject {
 	readonly property var cpuIdle: settings.cpuIdle !== undefined ? settings.cpuIdle : "#2f2f2f"
 	readonly property var cpuTopCount: settings.cpuTopCount !== undefined ? settings.cpuTopCount : 5
 	readonly property var cpuTooltipWidth: settings.cpuTooltipWidth !== undefined ? settings.cpuTooltipWidth : 240
-	readonly property var cpuTooltipPadding: settings.cpuTooltipPadding !== undefined ? settings.cpuTooltipPadding : 12
 	readonly property var cpuBlockGap: settings.cpuBlockGap !== undefined ? settings.cpuBlockGap : 4
 	readonly property var cpuBlockColumns: settings.cpuBlockColumns !== undefined ? settings.cpuBlockColumns : 16
 	readonly property var topProcessTitle: settings.topProcessTitle !== undefined ? settings.topProcessTitle : "Top processes"
@@ -255,23 +255,19 @@ QtObject {
 	readonly property var memoryDanger: settings.memoryDanger !== undefined ? settings.memoryDanger : "#e05252"
 	readonly property var memoryDangerMono: settings.memoryDangerMono !== undefined ? settings.memoryDangerMono : "#ffffff"
 	readonly property var memorySeparator: settings.memorySeparator !== undefined ? settings.memorySeparator : 3
-	readonly property var memorySeparatorColor: settings.memorySeparatorColor !== undefined ? settings.memorySeparatorColor : "#101010"
 	readonly property var memoryVizHeight: settings.memoryVizHeight !== undefined ? settings.memoryVizHeight : 12
 	readonly property var memoryWarnAt: settings.memoryWarnAt !== undefined ? settings.memoryWarnAt : 60
 	readonly property var memoryDangerAt: settings.memoryDangerAt !== undefined ? settings.memoryDangerAt : 85
 	readonly property var memoryTooltipWidth: settings.memoryTooltipWidth !== undefined ? settings.memoryTooltipWidth : 240
-	readonly property var memoryTooltipPadding: settings.memoryTooltipPadding !== undefined ? settings.memoryTooltipPadding : 12
 	readonly property var memoryTopCount: settings.memoryTopCount !== undefined ? settings.memoryTopCount : 5
 
 	// volume mixer
 	readonly property var mixerWidth: settings.mixerWidth !== undefined ? settings.mixerWidth : 246
 	readonly property var mixerChannelGap: settings.mixerChannelGap !== undefined ? settings.mixerChannelGap : 8
 	readonly property var mixerFaderThickness: settings.mixerFaderThickness !== undefined ? settings.mixerFaderThickness : 4
-	readonly property var mixerPadding: settings.mixerPadding !== undefined ? settings.mixerPadding : 12
 	readonly property var mixerIconSize: settings.mixerIconSize !== undefined ? settings.mixerIconSize : 22
 	readonly property var mixerDeviceIconSize: settings.mixerDeviceIconSize !== undefined ? settings.mixerDeviceIconSize : 26
 	readonly property var mixerListGap: settings.mixerListGap !== undefined ? settings.mixerListGap : 8
-	readonly property var rowRadius: settings.rowRadius !== undefined ? settings.rowRadius : 4
 	readonly property var mixerMaxVolume: settings.mixerMaxVolume !== undefined ? settings.mixerMaxVolume : 1
 	readonly property var mixerStepCount: settings.mixerStepCount !== undefined ? settings.mixerStepCount : 10
 	readonly property var mixerStep: settings.mixerStep !== undefined ? settings.mixerStep : 0.1
@@ -279,12 +275,9 @@ QtObject {
 	readonly property var mixerOnlyPlaying: settings.mixerOnlyPlaying !== undefined ? settings.mixerOnlyPlaying : true
 	readonly property var mixerHoldMs: settings.mixerHoldMs !== undefined ? settings.mixerHoldMs : 2000
 	readonly property var mixerPendingMs: settings.mixerPendingMs !== undefined ? settings.mixerPendingMs : 500
-	readonly property var mixerSeparator: settings.mixerSeparator !== undefined ? settings.mixerSeparator : 1
-	readonly property var mixerSeparatorColor: settings.mixerSeparatorColor !== undefined ? settings.mixerSeparatorColor : "#2b2b2b"
 
 	// now playing
 	readonly property var mediaTooltipWidth: settings.mediaTooltipWidth !== undefined ? settings.mediaTooltipWidth : 228
-	readonly property var mediaTooltipPadding: settings.mediaTooltipPadding !== undefined ? settings.mediaTooltipPadding : 12
 	readonly property var mediaArtHeight: settings.mediaArtHeight !== undefined ? settings.mediaArtHeight : 228
 	readonly property var mediaTitleSize: settings.mediaTitleSize !== undefined ? settings.mediaTitleSize : 16
 	readonly property var mediaRowGap: settings.mediaRowGap !== undefined ? settings.mediaRowGap : 6
@@ -304,10 +297,6 @@ QtObject {
 	readonly property var launcherIconSize: settings.launcherIconSize !== undefined ? settings.launcherIconSize : 20
 	readonly property var launcherIconSlot: settings.launcherIconSlot !== undefined ? settings.launcherIconSlot : 24
 	readonly property var launcherTextGap: settings.launcherTextGap !== undefined ? settings.launcherTextGap : 10
-	readonly property var launcherSearchBox: settings.launcherSearchBox !== undefined ? settings.launcherSearchBox : "#1f1f1f"
-	readonly property var launcherHighlight: settings.launcherHighlight !== undefined ? settings.launcherHighlight : "#2f2f2f"
-	readonly property var launcherHighlightText: settings.launcherHighlightText !== undefined ? settings.launcherHighlightText : "#ffffff"
-	readonly property var launcherDetailText: settings.launcherDetailText !== undefined ? settings.launcherDetailText : "#8a8a8a"
 	readonly property var launcherPrompt: settings.launcherPrompt !== undefined ? settings.launcherPrompt : "\uea6d"
 	readonly property var launcherMaxRows: settings.launcherMaxRows !== undefined ? settings.launcherMaxRows : 12
 	readonly property var launcherIconPin: settings.launcherIconPin !== undefined ? settings.launcherIconPin : "\ueba0"
@@ -393,7 +382,6 @@ QtObject {
 	readonly property var powerWarnAt: settings.powerWarnAt !== undefined ? settings.powerWarnAt : 30
 	readonly property var powerDangerAt: settings.powerDangerAt !== undefined ? settings.powerDangerAt : 15
 	readonly property var powerTooltipWidth: settings.powerTooltipWidth !== undefined ? settings.powerTooltipWidth : 240
-	readonly property var powerTooltipPadding: settings.powerTooltipPadding !== undefined ? settings.powerTooltipPadding : 12
 	readonly property var powerDemo: settings.powerDemo !== undefined ? settings.powerDemo : false
 	readonly property var powerFlowHeight: settings.powerFlowHeight !== undefined ? settings.powerFlowHeight : 40
 	readonly property var powerGovernorTitle: settings.powerGovernorTitle !== undefined ? settings.powerGovernorTitle : "Governor"
@@ -448,9 +436,7 @@ QtObject {
 	readonly property var calendarCellHeight: settings.calendarCellHeight !== undefined ? settings.calendarCellHeight : 34
 	readonly property var calendarRows: settings.calendarRows !== undefined ? settings.calendarRows : 6
 	readonly property var calendarWeekStart: settings.calendarWeekStart !== undefined ? settings.calendarWeekStart : 1
-	readonly property var calendarCursor: settings.calendarCursor !== undefined ? settings.calendarCursor : "#ffffff"
 	readonly property var calendarCursorBorder: settings.calendarCursorBorder !== undefined ? settings.calendarCursorBorder : 1
-	readonly property var calendarPadding: settings.calendarPadding !== undefined ? settings.calendarPadding : 16
 	readonly property var calendarBase: settings.calendarBase !== undefined ? settings.calendarBase : "#ffffff"
 	readonly property var calendarIconDay: settings.calendarIconDay !== undefined ? settings.calendarIconDay : "\uf017"
 	readonly property var calendarIconMonth: settings.calendarIconMonth !== undefined ? settings.calendarIconMonth : "\uf133"
@@ -462,8 +448,6 @@ QtObject {
 	readonly property var calendarDaySize: settings.calendarDaySize !== undefined ? settings.calendarDaySize : 20
 	readonly property var calendarArrowSize: settings.calendarArrowSize !== undefined ? settings.calendarArrowSize : 18
 	readonly property var calendarArrowGap: settings.calendarArrowGap !== undefined ? settings.calendarArrowGap : 12
-	readonly property var calendarTodayBox: settings.calendarTodayBox !== undefined ? settings.calendarTodayBox : "#1f1f1f"
-	readonly property var calendarTrack: settings.calendarTrack !== undefined ? settings.calendarTrack : "#1f1f1f"
 	readonly property var calendarGap: settings.calendarGap !== undefined ? settings.calendarGap : 16
 	readonly property var calendarMeterHeight: settings.calendarMeterHeight !== undefined ? settings.calendarMeterHeight : 8
 	readonly property var calendarMeterRow: settings.calendarMeterRow !== undefined ? settings.calendarMeterRow : 26
@@ -487,7 +471,6 @@ QtObject {
 	readonly property var calendarDialDay: settings.calendarDialDay !== undefined ? settings.calendarDialDay : "#7cc4f0"
 	readonly property var calendarBirthYear: settings.calendarBirthYear !== undefined ? settings.calendarBirthYear : 0
 	readonly property var calendarLifeExpectancy: settings.calendarLifeExpectancy !== undefined ? settings.calendarLifeExpectancy : 90
-	readonly property var calendarOutside: settings.calendarOutside !== undefined ? settings.calendarOutside : "#3f3f3f"
 
 	// weather card and its code table
 	readonly property var weatherLocation: settings.weatherLocation !== undefined ? settings.weatherLocation : ""
@@ -502,7 +485,6 @@ QtObject {
 	readonly property var weatherTempUnit: settings.weatherTempUnit !== undefined ? settings.weatherTempUnit : "fahrenheit"
 	readonly property var weatherDays: settings.weatherDays !== undefined ? settings.weatherDays : 7
 	readonly property var weatherCardWidth: settings.weatherCardWidth !== undefined ? settings.weatherCardWidth : 470
-	readonly property var weatherCardPadding: settings.weatherCardPadding !== undefined ? settings.weatherCardPadding : 18
 	readonly property var weatherCardGap: settings.weatherCardGap !== undefined ? settings.weatherCardGap : 16
 	readonly property var weatherCardHeaderGap: settings.weatherCardHeaderGap !== undefined ? settings.weatherCardHeaderGap : 12
 	readonly property var weatherHeroGlyphSize: settings.weatherHeroGlyphSize !== undefined ? settings.weatherHeroGlyphSize : 54
@@ -519,11 +501,6 @@ QtObject {
 	readonly property var weatherIconLeft: settings.weatherIconLeft !== undefined ? settings.weatherIconLeft : "\uf104"
 	readonly property var weatherIconRight: settings.weatherIconRight !== undefined ? settings.weatherIconRight : "\uf105"
 	readonly property var weatherIconAdd: settings.weatherIconAdd !== undefined ? settings.weatherIconAdd : "\uf067"
-	readonly property var weatherSeparator: settings.weatherSeparator !== undefined ? settings.weatherSeparator : 1
-	readonly property var weatherSeparatorColor: settings.weatherSeparatorColor !== undefined ? settings.weatherSeparatorColor : "#2b2b2b"
-	readonly property var weatherDayCardColor: settings.weatherDayCardColor !== undefined ? settings.weatherDayCardColor : "#181818"
-	readonly property var weatherDayLabelColor: settings.weatherDayLabelColor !== undefined ? settings.weatherDayLabelColor : "#ffffff"
-	readonly property var weatherDayCardRadius: settings.weatherDayCardRadius !== undefined ? settings.weatherDayCardRadius : 8
 	readonly property var weatherCardSearchDebounce: settings.weatherCardSearchDebounce !== undefined ? settings.weatherCardSearchDebounce : 60
 	readonly property var weatherCodes: settings.weatherCodes !== undefined ? settings.weatherCodes : [
 		{ code: 0, name: "Clear", glyph: "\udb81\udd99" },
@@ -572,8 +549,6 @@ QtObject {
 	readonly property var notifyHistory: settings.notifyHistory !== undefined ? settings.notifyHistory : 50
 	readonly property var notifyGoneOpacity: settings.notifyGoneOpacity !== undefined ? settings.notifyGoneOpacity : 0.55
 	readonly property var notifyEmpty: settings.notifyEmpty !== undefined ? settings.notifyEmpty : "Nothing yet"
-	readonly property var notifySeparator: settings.notifySeparator !== undefined ? settings.notifySeparator : 1
-	readonly property var notifySeparatorColor: settings.notifySeparatorColor !== undefined ? settings.notifySeparatorColor : "#3f3f3f"
 	readonly property var notifySweepWidth: settings.notifySweepWidth !== undefined ? settings.notifySweepWidth : 30
 	readonly property var notifyTimeout: settings.notifyTimeout !== undefined ? settings.notifyTimeout : 6000
 	readonly property var notifyDismissKey: settings.notifyDismissKey !== undefined ? settings.notifyDismissKey : "d"
@@ -587,7 +562,6 @@ QtObject {
 	readonly property var contribCell: settings.contribCell !== undefined ? settings.contribCell : 10
 	readonly property var contribGap: settings.contribGap !== undefined ? settings.contribGap : 3
 	readonly property var contribTooltipWidth: settings.contribTooltipWidth !== undefined ? settings.contribTooltipWidth : 244
-	readonly property var contribTooltipPadding: settings.contribTooltipPadding !== undefined ? settings.contribTooltipPadding : 12
 	readonly property var contribAvatar: settings.contribAvatar !== undefined ? settings.contribAvatar : 24
 
 	// display panel
@@ -624,7 +598,6 @@ QtObject {
 	readonly property var networkGraphHeight: settings.networkGraphHeight !== undefined ? settings.networkGraphHeight : 40
 	readonly property var networkGraphGap: settings.networkGraphGap !== undefined ? settings.networkGraphGap : 2
 	readonly property var networkTooltipWidth: settings.networkTooltipWidth !== undefined ? settings.networkTooltipWidth : 260
-	readonly property var networkTooltipPadding: settings.networkTooltipPadding !== undefined ? settings.networkTooltipPadding : 12
 	readonly property var networkRowHeight: settings.networkRowHeight !== undefined ? settings.networkRowHeight : 18
 	readonly property var networkDropdownRows: settings.networkDropdownRows !== undefined ? settings.networkDropdownRows : 6
 	readonly property var networkRowGap: settings.networkRowGap !== undefined ? settings.networkRowGap : 3
@@ -672,7 +645,6 @@ QtObject {
 	readonly property var agentBreatheMs: settings.agentBreatheMs !== undefined ? settings.agentBreatheMs : 3800
 	readonly property var agentPanelWidth: settings.agentPanelWidth !== undefined ? settings.agentPanelWidth : 300
 	readonly property var agentPanelHeight: settings.agentPanelHeight !== undefined ? settings.agentPanelHeight : 360
-	readonly property var agentPanelPadding: settings.agentPanelPadding !== undefined ? settings.agentPanelPadding : 12
 	readonly property var agentRingSize: settings.agentRingSize !== undefined ? settings.agentRingSize : 32
 	readonly property var agentRingWidth: settings.agentRingWidth !== undefined ? settings.agentRingWidth : 3
 	readonly property var agentRingGap: settings.agentRingGap !== undefined ? settings.agentRingGap : 12

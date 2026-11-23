@@ -10,7 +10,7 @@ Rectangle {
 	readonly property color ink: Config.foreground
 
 	anchors.fill: root.fillParent ? parent : undefined
-	radius: Config.rowRadius
+	radius: Config.appControlRadius
 	color: Config.surfaceHover
 	opacity: root.active ? 1 : 0
 

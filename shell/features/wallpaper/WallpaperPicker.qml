@@ -527,7 +527,7 @@ PanelWindow {
 
 					Rectangle {
 						anchors.fill: parent
-						color: Config.launcherSearchBox
+						color: Config.surfaceRaised
 					}
 
 					Item {

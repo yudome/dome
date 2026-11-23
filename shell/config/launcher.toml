@@ -9,10 +9,6 @@ launcherFontSize = 16
 launcherIconSize = 20
 launcherIconSlot = 24
 launcherTextGap = 10
-launcherSearchBox = "#1f1f1f"
-launcherHighlight = "#2f2f2f"
-launcherHighlightText = "#ffffff"  # same as foreground
-launcherDetailText = "#8a8a8a"
 launcherMaxRows = 12  # 4..20
 launcherClipTimeFormat = "h:mm AP"
 launcherSpotlight = true  # false = the box with the list under the field

@@ -46,7 +46,6 @@ powerDanger = "#e05252"  # same as red
 powerWarnAt = 30  # 0..100
 powerDangerAt = 15  # 0..100
 powerTooltipWidth = 240  # same as cpuTooltipWidth
-powerTooltipPadding = 12  # same as cpuTooltipPadding
 powerDemo = false  # fake battery on a desktop, for testing the flow
 powerFlowHeight = 40
 powerGovernorTitle = "Governor"  # hidden
