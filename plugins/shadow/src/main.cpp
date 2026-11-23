@@ -29,6 +29,7 @@ static SP<Config::Values::CFloatValue> g_offset;
 static SP<Config::Values::CFloatValue> g_alpha;
 static SP<Config::Values::CFloatValue> g_contact;
 
+
 static float currentRange() {
     return std::clamp(g_range->value(), 4.F, 120.F);
 }
@@ -90,6 +91,9 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
     void draw(Render::CRenderContext& ctx, PHLMONITOR monitor, float const& alpha, const Render::SWindowRenderPresentation& presentation) override {
         const auto WINDOW = m_window.lock();
         if (!shouldHaveShadow(WINDOW))
+            return;
+
+        if (Fullscreen::controller()->hasFullscreen(monitor))
             return;
 
         CBox box = g_pDecorationPositioner->getBoxWithIncludedDecos(WINDOW);
@@ -218,13 +222,13 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
         const float ALPHA   = std::clamp(g_alpha->value(), 0.F, 1.F);
         const float CONTACT = std::clamp(g_contact->value(), 0.F, 1.F);
 
-        const float GENW = std::max(16.F, std::round(width / 16.F) * 16.F);
-        const float GENH = std::max(16.F, std::round(height / 16.F) * 16.F);
+        const float GENW = std::max(32.F, std::round(width / 32.F) * 32.F);
+        const float GENH = std::max(32.F, std::round(height / 32.F) * 32.F);
         const float LOGICALW = GENW + 2.F * PAD;
         const float LOGICALH = GENH + 2.F * PAD;
 
         float texScale = 0.5F * scale;
-        const float MAXDIM = 1400.F;
+        const float MAXDIM = 1024.F;
         if (std::max(LOGICALW, LOGICALH) * texScale > MAXDIM)
             texScale = MAXDIM / std::max(LOGICALW, LOGICALH);
 
@@ -318,7 +322,7 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
 static std::unordered_map<Desktop::View::CWindow*, SP<CSoftShadowDecoration>> g_decorations;
 
 static void addDecoration(PHLWINDOW window) {
-    if (!shouldHaveShadow(window))
+    if (!window || !validMapped(window))
         return;
 
     if (g_decorations.contains(window.get()))
@@ -333,32 +337,9 @@ static void addDecoration(PHLWINDOW window) {
     keep->damageEntire();
 }
 
-static void removeDecoration(PHLWINDOW window) {
-    if (!window)
-        return;
-
-    const auto IT = g_decorations.find(window.get());
-    if (IT == g_decorations.end())
-        return;
-
-    damageAround(window);
-    HyprlandAPI::removeWindowDecoration(PHANDLE, IT->second.get());
-    g_decorations.erase(IT);
-}
-
-static void refreshDecoration(PHLWINDOW window) {
-    if (shouldHaveShadow(window))
-        addDecoration(window);
-    else
-        removeDecoration(window);
-}
-
 static CHyprSignalListener g_openListener;
 static CHyprSignalListener g_closeListener;
 static CHyprSignalListener g_reloadListener;
-static CHyprSignalListener g_rulesListener;
-static CHyprSignalListener g_fsListener;
-static CHyprSignalListener g_floatingListener;
 
 APICALL EXPORT std::string PLUGIN_API_VERSION() {
     return HYPRLAND_API_VERSION;
@@ -387,13 +368,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
     g_openListener     = Event::bus()->m_events.window.open.listen([](PHLWINDOW window) { addDecoration(window); });
     g_closeListener    = Event::bus()->m_events.window.close.listen([](PHLWINDOW window) { g_decorations.erase(window.get()); });
-    g_rulesListener    = Event::bus()->m_events.window.updateRules.listen([](PHLWINDOW window) { refreshDecoration(window); });
-    g_fsListener       = Event::bus()->m_events.window.fullscreen.listen([](PHLWINDOW window) { refreshDecoration(window); });
-    g_floatingListener = Event::bus()->m_events.window.floating.listen([](PHLWINDOW window) { refreshDecoration(window); });
     g_reloadListener   = Event::bus()->m_events.config.reloaded.listen([]() {
-        for (const auto& WINDOW : Desktop::windowState()->windows())
-            refreshDecoration(WINDOW);
-
         for (const auto& [window, decoration] : g_decorations) {
             g_pDecorationPositioner->repositionDeco(decoration.get());
             decoration->damageEntire();
