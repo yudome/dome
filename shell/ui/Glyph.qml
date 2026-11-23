@@ -7,6 +7,7 @@ Item {
 	property string glyph: ""
 	property real size: Config.iconSize
 	property color color: Config.foreground
+	property bool onBaseline: false
 
 	readonly property real inkWidth: ink.tightBoundingRect.width
 
@@ -25,7 +26,7 @@ Item {
 		id: label
 
 		x: (root.width - ink.tightBoundingRect.width) / 2 - ink.tightBoundingRect.x
-		y: (root.height - ink.tightBoundingRect.height) / 2 - ink.tightBoundingRect.y - label.baselineOffset
+		y: root.onBaseline ? (root.height - label.height) / 2 : (root.height - ink.tightBoundingRect.height) / 2 - ink.tightBoundingRect.y - label.baselineOffset
 		font.family: Config.fontFamily
 		font.pixelSize: root.size
 		color: root.color

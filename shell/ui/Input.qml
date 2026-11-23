@@ -58,7 +58,7 @@ QtObject {
 			a: () => target.stepYears(-1),
 			f: () => target.stepYears(1),
 			w: () => target.weekStart = target.weekStart === 1 ? 0 : 1,
-			r: () => Yudae.send({ cmd: { calendar: { reset: true } } })
+			r: () => target.reset()
 		});
 	}
 

@@ -95,12 +95,13 @@ Item {
 		clip: true
 		spacing: root.rowSpacing
 		boundsBehavior: Flickable.StopAtBounds
-		interactive: false
+		acceptedButtons: Qt.NoButton
 		keyNavigationEnabled: false
 		highlightFollowsCurrentItem: true
 		highlightMoveDuration: 0
 		highlightResizeDuration: 0
 
+		onContentYChanged: root.offset = list.contentY
 		onModelChanged: {
 			Qt.callLater(root.place, root.offset);
 			root.applyIndex();
@@ -116,16 +117,6 @@ Item {
 	Scrollbar {
 		visible: root.scrollWidth > 0 && list.contentHeight > list.height + 1
 		view: list
-	}
-
-	MouseArea {
-		anchors.fill: list
-		acceptedButtons: Qt.NoButton
-
-		onWheel: function (wheel) {
-			root.scroll((wheel.angleDelta.y > 0 ? -1 : 1) * (root.rowHeight + root.rowSpacing));
-			wheel.accepted = true;
-		}
 	}
 
 }

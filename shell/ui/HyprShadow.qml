@@ -1,11 +1,11 @@
 import QtQuick
-import qs.services
+import qs
 
 Item {
 	id: root
 
 	property bool shadowEnabled: true
-	readonly property var settings: Yudae.screenShadow
+	readonly property var settings: Config.hyprShadow
 	readonly property bool active: root.shadowEnabled && root.settings.enabled && root.settings.range > 0
 	readonly property color tint: Qt.color(root.qmlColor(root.settings.color))
 	readonly property int steps: 24

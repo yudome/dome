@@ -19,7 +19,7 @@ Item {
 	property real stripWidth: -1
 	property var stripColor: null
 
-	readonly property var hyprBorder: Yudae.screenBorder.colors ? Yudae.screenBorder : ({ colors: [], angle: 0, width: null })
+	readonly property var hyprBorder: Config.hyprBorder.colors ? Config.hyprBorder : ({ colors: [], angle: 0, width: null })
 	readonly property var themeColors: root.borderColors !== null
 		? root.borderColors
 		: (root.hyprBorder.colors.length > 0 ? root.hyprBorder.colors : [Config.borderFallbackColor])
@@ -27,7 +27,7 @@ Item {
 	readonly property real wantedWidth: root.borderWidth >= 0 ? root.borderWidth : (root.hyprBorder.width == null ? Config.borderFallbackWidth : root.hyprBorder.width)
 	readonly property real themeWidth: Math.round(root.wantedWidth * root.scale) / root.scale
 	readonly property real themeAngle: root.hyprBorder.angle || 0
-	readonly property var hyprStrip: Yudae.screenBorder.strip ? Yudae.screenBorder.strip : ({ color: Config.surfaceTranslucent, width: 0 })
+	readonly property var hyprStrip: Config.hyprBorder.strip ? Config.hyprBorder.strip : ({ color: Config.surfaceTranslucent, width: 0 })
 	readonly property real wantedStrip: root.stripWidth >= 0 ? root.stripWidth : (root.hyprStrip.width || 0)
 	readonly property color themeStripColor: root.stripColor !== null ? root.stripColor : Qt.color(root.hyprStrip.color)
 	readonly property real strip: root.wantedStrip > 0 ? Math.round(root.wantedStrip * root.scale) / root.scale : 0

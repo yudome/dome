@@ -5,7 +5,7 @@ Item {
 	id: root
 
 	property bool open: false
-	property color color: Config.launcherSearchBox
+	property color color: Config.surfaceRaised
 	property real padding: Config.rowInset
 	property real bleed: Config.rowInset
 	property real spacing: Config.networkRowGap

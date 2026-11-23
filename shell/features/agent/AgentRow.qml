@@ -19,7 +19,7 @@ Item {
 
 	property string title: ""
 
-	property real rowHeight: Settings.fontSize + 6
+	property real rowHeight: Config.fontSize + 6
 
 	// Whether the row can be taken off the list.
 	property bool dismissable: false
@@ -48,7 +48,7 @@ Item {
 		ink: Config.foreground
 	}
 
-	Text {
+	Label {
 		x: 0
 		y: 0
 		width: 12
@@ -58,9 +58,7 @@ Item {
 		verticalAlignment: Text.AlignVCenter
 		horizontalAlignment: Text.AlignHCenter
 
-		font.family: Config.fontFamily
-		font.pixelSize: Settings.fontSize
-		color: root.kind === "done" ? Config.muted : Config.red
+		ink: root.kind === "done" ? Config.muted : Config.red
 		text: root.kind === "question"
 			? Config.agentIconQuestion
 			: (root.kind === "failed" ? Config.agentIconClose : Config.agentIconDone)
@@ -85,7 +83,7 @@ Item {
 		fillMode: Image.PreserveAspectFit
 	}
 
-	Text {
+	Label {
 		anchors.left: mark.visible ? mark.right : spinner.right
 		anchors.leftMargin: mark.visible ? 6 : 8
 		anchors.right: dismiss.visible ? dismiss.left : parent.right
@@ -94,14 +92,12 @@ Item {
 
 		elide: Text.ElideRight
 
-		font.family: Config.fontFamily
-		font.pixelSize: Settings.fontSize
-		color: root.kind === "done" ? Config.muted : (root.kind === "working" ? Config.foreground : Config.red)
+		ink: root.kind === "done" ? Config.muted : (root.kind === "working" ? Config.foreground : Config.red)
 		text: root.title
 	}
 
 	// The cross that takes the finished work off the list.
-	Text {
+	Label {
 		id: dismiss
 
 		anchors.right: parent.right
@@ -111,9 +107,7 @@ Item {
 		visible: root.dismissable
 		horizontalAlignment: Text.AlignHCenter
 
-		font.family: Config.fontFamily
-		font.pixelSize: Settings.fontSize
-		color: dismissHit.containsMouse ? Config.foreground : Config.muted
+		ink: dismissHit.containsMouse ? Config.foreground : Config.muted
 		text: Config.iconClose
 
 		MouseArea {

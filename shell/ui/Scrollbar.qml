@@ -1,22 +1,104 @@
 import QtQuick
 import qs
+import qs.services
 
-Rectangle {
+Item {
 	id: root
 
-	property var view: null
+	property Flickable view: null
 	property Item edge: root.parent
 	property int thickness: Config.scrollbarWidth
 
-	width: root.thickness
-	height: Math.max(12, root.view.height * root.view.height / Math.max(1, root.view.contentHeight))
+	property bool active: false
+
+	readonly property bool needed: root.view !== null && root.view.contentHeight > root.view.height + 1
+	readonly property real track: root.view ? root.view.height : 0
+	readonly property real range: root.view ? Math.max(1, root.view.contentHeight - root.view.height) : 1
+	readonly property real thumb: root.view ? Math.min(root.track, Math.max(Config.scrollbarMinThumb, root.track * root.track / Math.max(1, root.view.contentHeight))) : 0
+	readonly property real position: root.view ? Calc.clamp((root.view.contentY - root.view.originY) / root.range, 0, 1) : 0
+	readonly property bool hot: hit.containsMouse || hit.pressed
+
+	width: Config.scrollbarHoverWidth
+	height: root.track
 	x: {
 		root.parent.width;
 		root.parent.x;
+		root.edge.width;
 		return root.parent.mapFromItem(root.edge, root.edge.width - root.width, 0).x;
 	}
-	y: root.view.y + root.view.contentY / Math.max(1, root.view.contentHeight - root.view.height) * (root.view.height - height)
-	radius: root.width / 2
-	color: Config.dim
-	visible: root.view.contentHeight > root.view.height + 1
+	y: {
+		if (!root.view)
+			return 0;
+		root.view.y;
+		root.parent.y;
+		return root.parent.mapFromItem(root.view, 0, 0).y;
+	}
+	z: 10
+	visible: root.needed
+	opacity: root.hot || root.active ? 1 : 0
+
+	Behavior on opacity {
+		NumberAnimation {
+			duration: Config.scrollbarFadeMs
+		}
+	}
+
+	Connections {
+		target: root.view
+
+		function onContentYChanged() {
+			root.active = true;
+			idle.restart();
+		}
+	}
+
+	Timer {
+		id: idle
+
+		interval: Config.scrollbarIdleMs
+		onTriggered: root.active = false
+	}
+
+	Rectangle {
+		id: bar
+
+		anchors.right: parent.right
+		y: root.position * (root.track - root.thumb)
+		width: root.hot ? Config.scrollbarHoverWidth : root.thickness
+		height: root.thumb
+		radius: width / 2
+		color: Config.dim
+
+		Behavior on width {
+			NumberAnimation {
+				duration: Config.scrollbarFadeMs
+			}
+		}
+	}
+
+	MouseArea {
+		id: hit
+
+		property real grab: 0
+
+		anchors.fill: parent
+		hoverEnabled: true
+		preventStealing: true
+
+		function scrollTo(y) {
+			const free = Math.max(1, root.track - root.thumb);
+			root.view.contentY = root.view.originY + Calc.clamp((y - hit.grab) / free, 0, 1) * root.range;
+		}
+
+		onPressed: function (mouse) {
+			const onThumb = mouse.y >= bar.y && mouse.y <= bar.y + bar.height;
+			hit.grab = onThumb ? mouse.y - bar.y : root.thumb / 2;
+			if (!onThumb)
+				hit.scrollTo(mouse.y);
+		}
+		onPositionChanged: function (mouse) {
+			if (pressed)
+				hit.scrollTo(mouse.y);
+		}
+	}
 }

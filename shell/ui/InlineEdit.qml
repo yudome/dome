@@ -17,8 +17,8 @@ Item {
 	property bool editing: false
 	property bool selectOnFocus: true
 	property color color: Config.foreground
-	property color selectionColor: Config.launcherHighlight
-	property color selectedTextColor: Config.launcherHighlightText
+	property color selectionColor: Config.surfaceHover
+	property color selectedTextColor: Config.foreground
 
 	readonly property string ghost: root.text !== "" && root.candidate.length > root.text.length && root.candidate.toLowerCase().startsWith(root.text.toLowerCase()) ? root.candidate.slice(root.text.length) : ""
 	readonly property bool hasGhost: root.ghost !== "" && input.activeFocus && input.cursorPosition === input.text.length && input.echoMode === TextInput.Normal

@@ -7,11 +7,11 @@ Rectangle {
 	property bool active: true
 	property bool fillParent: true
 
-	readonly property color ink: root.active ? Config.launcherHighlightText : Config.foreground
+	readonly property color ink: Config.foreground
 
 	anchors.fill: root.fillParent ? parent : undefined
 	radius: Config.rowRadius
-	color: Config.launcherHighlight
+	color: Config.surfaceHover
 	opacity: root.active ? 1 : 0
 
 	Behavior on opacity {

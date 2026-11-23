@@ -10,7 +10,7 @@ Item {
 
 	property bool running: true
 	property color ink: Config.foreground
-	property int size: Settings.fontSize
+	property int size: Config.fontSize
 
 	// The frames are the braille dots that turn, so the spinner is a text
 	// glyph and it sits with the rest of the type.

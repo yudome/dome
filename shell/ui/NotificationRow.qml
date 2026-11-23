@@ -15,8 +15,8 @@ Item {
 	readonly property real pad: Config.notifyRowPadding
 	readonly property real inset: Config.notifyPadding + root.pad
 	readonly property real cardHeight: Config.notifyVisibleRows * Config.notifyRowHeight
-	readonly property color ink: hl.active ? Config.launcherHighlightText : Config.foreground
-	readonly property color aside: root.expanded ? Config.foreground : (root.selected ? Config.launcherHighlightText : Config.muted)
+	readonly property color ink: Config.foreground
+	readonly property color aside: root.expanded ? Config.foreground : (root.selected ? Config.foreground : Config.muted)
 	readonly property string picture: root.pictureOf()
 	readonly property bool urgent: !!root.entry && root.entry.urgent === true
 	readonly property string detail: root.entry ? (root.entry.body || "") : ""
@@ -130,7 +130,7 @@ Item {
 			width: lines.width
 			elide: Text.ElideRight
 			font.family: Config.fontFamily
-			font.pixelSize: Math.round(Settings.fontSize * Config.notifyScale)
+			font.pixelSize: Math.round(Config.fontSize * Config.notifyScale)
 			color: root.ink
 			text: root.headline
 		}
@@ -158,7 +158,7 @@ Item {
 		anchors.verticalCenter: lines.verticalCenter
 		visible: root.more
 		font.family: Config.fontFamily
-		font.pixelSize: Math.round(Settings.fontSize * Config.notifyScale)
+		font.pixelSize: Math.round(Config.fontSize * Config.notifyScale)
 		color: root.ink
 		text: Config.iconRight
 	}
@@ -168,7 +168,7 @@ Item {
 
 		visible: false
 		font.family: Config.fontFamily
-		font.pixelSize: Math.round(Settings.fontSize * Config.notifyScale)
+		font.pixelSize: Math.round(Config.fontSize * Config.notifyScale)
 		text: "0"
 	}
 

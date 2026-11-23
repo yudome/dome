@@ -163,7 +163,7 @@ Item {
 
 				Behavior on color {
 					ColorAnimation {
-						duration: 120
+						duration: Config.stepBarMs
 						easing.type: Easing.OutCubic
 					}
 				}
@@ -200,14 +200,14 @@ Item {
 
 		Behavior on x {
 			NumberAnimation {
-				duration: 120
+				duration: Config.stepBarMs
 				easing.type: Easing.OutCubic
 			}
 		}
 
 		Behavior on y {
 			NumberAnimation {
-				duration: 120
+				duration: Config.stepBarMs
 				easing.type: Easing.OutCubic
 			}
 		}

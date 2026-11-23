@@ -54,7 +54,7 @@ Item {
 		verticalAlignment: Text.AlignVCenter
 
 		font.family: Config.fontFamily
-		font.pixelSize: Settings.fontSize
+		font.pixelSize: Config.fontSize
 		color: Config.muted
 		text: root.emptyText
 	}

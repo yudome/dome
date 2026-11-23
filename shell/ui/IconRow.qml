@@ -55,9 +55,9 @@ Item {
 				width: row.cell
 				height: row.cell
 
-				AppIcon {
+				Icon {
 					anchors.centerIn: parent
-					implicitSize: row.iconSize
+					size: row.iconSize
 					visible: cellItem.appIcon !== ""
 					source: cellItem.appIcon
 				}

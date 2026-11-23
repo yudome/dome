@@ -86,29 +86,13 @@ Item {
 		}
 	}
 
-	TextMetrics {
-		id: sunMetrics
-
-		font.family: Config.fontFamily
-		font.pixelSize: Config.calendarDialGlyphSize
-		text: Config.glyph("sun")
-	}
-
-	TextMetrics {
-		id: moonMetrics
-
-		font.family: Config.fontFamily
-		font.pixelSize: Config.calendarDialGlyphSize
-		text: Config.glyph("moon")
-	}
-
 	Icon {
 		id: sunMark
 
 		visible: dial.daylight
-		x: dial.onRing(dial.hours) - sunMetrics.tightBoundingRect.width / 2
-		y: dial.ringY(dial.hours) - sunMetrics.tightBoundingRect.height / 2
-		pixelSize: Config.calendarDialGlyphSize
+		x: dial.onRing(dial.hours) - width / 2
+		y: dial.ringY(dial.hours) - height / 2
+		size: Config.calendarDialGlyphSize
 		name: "sun"
 	}
 
@@ -116,9 +100,9 @@ Item {
 		id: moonMark
 
 		visible: !dial.daylight
-		x: dial.onRing(dial.hours) - moonMetrics.tightBoundingRect.width / 2
-		y: dial.ringY(dial.hours) - moonMetrics.tightBoundingRect.height / 2 - Config.calendarDialMoonLift
-		pixelSize: Config.calendarDialGlyphSize
+		x: dial.onRing(dial.hours) - width / 2
+		y: dial.ringY(dial.hours) - height / 2 - Config.calendarDialMoonLift
+		size: Config.calendarDialGlyphSize
 		name: "moon"
 	}
 }

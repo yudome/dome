@@ -8,7 +8,7 @@ Item {
 	property string text: ""
 	property string inkId: ""
 	property color color: BarInk.pick(root.bar, root.inkId, Config.foreground)
-	property int pixelSize: Settings.fontSize
+	property int pixelSize: Config.fontSize
 	property real padding: 0
 	property var bar: null
 	readonly property bool onScreen: root.bar !== null && root.bar.visible && !root.bar.fullscreen

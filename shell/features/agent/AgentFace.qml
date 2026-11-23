@@ -57,7 +57,7 @@ Item {
 	Behavior on openness {
 		enabled: !root.paused
 		NumberAnimation {
-			duration: 240
+			duration: Config.agentOpenMs
 			easing.type: Easing.OutCubic
 		}
 	}
@@ -226,7 +226,7 @@ Item {
 			target: root
 			property: "blink"
 			to: 0
-			duration: 70
+			duration: Config.agentBlinkCloseMs
 			easing.type: Easing.InQuad
 		}
 
@@ -234,7 +234,7 @@ Item {
 			target: root
 			property: "blink"
 			to: 1
-			duration: 260
+			duration: Config.agentBlinkOpenMs
 			easing.type: Easing.OutCubic
 		}
 	}

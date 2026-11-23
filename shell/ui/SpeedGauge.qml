@@ -24,7 +24,7 @@ Item {
 
 	Behavior on shownFrac {
 		NumberAnimation {
-			duration: 450
+			duration: Config.speedNeedleMs
 			easing.type: Easing.OutQuad
 		}
 	}

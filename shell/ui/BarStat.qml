@@ -14,7 +14,7 @@ Item {
 	property color barColor: Config.red
 	property color textColor: root.barColor
 	property string icon: ""
-	property real iconSize: Settings.iconSize
+	property real iconSize: Config.iconSize
 	property string inkId: ""
 	property real iconLift: 0
 	property var iconComponent: null
@@ -136,7 +136,7 @@ Item {
 	TextMetrics {
 		id: valueMetrics
 		font.family: Config.fontFamily
-		font.pixelSize: Settings.fontSize
+		font.pixelSize: Config.fontSize
 		text: Config.valueSample
 	}
 
@@ -155,18 +155,19 @@ Item {
 		anchors.bottom: parent.bottom
 		width: Config.lineLength
 
-		Text {
+		Icon {
 			id: labelIcon
 
 			visible: root.iconComponent === null
 			x: 0
-			y: root.iconInkCentre - root.glyphInkCentre - root.iconAscent - root.iconLift
-			font.family: Config.fontFamily
-			font.pixelSize: root.iconSize
-			color: root.inkColor
-			text: root.icon
+			y: root.iconInkCentre - height / 2 - root.iconLift
+			width: iconMetrics.advanceWidth
+			height: root.iconSize
+			size: root.iconSize
+			glyph: root.icon
+			ink: root.inkColor
 
-			Behavior on color {
+			Behavior on ink {
 				enabled: BarInk.fading
 				ColorAnimation {
 					duration: BarInk.fadeMs
@@ -174,23 +175,27 @@ Item {
 			}
 		}
 
-		BarIcon {
+		Icon {
 			id: iconSlot
+
+			readonly property real drawnSize: root.iconHeight > 0 ? root.iconHeight : root.iconWidth
+			readonly property real drawnWidth: root.iconHeight > 0 ? root.iconWidth : 0
 
 			visible: root.iconComponent !== null
 			x: 0
-			width: content.width
-			height: content.height
-
-			component: root.iconComponent
-			drawnSize: root.iconHeight > 0 ? root.iconHeight : root.iconWidth
-			drawnWidth: root.iconHeight > 0 ? root.iconWidth : 0
+			y: root.iconInkCentre - iconSlot.drawnSize / 2 - root.iconLift
+			width: iconSlot.drawnWidth > 0 ? iconSlot.drawnWidth : iconSlot.drawnSize
+			height: iconSlot.drawnSize
+			size: iconSlot.drawnSize
 			ink: root.inkColor
-			lift: root.iconLift
 
-			inkAbove: root.inkAbove
-			inkBelow: root.inkBelow
-			inkCentre: root.iconInkCentre
+			Loader {
+				property color ink: iconSlot.ink
+
+				anchors.fill: parent
+				active: root.iconComponent !== null
+				sourceComponent: root.iconComponent
+			}
 		}
 
 		Text {
@@ -202,7 +207,7 @@ Item {
 			width: Math.max(labelValue.implicitWidth, content.width - (root.iconComponent === null ? labelIcon.width : root.iconWidth))
 			horizontalAlignment: Text.AlignHCenter
 			font.family: Config.fontFamily
-			font.pixelSize: Settings.fontSize
+			font.pixelSize: Config.fontSize
 			color: root.inkColor
 			text: root.value
 

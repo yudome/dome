@@ -6,13 +6,11 @@ Rectangle {
 
 	property alias text: input.text
 	property string glyph: Config.launcherPrompt
-	property string hintKey: ""
-	property string hintText: ""
 	property string placeholder: ""
 	property alias candidate: input.candidate
 	property int echoMode: TextInput.Normal
 	property bool typing: false
-	property color boxColor: Config.launcherSearchBox
+	property color boxColor: Config.surfaceRaised
 	property real size: Config.launcherFontSize
 	property real glyphSize: Math.round(root.size * 1.25)
 	property real glyphSlot: 0
@@ -26,13 +24,11 @@ Rectangle {
 	signal edited()
 	signal keyPressed(var event)
 
-	readonly property bool hint: !root.typing && root.hintKey !== "" && input.text === ""
-	readonly property string hintLabel: root.hintText.length > root.hintKey.length ? root.hintText.slice(root.hintKey.length).trim() : ""
 	readonly property real slot: root.slotWidth
 	readonly property real slotWidth: root.glyphSlot > 0 ? root.glyphSlot : (root.glyph === "" ? 0 : root.glyphSize)
 	readonly property real lineHeight: Math.round(root.size * 1.6)
 
-	implicitWidth: 2 * root.padding + root.slot + root.gap + (root.hintKey !== "" ? keycap.implicitWidth : Config.procSearchMinWidth)
+	implicitWidth: 2 * root.padding + root.slot + root.gap + Config.procSearchMinWidth
 	implicitHeight: root.boxHeight > 0 ? root.boxHeight : root.lineHeight + 2 * root.padding
 	color: root.boxColor
 	radius: root.corner
@@ -68,20 +64,6 @@ Rectangle {
 		glyph: root.glyph
 	}
 
-	Text {
-		id: keycap
-
-		anchors.left: icon.right
-		anchors.leftMargin: root.gap
-		anchors.verticalCenter: parent.verticalCenter
-
-		visible: root.hint
-		font.family: Config.fontFamily
-		font.pixelSize: root.size
-		color: Config.muted
-		text: root.hintKey + (root.hintLabel !== "" ? " " + root.hintLabel : "")
-	}
-
 	InlineEdit {
 		id: input
 
@@ -92,7 +74,6 @@ Rectangle {
 		anchors.verticalCenter: parent.verticalCenter
 		anchors.verticalCenterOffset: root.textOffset
 
-		visible: !root.hint
 		height: implicitHeight
 		editing: root.typing
 		echoMode: root.echoMode
@@ -111,7 +92,7 @@ Rectangle {
 		anchors.verticalCenter: parent.verticalCenter
 		anchors.verticalCenterOffset: root.textOffset
 
-		visible: !root.hint && input.text === "" && root.placeholder !== ""
+		visible: input.text === "" && root.placeholder !== ""
 		font.family: Config.fontFamily
 		font.pixelSize: root.size
 		color: Config.muted
