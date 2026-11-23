@@ -27,7 +27,7 @@
     },
     {
       "do": "wait",
-      "until": "exec:sh -c 'export XDG_RUNTIME_DIR=/run/user/1000; /home/gabriel/dotfiles/scripts/yudae disk view > /tmp/disk-view.json; grep -q \"\\\"status\\\":\\\"failed\\\"\" /tmp/disk-view.json'",
+      "until": "exec:sh -c 'export XDG_RUNTIME_DIR=/run/user/1000; /home/gabriel/dotfiles/scripts/yudae disk view --json > /tmp/disk-view.json; grep -q \"\\\"status\\\":\\\"failed\\\"\" /tmp/disk-view.json'",
       "timeout": 60000
     },
     {

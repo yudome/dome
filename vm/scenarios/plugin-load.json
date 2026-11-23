@@ -8,7 +8,7 @@
     { "do": "exec", "cmd": "/home/gabriel/dotfiles/scripts/yudae plugin reload", "code": 0 },
     { "do": "wait", "until": "exec:grep -q '1a1b26' /home/gabriel/.local/state/yudae/theme.toml && test -f /home/gabriel/.local/state/yudae/build/foot/theme.ini && grep -q 'template-hypr' /home/gabriel/.local/state/yudae/loaded.lua", "timeout": 30000 },
     { "do": "wait", "until": "exec:export XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-1 HYPRLAND_INSTANCE_SIGNATURE=$(ls /run/user/1000/hypr | head -1); hyprctl plugin list | grep -q template-hypr", "timeout": 30000 },
-    { "do": "wait", "until": "exec:/home/gabriel/dotfiles/scripts/yudae state | grep -q '1a1b26'", "timeout": 30000 },
+    { "do": "wait", "until": "exec:/home/gabriel/dotfiles/scripts/yudae state --json | grep -q '1a1b26'", "timeout": 30000 },
     { "do": "sleep", "ms": 2500 },
     { "do": "screenshot" }
   ],
