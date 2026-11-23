@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""Enforce the UI layers of plans/appkit.md on shell QML."""
+
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SHELL = ROOT / "shell"
+CONFIG = SHELL / "services" / "Config.qml"
+KITS = {"ui", "appkit", "panelkit"}
+SCROLL_OWNERS = {"ui", "appkit"}
+RETIRED = ("GlyphBar", "GlyphRow", "BarIcon", "RevealIcon", "AppIcon", "ArrowPill")
+DATA_VISUALS = {"AgentFace.qml", "Bubbles.qml", "Stage.qml", "Session.qml"}
+BODY_SIZE = re.compile(r"^font\.pixelSize:\s*(Settings\.fontSize|Config\.fontSize)\s*$")
+GLYPH_TEXT = re.compile(r"^text:\s*Config\.(icon\w+|glyph\(|\w+Icon\w*\b)")
+
+
+def layer(path):
+    parts = path.relative_to(SHELL).parts
+    return parts[0] if len(parts) > 1 else ""
+
+
+def blocks(lines, name):
+    for index, line in enumerate(lines):
+        match = re.match(r"^(\t*)(?:delegate: )?" + name + r" \{$", line)
+        if not match:
+            continue
+        indent = match.group(1)
+        end = index + 1
+        while end < len(lines) and lines[end] != indent + "}":
+            end += 1
+        inner = indent + "\t"
+        direct = [l.strip() for l in lines[index + 1:end] if l.startswith(inner) and not l.startswith(inner + "\t")]
+        yield index + 1, direct
+
+
+def check(path, failures):
+    text = path.read_text()
+    lines = text.split("\n")
+    where = layer(path)
+    rel = path.relative_to(ROOT)
+
+    def fail(number, message):
+        failures.append(f"{rel}:{number}: {message}")
+
+    for number, line in enumerate(lines, 1):
+        code = line.split("//", 1)[0]
+        if re.search(r"\bScrollbar\s*\{", code) and where not in SCROLL_OWNERS:
+            fail(number, "Scrollbar outside ui and appkit; use AppScroll")
+        if "Behavior on contentY" in code:
+            fail(number, "Behavior on contentY; scrolling is never smoothed")
+        for retired in RETIRED:
+            if re.search(r"\b" + retired + r"\s*\{", code):
+                fail(number, f"{retired} is retired")
+        if re.search(r"\bfont\.pixelSize:\s*\d", code) and path != CONFIG:
+            fail(number, "font size literal; use a Config token or a Label role")
+        if re.search(r"\b(radius|duration):\s*[1-9]", code) and path != CONFIG:
+            fail(number, "radius or duration literal; use a Config token")
+        if "·" in line:
+            fail(number, "dot separator; separate with spacing")
+        if where in KITS and re.search(r"\bYudae\b", code):
+            fail(number, f"{where} talks to the daemon; move it into a feature Store")
+        if where in KITS and re.search(r"import\s+(qs\.features|\"\.\./features|\"\.\./\.\./features)", code):
+            fail(number, f"{where} imports a feature")
+        if where == "ui" and re.search(r"import\s+qs\.(appkit|panelkit)\b", code):
+            fail(number, "ui imports a kit")
+
+    if where in KITS or path.name in DATA_VISUALS:
+        return
+    for number, direct in blocks(lines, "Text"):
+        if any(BODY_SIZE.match(d) for d in direct) or any(d.startswith("font.family") for d in direct):
+            fail(number, "raw Text; use Label")
+        if any(GLYPH_TEXT.match(d) for d in direct):
+            fail(number, "glyph drawn as Text; use Icon")
+
+
+def main():
+    failures = []
+    for path in sorted(SHELL.rglob("*.qml")):
+        if "cache" in path.parts:
+            continue
+        check(path, failures)
+    for qmldir in (SHELL / "ui" / "qmldir",):
+        for retired in RETIRED:
+            if re.search(r"^" + retired + r" ", qmldir.read_text(), re.M):
+                failures.append(f"{qmldir.relative_to(ROOT)}: {retired} is retired")
+
+    for failure in failures:
+        print(failure, file=sys.stderr)
+    if failures:
+        print(f"ui rules broken: {len(failures)}", file=sys.stderr)
+        return 1
+
+    print("ui follows the kit")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

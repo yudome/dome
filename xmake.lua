@@ -5,6 +5,7 @@ target("checks")
     add_tests("daemon")
     add_tests("qml")
     add_tests("plugins")
+    add_tests("apps")
     add_tests("idle-spawn")
     on_test(function (target, opt)
         local name = opt.name:match("/(.+)$")
@@ -14,7 +15,11 @@ target("checks")
         end
 
         if name == "qml" then
-            return os.execv("sh", {"-c", "node shell/ui/AgentFace.check.js"}, {try = true}) == 0
+            return os.execv("sh", {"-c", "for f in $(find shell -name '*.check.js' -not -path '*/cache/*'); do node \"$f\" || exit 1; done"}, {try = true}) == 0
+        end
+
+        if name == "apps" then
+            return os.execv("sh", {"-c", "scripts/app-check"}, {try = true}) == 0
         end
 
         if name == "plugins" then

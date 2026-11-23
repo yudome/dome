@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+"""Load every shell/app-*.qml and the shell in a headless cage; fail on QML runtime errors.
+
+qmllint does not see wrong property names on our own components or types a
+Loader cannot resolve; a real load does. Apps read the live daemon (read only);
+the shell runs in an empty runtime dir so it reaches no daemon and no Hyprland.
+"""
+
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SHELL = ROOT / "shell"
+SECONDS = 6
+BAD = re.compile(
+    r"ERROR|caused by|is not a type|TypeError|ReferenceError|Cannot assign|non-existent|"
+    r"Binding loop|Unable to assign|is not defined|Cannot read property|Type \w+ unavailable"
+)
+LOADED = "Configuration Loaded"
+
+
+def run(entry, isolated=False):
+    env = dict(os.environ, WLR_BACKENDS="headless", WLR_LIBINPUT_NO_DEVICES="1", WLR_RENDERER="pixman")
+    env.pop("YUDAE_VM", None)
+    if isolated:
+        env.pop("HYPRLAND_INSTANCE_SIGNATURE", None)
+        env.pop("WAYLAND_DISPLAY", None)
+        runtime = tempfile.TemporaryDirectory(prefix="app-check-")
+        env["XDG_RUNTIME_DIR"] = runtime.name
+    command = ["cage", "--", "timeout", str(SECONDS), "quickshell", "-p", str(entry)]
+    try:
+        done = subprocess.run(command, env=env, cwd=ROOT, capture_output=True, text=True, timeout=SECONDS + 10)
+        out = done.stdout + done.stderr
+    except subprocess.TimeoutExpired as error:
+        out = (error.stdout or b"").decode(errors="replace") + (error.stderr or b"").decode(errors="replace")
+    if isolated:
+        runtime.cleanup()
+    return [line for line in out.splitlines() if "intercept" not in line.lower()]
+
+
+def main():
+    if shutil.which("cage") is None or shutil.which("quickshell") is None:
+        print("app-check needs cage and quickshell", file=sys.stderr)
+        return 1
+
+    failures = 0
+    entries = [(entry, False) for entry in sorted(SHELL.glob("app-*.qml"))] + [(SHELL / "shell.qml", True)]
+    for entry, isolated in entries:
+        lines = run(entry, isolated)
+        bad = [line.strip() for line in lines if BAD.search(line)]
+        loaded = any(LOADED in line for line in lines)
+        if bad or not loaded:
+            failures += 1
+            print(f"{entry.name}: {'did not load' if not loaded else 'runtime errors'}", file=sys.stderr)
+            for line in bad[:12]:
+                print(f"  {line}", file=sys.stderr)
+        else:
+            print(f"{entry.name}: loads clean")
+
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

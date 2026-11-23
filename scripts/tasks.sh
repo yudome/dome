@@ -85,12 +85,12 @@ task_lint() {
 		}
 	done < <(find "$ROOT/shell" -name '*.qml' -not -path '*/cache/*')
 
-	for check in "$ROOT"/shell/ui/*.check.js; do
-		[ -e "$check" ] || continue
+	while IFS= read -r check; do
 		node "$check" || fail=1
-	done
+	done < <(find "$ROOT/shell" -name '*.check.js' -not -path '*/cache/*')
 
 	python3 "$ROOT/scripts/color-check" || fail=1
+	python3 "$ROOT/scripts/ui-check" || fail=1
 
 	if [ "$fail" -ne 0 ]; then
 		exit 1
