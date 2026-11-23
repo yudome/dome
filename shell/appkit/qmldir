@@ -1,0 +1,17 @@
+module appkit
+singleton Metrics 1.0 Metrics.qml
+singleton Motion 1.0 Motion.qml
+singleton AppPalette 1.0 AppPalette.qml
+AppWindow 1.0 AppWindow.qml
+AppAction 1.0 AppAction.qml
+AppTask 1.0 AppTask.qml
+AppScroll 1.0 AppScroll.qml
+AppSplit 1.0 AppSplit.qml
+AppScaffold 1.0 AppScaffold.qml
+AppHeader 1.0 AppHeader.qml
+AppSidebar 1.0 AppSidebar.qml
+AppNav 1.0 AppNav.qml
+AppPage 1.0 AppPage.qml
+AppSection 1.0 AppSection.qml
+AppFooter 1.0 AppFooter.qml
+StateView 1.0 StateView.qml
