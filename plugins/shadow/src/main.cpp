@@ -103,16 +103,21 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
         if (box.w < 1 || box.h < 1)
             return;
 
-        const float ROUNDING  = std::max(0.F, WINDOW->presentation().rounding() + WINDOW->presentation().borderSize());
+        const float WROUNDING = WINDOW->presentation().rounding();
+        const float ROUNDING  = std::max(0.F, WROUNDING + WINDOW->presentation().borderSize());
+        const bool  SQUARE    = WROUNDING <= 0.F;
         const bool  ANIMATING = WINDOW->sizeAnimation()->isBeingAnimated() || WINDOW->positionAnimation()->isBeingAnimated();
 
         if (!m_texture || !ANIMATING)
-            ensureTexture(box.w, box.h, ROUNDING, monitor->m_scale);
+            ensureTexture(box.w, box.h, ROUNDING, monitor->m_scale, !SQUARE);
         if (!m_texture)
             return;
 
         const float PAD = currentPad();
-        CBox        texBox = box;
+        CBox        windowBox = box;
+        windowBox.scale(monitor->m_scale).round();
+
+        CBox texBox = box;
         texBox.addExtents(SBoxExtents{.topLeft = {PAD, PAD}, .bottomRight = {PAD, PAD}});
         texBox.scale(monitor->m_scale).round();
 
@@ -120,6 +125,12 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
         data.tex = m_texture;
         data.box = texBox;
         data.a   = alpha;
+
+        if (SQUARE) {
+            CRegion clip(texBox);
+            clip.subtract(CRegion(windowBox));
+            data.clipRegion = clip;
+        }
 
         g_pHyprRenderer->addPassElement(ctx, makeUnique<CTexPassElement>(data));
     }
@@ -224,17 +235,15 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
         return std::max(1, static_cast<int>(std::lround((std::sqrt(4.F * sigma * sigma + 1.F) - 1.F) / 2.F)));
     }
 
-    void ensureTexture(float width, float height, float rounding, float scale) {
+    void ensureTexture(float width, float height, float rounding, float scale, bool cutInterior) {
         const float RANGE   = currentRange();
         const float OFFSET  = currentOffset();
         const float PAD     = currentPad();
         const float ALPHA   = std::clamp(g_alpha->value(), 0.F, 1.F);
         const float CONTACT = std::clamp(g_contact->value(), 0.F, 1.F);
 
-        const float GENW = std::max(32.F, std::round(width / 32.F) * 32.F);
-        const float GENH = std::max(32.F, std::round(height / 32.F) * 32.F);
-        const float LOGICALW = GENW + 2.F * PAD;
-        const float LOGICALH = GENH + 2.F * PAD;
+        const float LOGICALW = width + 2.F * PAD;
+        const float LOGICALH = height + 2.F * PAD;
 
         float texScale = 0.5F * scale;
         const float MAXDIM = 1024.F;
@@ -247,8 +256,8 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
         SCacheKey key{
             .width    = TEXW,
             .height   = TEXH,
-            .boxW     = static_cast<int>(GENW),
-            .boxH     = static_cast<int>(GENH),
+            .boxW     = static_cast<int>(std::lround(width * 4.F)),
+            .boxH     = static_cast<int>(std::lround(height * 4.F)),
             .rounding = static_cast<int>(std::lround(rounding * 4.F)),
             .range    = static_cast<int>(std::lround(RANGE * 16.F)),
             .offset   = static_cast<int>(std::lround(OFFSET * 16.F)),
@@ -258,9 +267,10 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
         if (m_texture && key == m_key)
             return;
 
-        const float RADIUS = std::clamp(rounding, 0.F, std::min(GENW, GENH) * 0.5F);
-        const float INNERW = GENW * 0.5F - RADIUS;
-        const float INNERH = GENH * 0.5F - RADIUS;
+        const float RADIUS = std::clamp(rounding, 0.F, std::min(width, height) * 0.5F);
+        const float INNERW = width * 0.5F - RADIUS;
+        const float INNERH = height * 0.5F - RADIUS;
+        const bool  CUT    = cutInterior;
 
         const float STEPX      = LOGICALW / TEXW;
         const float STEPY      = LOGICALH / TEXH;
@@ -277,9 +287,9 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
         const auto buildMask = [&](float offsetY) {
             std::vector<float> mask(static_cast<size_t>(TEXW) * TEXH);
             for (int y = 0; y < TEXH; ++y) {
-                const float PY = (y + 0.5F) * STEPY - PAD - GENH * 0.5F - offsetY;
+                const float PY = (y + 0.5F) * STEPY - PAD - height * 0.5F - offsetY;
                 for (int x = 0; x < TEXW; ++x) {
-                    const float PX = (x + 0.5F) * STEPX - PAD - GENW * 0.5F;
+                    const float PX = (x + 0.5F) * STEPX - PAD - width * 0.5F;
                     mask[static_cast<size_t>(y) * TEXW + x] = std::clamp(0.5F - distance(PX, PY) * AA, 0.F, 1.F);
                 }
             }
@@ -305,10 +315,10 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
         };
 
         for (int y = 0; y < TEXH; ++y) {
-            const float PY = (y + 0.5F) * STEPY - PAD - GENH * 0.5F;
+            const float PY = (y + 0.5F) * STEPY - PAD - height * 0.5F;
             for (int x = 0; x < TEXW; ++x) {
-                const float PX = (x + 0.5F) * STEPX - PAD - GENW * 0.5F;
-                if (distance(PX, PY) <= 0.F)
+                const float PX = (x + 0.5F) * STEPX - PAD - width * 0.5F;
+                if (CUT && distance(PX, PY) <= 0.F)
                     continue;
 
                 const size_t INDEX = static_cast<size_t>(y) * TEXW + x;
