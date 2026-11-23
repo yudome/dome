@@ -1,7 +1,10 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Effects
 import qs
 import qs.ui
+import qs.appkit
 import qs.services
 import "../../bar"
 
@@ -9,10 +12,11 @@ Item {
 	id: root
 
 	required property var layout
+	required property var store
 	property string part: "left"
 	property bool ready: false
 
-	readonly property var monitor: Yudae.screenActive || ({ width: 1920, height: 1080, scale: 1 })
+	readonly property var monitor: root.store.monitor || ({ width: 1920, height: 1080, scale: 1 })
 	readonly property real screenWidth: Math.round(root.monitor.width / (root.monitor.scale || 1))
 	readonly property real screenHeight: Math.round(root.monitor.height / (root.monitor.scale || 1))
 	readonly property var bar: root.layout && root.layout.bar ? root.layout.bar : ({})
@@ -23,7 +27,7 @@ Item {
 	readonly property real shift: root.part === "left" ? 0 : root.part === "right" ? root.width - root.shot : Math.round((root.width - root.shot) / 2)
 	readonly property int at: root.part === "left" ? 0 : root.part === "right" ? 2 : 1
 
-	height: (loader.item ? loader.item.height : 0) + root.outer + Config.settingsPreviewBelow + 16
+	height: loader.height + root.outer + Config.settingsPreviewBelow + Metrics.gap
 
 	function shiftPart(step) {
 		root.part = ["left", "center", "right"][Calc.clamp(root.at + step, 0, 2)];
@@ -52,7 +56,7 @@ Item {
 		fillMode: Image.PreserveAspectCrop
 		asynchronous: true
 		mipmap: true
-		source: Yudae.wallpaper.active ? "file://" + Yudae.wallpaper.active : ""
+		source: root.store.wallpaper !== "" ? "file://" + root.store.wallpaper : ""
 		}
 
 	Loader {
@@ -83,11 +87,7 @@ Item {
 		}
 	}
 
-	Timer {
-		interval: 40
-		running: true
-		onTriggered: root.ready = true
-	}
+	Component.onCompleted: Qt.callLater(function () { root.ready = true; })
 
 		MouseArea {
 			anchors.fill: parent
@@ -100,26 +100,30 @@ Item {
 		id: mask
 
 		anchors.fill: parent
-		radius: 16
+		radius: Metrics.radius
 		layer.enabled: true
 		visible: false
 	}
 
-	ArrowPill {
+	IconButton {
 		visible: root.at > 0
 		anchors.left: parent.left
-		anchors.leftMargin: 14
+		anchors.leftMargin: Metrics.gap
 		anchors.verticalCenter: parent.verticalCenter
-		glyph: Config.iconChevron
+		selected: true
+		name: "chevron"
+		label: "Left"
 		onClicked: root.shiftPart(-1)
 	}
 
-	ArrowPill {
+	IconButton {
 		visible: root.at < 2
 		anchors.right: parent.right
-		anchors.rightMargin: 14
+		anchors.rightMargin: Metrics.gap
 		anchors.verticalCenter: parent.verticalCenter
-		glyph: Config.iconRight
+		selected: true
+		name: "right"
+		label: "Right"
 		onClicked: root.shiftPart(1)
 	}
 }

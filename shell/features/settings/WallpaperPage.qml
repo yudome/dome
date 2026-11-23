@@ -2,100 +2,74 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs
+import qs.ui
+import qs.appkit
 import qs.services
 
-Column {
+AppSection {
 	id: root
 
-	readonly property var list: Yudae.wallpaper.list || []
-	readonly property int columns: Math.max(2, Math.floor((root.width + Config.settingsGap) / 220))
-	readonly property real tile: (root.width - (root.columns - 1) * Config.settingsGap) / root.columns
+	required property var store
 
-	spacing: 12
+	readonly property var list: root.store.wallpapers
+	readonly property real tileMin: Metrics.controlWidth * 0.8
+	readonly property int columns: Math.max(2, Math.floor((root.width + Metrics.gap) / root.tileMin))
+	readonly property real tile: (root.width - (root.columns - 1) * Metrics.gap) / root.columns
 
-	Text {
-		width: root.width
-		elide: Text.ElideRight
-		font.family: Config.fontFamily
-		font.pixelSize: Config.settingsFontSize + 3
-		color: Config.foreground
-		text: "Wallpapers"
-	}
+	title: "Wallpapers"
+	carded: false
 
-	Text {
-		width: root.width
+	EmptyState {
+		anchors.horizontalCenter: parent.horizontalCenter
 		visible: root.list.length === 0
-		wrapMode: Text.WordWrap
-		font.family: Config.fontFamily
-		font.pixelSize: Config.settingsFontSize + 1
-		color: Config.settingsLabel
-		text: "No wallpapers in the wallpaper folder yet"
+		icon: "wallpaper"
+		text: "No wallpapers"
 	}
 
 	Flow {
 		width: root.width
-		spacing: Config.settingsGap
+		spacing: Metrics.gap
 
 		Repeater {
 			model: root.list
 
-			delegate: Item {
-				id: card
+			delegate: Column {
+				id: entry
 
 				required property var modelData
 
-				readonly property bool active: Yudae.wallpaper.active === card.modelData.path
+				readonly property bool active: root.store.wallpaper === entry.modelData.path
 
 				width: root.tile
-				height: picture.height + 28
+				spacing: Metrics.gapSmall * 2
 
-				Rectangle {
-					anchors.fill: picture
-					anchors.margins: -3
-					radius: Config.settingsRadius - 2
-					color: "transparent"
-					border.width: 2
-					border.color: Config.foreground
-					visible: card.active
-				}
-
-				Rectangle {
+				Card {
 					id: picture
 
 					width: parent.width
 					height: Math.round(width / 1.6)
-					radius: Config.settingsRadius - 4
-					color: Config.settingsCard
+					inset: 0
+					hoverable: true
+					selected: entry.active
 					clip: true
+					onClicked: root.store.pickWallpaper(entry.modelData.path)
 
 					Image {
-						anchors.fill: parent
+						width: picture.width
+						height: picture.height
 						fillMode: Image.PreserveAspectCrop
 						asynchronous: true
-						sourceSize.width: 320
-						source: "file://" + (card.modelData.thumb || card.modelData.path)
-						opacity: card.active || hover.containsMouse ? 1 : 0.8
+						sourceSize.width: Metrics.controlWidth
+						source: "file://" + (entry.modelData.thumb || entry.modelData.path)
+						opacity: entry.active || picture.hovered ? 1 : 0.8
 					}
 				}
 
-				Text {
-					anchors.top: picture.bottom
-					anchors.topMargin: 8
+				Label {
 					width: parent.width
-					elide: Text.ElideRight
-					font.family: Config.fontFamily
-					font.pixelSize: Config.settingsSmallSize
-					color: card.active ? Config.foreground : Config.settingsLabel
-					text: card.modelData.name || ""
-				}
-
-				MouseArea {
-					id: hover
-
-					anchors.fill: parent
-					hoverEnabled: true
-					cursorShape: Qt.PointingHandCursor
-					onClicked: Yudae.cmd("wallpaper", { apply: { path: card.modelData.path } })
+					role: "caption"
+					ink: entry.active ? AppPalette.ink : AppPalette.inkMuted
+					text: entry.modelData.name || ""
 				}
 			}
 		}

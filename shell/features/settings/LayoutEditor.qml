@@ -4,7 +4,7 @@ import QtQuick
 import qs
 import qs.services
 import qs.ui
-import "../../bar"
+import qs.appkit
 
 Item {
 	id: root
@@ -27,6 +27,11 @@ Item {
 
 	function title(id) {
 		return root.names[id] || id.charAt(0).toUpperCase() + id.slice(1);
+	}
+
+	function glyphOf(id) {
+		const info = root.store.features[id];
+		return info ? info.glyph : "";
 	}
 
 	function copy(doc) {
@@ -149,170 +154,111 @@ Item {
 			root.store.setLayout(root.move(root.store.layout, d.from, d.index, null, 0));
 	}
 
-	component Heading: Text {
-		width: root.width
-		elide: Text.ElideRight
-		font.family: Config.fontFamily
-		font.pixelSize: Config.settingsFontSize + 3
-		color: Config.foreground
-	}
-
 	Column {
 		id: column
 
 		width: parent.width
-		spacing: Config.settingsSectionGap
+		spacing: Metrics.sectionGap
 
-		Item {
-			width: parent.width
-			height: slotsHeading.height + 12 + slotsPanel.height
+		AppSection {
+			title: "Layout"
 
-			Heading {
-				id: slotsHeading
+			Repeater {
+				model: root.slotNames
 
-				text: "Layout"
-			}
+				delegate: Item {
+					id: slot
 
-			Rectangle {
-				id: slotsPanel
+					required property string modelData
+					required property int index
 
-				y: slotsHeading.height + 12
-				width: parent.width
-				height: slotColumn.height
-				radius: Config.settingsRadius
-				color: Config.settingsCard
+					readonly property string name: modelData
 
-				Column {
-					id: slotColumn
+					Component.onCompleted: root.targets[slot.index] = { name: slot.name, area: box, flow: chips, list: chipRepeater }
 
-					x: Config.settingsGap + 4
-					width: parent.width - x * 2
+					width: parent.width
+					height: Math.max(Metrics.rowHeight + Metrics.gapSmall * 2, chips.height + Metrics.gap + Metrics.gapSmall * 2)
 
-					Repeater {
-						model: root.slotNames
+					Item {
+						id: box
 
-						delegate: Item {
-							id: slot
+						y: Metrics.gapSmall
+						width: parent.width
+						height: parent.height - Metrics.gapSmall * 2
+					}
 
-							required property string modelData
-							required property int index
-
-							readonly property string name: modelData
-
-							Component.onCompleted: root.targets[slot.index] = { name: slot.name, area: box, flow: chips, list: chipRepeater }
-
-							width: slotColumn.width
-							height: Math.max(Config.settingsRowHeight + 8, chips.height + 24)
-
-							Item {
-								id: box
-
-								x: 0
-								y: 4
-								width: parent.width
-								height: parent.height - 8
+					Rectangle {
+						z: 2
+						visible: root.hoverSlot === slot.name && root.drag !== null
+						x: {
+							if (root.hoverIndex < 0 || chipRepeater.count === 0)
+								return chips.x;
+							if (root.hoverIndex >= chipRepeater.count) {
+								const last = chipRepeater.itemAt(chipRepeater.count - 1);
+								return last ? last.x + last.width + chips.x + Metrics.border * 3 : chips.x;
 							}
+							const at = chipRepeater.itemAt(root.hoverIndex);
+							return at ? at.x + chips.x - Metrics.border * 3 : chips.x;
+						}
+						y: chips.y + Metrics.border * 2
+						width: Metrics.border * 2
+						height: Metrics.chipHeight - Metrics.border * 4
+						radius: width / 2
+						color: AppPalette.ink
+					}
 
-							Rectangle {
-								z: 2
-								visible: root.hoverSlot === slot.name && root.drag !== null
-								x: {
-									if (root.hoverIndex < 0 || chipRepeater.count === 0)
-										return chipRepeater.count === 0 ? chips.x : chips.x;
-									if (root.hoverIndex >= chipRepeater.count) {
-										const last = chipRepeater.itemAt(chipRepeater.count - 1);
-										return last ? last.x + last.width + chips.x + 3 : chips.x;
-									}
-									const at = chipRepeater.itemAt(root.hoverIndex);
-									return at ? at.x + chips.x - 3 : chips.x;
-								}
-								y: chips.y + 2
-								width: 2
-								height: Config.settingsChipHeight - 4
-								radius: 1
-								color: Config.foreground
-							}
+					Separator {
+						visible: slot.index < 2
+						anchors.bottom: parent.bottom
+						width: parent.width
+						color: AppPalette.rule
+					}
 
-							Rectangle {
-								visible: slot.index < 2
-								anchors.bottom: parent.bottom
-								width: parent.width
-								height: 1
-								color: Config.settingsRule
-							}
+					Label {
+						id: slotTitle
 
-							Text {
-								id: slotTitle
+						anchors.verticalCenter: parent.verticalCenter
+						width: Metrics.leading * 2.5
+						text: root.title(slot.name)
+					}
 
-								anchors.verticalCenter: parent.verticalCenter
-								width: 72
-								elide: Text.ElideRight
-								font.family: Config.fontFamily
-								font.pixelSize: Config.settingsFontSize + 1
-								color: Config.foreground
-								text: root.title(slot.name)
-							}
+					Flow {
+						id: chips
 
-							Flow {
-								id: chips
+						anchors.left: slotTitle.right
+						anchors.leftMargin: Metrics.gap
+						anchors.right: parent.right
+						anchors.verticalCenter: parent.verticalCenter
+						spacing: Metrics.gapSmall * 1.5
 
-								anchors.left: slotTitle.right
-								anchors.leftMargin: Config.settingsGap
-								anchors.right: parent.right
-								anchors.verticalCenter: parent.verticalCenter
-								spacing: 6
+						Repeater {
+							id: chipRepeater
 
-								Repeater {
-									id: chipRepeater
+							model: root.layout[slot.name] || []
 
-									model: root.layout[slot.name] || []
+							delegate: Chip {
+								id: chip
 
-									delegate: Rectangle {
-										id: chip
+								required property var modelData
+								required property int index
 
-										required property var modelData
-										required property int index
+								hoverable: false
+								hot: chipDrag.containsMouse
+								icon: root.glyphOf(chip.modelData.id)
+								text: root.title(chip.modelData.id)
+								opacity: root.drag && root.drag.from === slot.name && root.drag.index === chip.index ? Metrics.disabled : 1
 
-										width: chipRow.width + 22
-										height: Config.settingsChipHeight
-										radius: height / 2
-										color: chipHover.containsMouse ? Config.toggleHover : Config.launcherHighlight
-										opacity: root.drag && root.drag.from === slot.name && root.drag.index === chip.index ? 0.25 : 1
+								MouseArea {
+									id: chipDrag
 
-										Row {
-											id: chipRow
-
-											anchors.centerIn: parent
-											spacing: 7
-
-											WidgetGlyph {
-												widgetId: chip.modelData.id
-												templates: templates
-												slot: Config.settingsChipHeight - 8
-											}
-
-											Text {
-												anchors.verticalCenter: parent.verticalCenter
-												font.family: Config.fontFamily
-												font.pixelSize: Config.settingsFontSize
-												color: Config.foreground
-												text: root.title(chip.modelData.id)
-											}
-										}
-
-										MouseArea {
-											id: chipHover
-
-											anchors.fill: parent
-											hoverEnabled: true
-											cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-											preventStealing: true
-											onPressed: function (mouse) { root.begin(slot.name, chip.index, chip.modelData.id, chip, mouse); }
-											onPositionChanged: function (mouse) { root.follow(chip, mouse); }
-											onReleased: root.finish()
-											onCanceled: root.drag = null
-										}
-									}
+									anchors.fill: parent
+									hoverEnabled: true
+									cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+									preventStealing: true
+									onPressed: function (mouse) { root.begin(slot.name, chip.index, chip.modelData.id, chip, mouse); }
+									onPositionChanged: function (mouse) { root.follow(chip, mouse); }
+									onReleased: root.finish()
+									onCanceled: root.drag = null
 								}
 							}
 						}
@@ -321,148 +267,52 @@ Item {
 			}
 		}
 
-		Item {
-			width: parent.width
-			height: libraryHeading.height + 12 + libraryBox.height
+		AppSection {
+			id: libraryBox
 
-			Heading {
-				id: libraryHeading
+			title: "Widgets"
 
-				text: "Widgets"
-			}
+			Repeater {
+				model: root.available
 
-			BarBody {
-				id: templates
+				delegate: ListRow {
+					id: feature
 
-				visible: false
-				width: 1
-				height: 1
-				sample: true
-			}
+					required property var modelData
+					required property int index
 
-			Rectangle {
-				id: libraryBox
+					width: parent.width
+					height: Metrics.rowHeight
+					inset: 0
+					rule: feature.index < root.available.length - 1
+					selected: root.hoverSlot === "library" && root.drag !== null
+					icon: feature.modelData.glyph
+					title: root.title(feature.modelData.id)
+					subtitle: feature.modelData.description || ""
 
-				y: libraryHeading.height + 12
-				width: parent.width
-				height: libraryColumn.height
-				radius: Config.settingsRadius
-				color: root.hoverSlot === "library" && root.drag !== null ? Config.settingsSelected : Config.settingsCard
-
-				Behavior on color {
-					ColorAnimation {
-						duration: Config.toggleMs
-					}
-				}
-
-				Column {
-					id: libraryColumn
-
-					x: Config.settingsGap + 4
-					width: parent.width - x * 2
-
-					Repeater {
-						model: root.available
-
-						delegate: Item {
-							id: feature
-
-							required property var modelData
-							required property int index
-
-							width: libraryColumn.width
-							height: Config.settingsRowHeight
-
-							Rectangle {
-								visible: feature.index < root.available.length - 1
-								anchors.bottom: parent.bottom
-								width: parent.width
-								height: 1
-								color: Config.settingsRule
-							}
-
-							WidgetGlyph {
-								id: featureGlyph
-
-								anchors.verticalCenter: parent.verticalCenter
-								widgetId: feature.modelData.id
-								templates: templates
-								slot: 22
-							}
-
-							Text {
-								id: featureName
-
-								anchors.left: featureGlyph.right
-								anchors.leftMargin: 14
-								anchors.verticalCenter: parent.verticalCenter
-								width: 120
-								elide: Text.ElideRight
-								font.family: Config.fontFamily
-								font.pixelSize: Config.settingsFontSize + 1
-								color: Config.foreground
-								text: root.title(feature.modelData.id)
-							}
-
-							Text {
-								anchors.left: featureName.right
-								anchors.leftMargin: Config.settingsGap
-								anchors.right: parent.right
-								anchors.rightMargin: Config.settingsGap
-								anchors.verticalCenter: parent.verticalCenter
-								elide: Text.ElideRight
-								font.family: Config.fontFamily
-								font.pixelSize: Config.settingsSmallSize
-								color: Config.settingsLabel
-								text: feature.modelData.description || ""
-							}
-
-							MouseArea {
-								anchors.fill: parent
-								enabled: true
-								cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-								preventStealing: true
-								onPressed: function (mouse) { root.begin(null, -1, feature.modelData.id, feature, mouse); }
-								onPositionChanged: function (mouse) { root.follow(feature, mouse); }
-								onReleased: root.finish()
-								onCanceled: root.drag = null
-							}
-						}
+					MouseArea {
+						parent: feature
+						anchors.fill: parent
+						cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+						preventStealing: true
+						onPressed: function (mouse) { root.begin(null, -1, feature.modelData.id, feature, mouse); }
+						onPositionChanged: function (mouse) { root.follow(feature, mouse); }
+						onReleased: root.finish()
+						onCanceled: root.drag = null
 					}
 				}
 			}
 		}
 	}
 
-	Rectangle {
+	Chip {
 		visible: root.drag !== null
 		z: 10
 		x: root.drag ? root.drag.x - width / 2 : 0
 		y: root.drag ? root.drag.y - height / 2 : 0
-		width: ghostRow.width + 22
-		height: Config.settingsChipHeight
-		radius: height / 2
-		color: Config.launcherHighlight
-
-		Row {
-			id: ghostRow
-
-			anchors.centerIn: parent
-			spacing: 7
-
-			WidgetGlyph {
-				widgetId: root.drag ? root.drag.id : ""
-				templates: templates
-				slot: Config.settingsChipHeight - 6
-			}
-
-			Text {
-				anchors.verticalCenter: parent.verticalCenter
-				font.family: Config.fontFamily
-				font.pixelSize: Config.settingsFontSize
-				color: Config.foreground
-				text: root.drag ? root.title(root.drag.id) : ""
-			}
-		}
+		hoverable: false
+		hot: true
+		icon: root.drag ? root.glyphOf(root.drag.id) : ""
+		text: root.drag ? root.title(root.drag.id) : ""
 	}
 }

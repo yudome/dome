@@ -3,19 +3,23 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs
 import qs.ui
+import qs.appkit
 import qs.services
 
 Column {
 	id: root
 
-	readonly property var monitor: Yudae.screenActive
+	required property var store
+
+	readonly property var monitor: root.store.monitor
 	readonly property bool ready: root.monitor !== null && root.monitor !== undefined
-	readonly property var groups: (Yudae.screenPanel.groups || []).filter(function (g) { return g.kind !== "font" && g.visible !== false; })
+	readonly property var groups: root.store.screenGroups
 	readonly property var resolutions: root.ready ? root.monitor.resolutions || [] : []
-	readonly property bool more: root.resolutions.length > 8
+	readonly property int shortList: 8
+	readonly property bool more: root.resolutions.length > root.shortList
 	property bool open: false
 
-	spacing: Config.settingsSectionGap
+	spacing: Metrics.sectionGap
 
 	function density(c, r, n) {
 		const ramp = " .-+xXS#";
@@ -36,246 +40,128 @@ Column {
 	function format(kind, value) {
 		if (kind === "scale" && value !== "" && isFinite(Number(value)))
 			return Number(value).toFixed(2);
-		if (kind === "refresh" && value !== "" && value.indexOf("Hz") < 0)
+		if (kind === "refresh" && value !== "" && String(value).indexOf("Hz") < 0)
 			return value + " Hz";
-		return value;
+		return String(value);
 	}
 
-	component Heading: Text {
-		width: parent ? parent.width : 0
-		elide: Text.ElideRight
-		font.family: Config.fontFamily
-		font.pixelSize: Config.settingsFontSize + 3
-		color: Config.foreground
-	}
+	AppSection {
+		title: "Monitor"
 
-	component Panel: Rectangle {
-		default property alias rows: inner.data
+		FormRow {
+			width: parent.width
+			label: root.ready ? (root.monitor.name || "") + (root.monitor.description ? "  " + root.monitor.description : "") : Config.displayNothing
+			note: root.ready ? root.monitor.width + "x" + root.monitor.height + "  " + Math.round(root.monitor.refresh) + " Hz" : ""
+			last: root.groups.length === 0
 
-		width: parent ? parent.width : 0
-		height: inner.height
-		radius: Config.settingsRadius
-		color: Config.settingsCard
-
-		Column {
-			id: inner
-
-			x: Config.settingsGap + 4
-			width: parent.width - x * 2
-		}
-	}
-
-	component Rule: Rectangle {
-		width: parent ? parent.width : 0
-		height: 1
-		color: Config.settingsRule
-	}
-
-	Column {
-		width: root.width
-		spacing: 12
-
-		Heading {
-			text: "Monitor"
+			Button {
+				anchors.right: parent.right
+				anchors.verticalCenter: parent.verticalCenter
+				icon: "refresh"
+				text: "Detect"
+				onClicked: root.store.detectScreen()
+			}
 		}
 
-		Panel {
-			Item {
+		Repeater {
+			model: root.groups
+
+			delegate: FormRow {
+				id: group
+
+				required property var modelData
+				required property int index
+
 				width: parent.width
-				height: Config.settingsRowHeight + 16
+				label: group.modelData.label
+				last: group.index === root.groups.length - 1
+				controlHeight: bar.implicitHeight
 
-				Column {
+				Slider {
+					id: bar
+
 					anchors.left: parent.left
-					anchors.right: detect.left
-					anchors.rightMargin: Config.settingsGap
+					anchors.right: valueLabel.left
+					anchors.rightMargin: Metrics.gap
 					anchors.verticalCenter: parent.verticalCenter
-					spacing: 3
+					label: group.modelData.label
+					stops: group.modelData.options
+					value: bar.stopValue(group.modelData.options[group.modelData.selected])
+					onMoved: function (next) { root.store.pickScreen(group.modelData.kind, next); }
 
-					Text {
-						width: parent.width
-						elide: Text.ElideRight
-						font.family: Config.fontFamily
-						font.pixelSize: Config.settingsFontSize + 1
-						color: Config.foreground
-						text: root.ready ? (root.monitor.name || "") + (root.monitor.description ? "  " + root.monitor.description : "") : Config.displayNothing
-					}
-
-					Text {
-						width: parent.width
-						visible: root.ready
-						elide: Text.ElideRight
-						font.family: Config.fontFamily
-						font.pixelSize: Config.settingsSmallSize
-						color: Config.settingsLabel
-						text: root.ready ? root.monitor.width + "x" + root.monitor.height + "  " + Math.round(root.monitor.refresh) + " Hz" : ""
+					renderer: Component {
+						GlyphScale {
+							glyph: group.modelData.kind === "refresh" ? root.wave : root.density
+							animated: group.modelData.kind === "refresh"
+						}
 					}
 				}
 
-				ArrowPill {
-					id: detect
+				Label {
+					id: valueLabel
 
 					anchors.right: parent.right
 					anchors.verticalCenter: parent.verticalCenter
-					glyph: Config.iconRefresh
-					label: "Detect"
-					onClicked: Yudae.cmd("screen", { detect: true })
-				}
-			}
-
-			Repeater {
-				model: root.groups
-
-				delegate: Column {
-					id: group
-
-					required property var modelData
-
-					width: parent.width
-
-					Rule {}
-
-					Item {
-						width: parent.width
-						height: Math.max(Config.settingsRowHeight, bar.implicitHeight + 16)
-
-						Text {
-							anchors.left: parent.left
-							anchors.verticalCenter: parent.verticalCenter
-							font.family: Config.fontFamily
-							font.pixelSize: Config.settingsFontSize + 1
-							color: Config.foreground
-							text: group.modelData.label
-						}
-
-						GlyphBar {
-							id: bar
-
-							anchors.right: value.left
-							anchors.rightMargin: 12
-							anchors.verticalCenter: parent.verticalCenter
-							width: Math.min(Config.settingsControlWidth, parent.width * 0.5) - value.width - 12
-							model: group.modelData.options
-							selected: group.modelData.selected
-							ink: Config.settingsInk
-							glyph: group.modelData.kind === "refresh" ? root.wave : root.density
-							animated: group.modelData.kind === "refresh"
-							follow: false
-							onPick: function (next) { Yudae.cmd("screen", { pick: { kind: group.modelData.kind, value: next } }); }
-						}
-
-						Text {
-							id: value
-
-							anchors.right: parent.right
-							anchors.verticalCenter: parent.verticalCenter
-							width: 56
-							horizontalAlignment: Text.AlignRight
-							font.family: Config.fontFamily
-							font.pixelSize: Config.settingsFontSize
-							font.features: { "tnum": 1 }
-							color: Config.foreground
-							text: root.format(group.modelData.kind, bar.hoverLabel !== "" ? bar.hoverLabel : group.modelData.shown)
-						}
-					}
+					width: Metrics.chipHeight * 2
+					role: "value"
+					text: root.format(group.modelData.kind, bar.dragging ? bar.shownValue : group.modelData.shown)
 				}
 			}
 		}
 	}
 
-	Column {
-		width: root.width
-		spacing: 12
+	AppSection {
 		visible: root.resolutions.length > 0
+		title: "Resolution"
 
-		Heading {
-			text: "Resolution"
-		}
+		Repeater {
+			model: root.open ? root.resolutions : root.resolutions.slice(0, root.shortList)
 
-		Panel {
-			Repeater {
-				model: root.open ? root.resolutions : root.resolutions.slice(0, 8)
+			delegate: ListRow {
+				id: mode
 
-				delegate: Item {
-					id: mode
+				required property var modelData
+				required property int index
 
-					required property var modelData
-					required property int index
+				readonly property bool inUse: root.ready && mode.modelData.width === root.monitor.width && mode.modelData.height === root.monitor.height
 
-					readonly property bool current: root.ready && mode.modelData.width === root.monitor.width && mode.modelData.height === root.monitor.height
+				width: parent.width
+				height: Metrics.rowHeight - Metrics.gapSmall
+				inset: 0
+				hoverable: true
+				rule: mode.index < (root.open ? root.resolutions.length : Math.min(root.shortList, root.resolutions.length)) - 1 || root.more
+				dim: !mode.inUse
+				title: mode.modelData.label
+				onActivated: root.store.pickScreen("resolution", mode.modelData.label)
 
-					width: parent.width
-					height: Config.settingsRowHeight - 6
+				Label {
+					anchors.verticalCenter: parent.verticalCenter
+					role: "caption"
+					text: mode.modelData.maxRefresh > 0 ? mode.modelData.maxRefresh + " Hz" : ""
+				}
 
-					Rule {
-						visible: mode.index > 0
-					}
-
-					Text {
-						anchors.left: parent.left
-						anchors.verticalCenter: parent.verticalCenter
-						font.family: Config.fontFamily
-						font.pixelSize: Config.settingsFontSize + 1
-						font.features: { "tnum": 1 }
-						color: mode.current || modeHover.containsMouse ? Config.foreground : Config.settingsLabel
-						text: mode.modelData.label
-					}
-
-					Text {
-						anchors.right: check.left
-						anchors.rightMargin: 12
-						anchors.verticalCenter: parent.verticalCenter
-						font.family: Config.fontFamily
-						font.pixelSize: Config.settingsSmallSize
-						font.features: { "tnum": 1 }
-						color: Config.settingsLabel
-						text: mode.modelData.maxRefresh > 0 ? mode.modelData.maxRefresh + " Hz" : ""
-					}
-
-					Glyph {
-						id: check
-
-						anchors.right: parent.right
-						anchors.verticalCenter: parent.verticalCenter
-						width: 16
-						height: 16
-						size: Config.settingsFontSize
-						color: Config.foreground
-						glyph: mode.current ? Config.launcherIconActive : ""
-					}
-
-					MouseArea {
-						id: modeHover
-
-						anchors.fill: parent
-						hoverEnabled: true
-						cursorShape: Qt.PointingHandCursor
-						onClicked: Yudae.cmd("screen", { pick: { kind: "resolution", value: mode.modelData.label } })
-					}
+				Icon {
+					anchors.verticalCenter: parent.verticalCenter
+					width: Metrics.bodySize
+					height: Metrics.bodySize
+					size: Metrics.bodySize
+					name: mode.inUse ? "check" : ""
 				}
 			}
+		}
 
-			Item {
-				width: parent.width
-				height: root.more ? Config.settingsRowHeight - 6 : 0
-				visible: root.more
+		Item {
+			width: parent.width
+			height: root.more ? Metrics.rowHeight - Metrics.gapSmall : 0
+			visible: root.more
 
-				Text {
-					anchors.left: parent.left
-					anchors.verticalCenter: parent.verticalCenter
-					font.family: Config.fontFamily
-					font.pixelSize: Config.settingsFontSize + 1
-					color: moreHover.containsMouse ? Config.foreground : Config.settingsLabel
-					text: root.open ? "Fewer resolutions" : root.resolutions.length - 8 + " more resolutions"
-				}
-
-				MouseArea {
-					id: moreHover
-
-					anchors.fill: parent
-					hoverEnabled: true
-					cursorShape: Qt.PointingHandCursor
-					onClicked: root.open = !root.open
-				}
+			Button {
+				anchors.left: parent.left
+				anchors.leftMargin: -Metrics.gap
+				anchors.verticalCenter: parent.verticalCenter
+				kind: "ghost"
+				text: root.open ? "Fewer resolutions" : "More resolutions"
+				onClicked: root.open = !root.open
 			}
 		}
 	}
