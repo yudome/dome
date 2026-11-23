@@ -5,6 +5,7 @@ Everything an agent needs is a CLI or an MCP tool. Never guess a command.
 ## CLI
 
 ```
+yudae restart                              # restart yudaemond and wait until it answers
 yudae call <target> <method> [args...]     # -q: quiet no-op if nothing is running
 yudae state | doctor | bench | parity | ui tree
 yudae plugin list | build <id> | load <id> | unload <id> | theme <id> | add <url> | update <id> | reload
@@ -18,6 +19,7 @@ yudae settings app [pane]
 yudae bar layout <file.json>
 ```
 
+- Output is plain text: records as aligned tables, objects as `key  value` lines, `vm exec` as the command's own stdout, stderr and exit code. Add `--json` anywhere for the raw JSON; scripts and scenarios that parse output must pass it.
 - `yudae disk scan [path]` asks for a scan. `yudae disk view [path]` prints the focused `disk` state. `--yes` confirms `uninstall` and `clean`.
 
 - The daemon owns routing. A feature registers its target in its provider (`weather`, `launcher`, `bar`, `menu`, `lock`, `vms`).
