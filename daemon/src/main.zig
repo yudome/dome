@@ -476,13 +476,20 @@ pub fn main() !void {
 	var threaded: std.Io.Threaded = .init(allocator, .{ .environ = env, .async_limit = .nothing, .concurrent_limit = .nothing, .stack_size = 512 * 1024 });
 	const io = threaded.io();
 
-	const args = try proc.args(io, allocator);
-
-	const command = if (args.len > 1) args[1] else "run";
-
-	if (std.mem.eql(u8, command, "state") or std.mem.eql(u8, command, "--json")) {
-		return cli.state(io, args);
+	const raw = try proc.args(io, allocator);
+	var kept: std.ArrayList([]const u8) = .empty;
+	for (raw, 0..) |arg, index| {
+		if (index > 0 and std.mem.eql(u8, arg, "--json")) {
+			cli.json_out = true;
+			continue;
+		}
+		try kept.append(allocator, arg);
 	}
+	const args = if (kept.items.len > 1 and std.mem.eql(u8, kept.items[1], "bench")) raw else kept.items;
+
+	const command = if (args.len > 1) args[1] else if (cli.json_out) "state" else "run";
+
+	if (std.mem.eql(u8, command, "state")) return cli.state(io, args);
 
 	if (std.mem.eql(u8, command, "call")) return cli.call(io, args);
 	if (std.mem.eql(u8, command, "plugin")) return cli.plugin(io, args);
@@ -504,7 +511,7 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "files-index")) return files.command(io, args);
 
 	if (!std.mem.eql(u8, command, "run")) {
-		std.debug.print("usage: yudae [run|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|settings|bar|ui|spawn-check|logout|files rebuild]\n", .{});
+		std.debug.print("usage: yudae [--json] [run|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|settings|bar|ui|spawn-check|logout|files rebuild]\n", .{});
 		return;
 	}
 

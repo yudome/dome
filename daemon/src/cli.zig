@@ -12,20 +12,17 @@ const sleep = @import("primitives/sleep.zig");
 const environ = @import("primitives/environ.zig");
 const exec = @import("primitives/exec.zig");
 const hypr = @import("primitives/hypr.zig");
+const human = @import("human.zig");
 
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
 
+pub var json_out = false;
+
 pub fn state(io: Io, args: []const []const u8) !void {
 	const body = try fetch(io);
 	defer std.heap.smp_allocator.free(body);
-
-	var buffer: [8192]u8 = undefined;
-	var writer = std.Io.File.stdout().writer(io, &buffer);
-	try writer.interface.writeAll(body);
-	try writer.interface.writeAll("\n");
-	try writer.interface.flush();
-
+	showDepth(io, body, 1);
 	_ = args;
 }
 
@@ -86,48 +83,43 @@ pub fn doctor(io: Io) !void {
 
 	var arena = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
 	defer arena.deinit();
+	const allocator = arena.allocator();
 
-	const parsed = json.parse(arena.allocator(), body) catch {
+	const parsed = json.parse(allocator, body) catch {
 		std.debug.print("state unreadable\n", .{});
 		std.process.exit(2);
 	};
+	const value = parsed.value;
 
-	var buffer: [8192]u8 = undefined;
-	var writer = std.Io.File.stdout().writer(io, &buffer);
-	const w = &writer.interface;
+	var out: std.Io.Writer.Allocating = .init(allocator);
+	const w = &out.writer;
+	try w.writeAll("{");
+	if (json.field(value, "opencode")) |provider| {
+		try w.print("\"opencode\":{{\"up\":{},\"state\":", .{json.flag(provider, "connected")});
+		try std.json.Stringify.encodeJsonString(json.textAt(provider, "state"), .{}, w);
+		try w.writeAll(",\"error\":");
+		try std.json.Stringify.encodeJsonString(json.textAt(provider, "usageError"), .{}, w);
+		try w.writeAll("}");
+	} else try w.writeAll("\"opencode\":null");
+	if (json.field(value, "codex")) |provider| try w.print(",\"codex\":{}", .{json.flag(provider, "signedIn")});
+	if (json.field(value, "weather")) |provider| try w.print(",\"weather\":{}", .{json.integer(json.field(provider, "fetched")) > 0});
+	if (json.field(value, "github")) |provider| try w.print(",\"github\":{}", .{json.textAt(provider, "login").len > 0});
+	if (json.field(value, "cursor")) |provider| try w.print(",\"cursor\":{}", .{json.flag(provider, "valid")});
+	try w.writeAll("}");
 
-	const opencode_state = json.field(parsed.value, "opencode") orelse null;
-	if (opencode_state) |provider| {
-		const connected = json.flag(provider, "connected");
-		const state_text = json.textAt(provider, "state");
+	if (json_out) return printResult(io, out.written());
+
+	var text: std.Io.Writer.Allocating = .init(allocator);
+	const t = &text.writer;
+	if (json.field(value, "opencode")) |provider| {
 		const usage = json.textAt(provider, "usageError");
-
-		try w.print("opencode  {s}  state={s}{s}\n", .{
-			if (connected) "up  " else "down",
-			state_text,
-			if (usage.len > 0) usage else "",
-		});
-	} else {
-		try w.writeAll("opencode  missing\n");
-	}
-
-	if (json.field(parsed.value, "codex")) |provider| {
-		try w.print("codex     {s}\n", .{if (json.flag(provider, "signedIn")) "up  " else "down"});
-	}
-
-	if (json.field(parsed.value, "weather")) |provider| {
-		try w.print("weather   {s}\n", .{if (json.integer(json.field(provider, "fetched")) > 0) "up  " else "down"});
-	}
-
-	if (json.field(parsed.value, "github")) |provider| {
-		try w.print("github    {s}\n", .{if (json.textAt(provider, "login").len > 0) "up  " else "down"});
-	}
-
-	if (json.field(parsed.value, "cursor")) |provider| {
-		try w.print("cursor    {s}\n", .{if (json.flag(provider, "valid")) "up  " else "down"});
-	}
-
-	try w.flush();
+		try t.print("opencode  {s}  {s}{s}{s}\n", .{ if (json.flag(provider, "connected")) "up  " else "down", json.textAt(provider, "state"), if (usage.len > 0) "  " else "", usage });
+	} else try t.writeAll("opencode  missing\n");
+	if (json.field(value, "codex")) |provider| try t.print("codex     {s}\n", .{if (json.flag(provider, "signedIn")) "up" else "down"});
+	if (json.field(value, "weather")) |provider| try t.print("weather   {s}\n", .{if (json.integer(json.field(provider, "fetched")) > 0) "up" else "down"});
+	if (json.field(value, "github")) |provider| try t.print("github    {s}\n", .{if (json.textAt(provider, "login").len > 0) "up" else "down"});
+	if (json.field(value, "cursor")) |provider| try t.print("cursor    {s}\n", .{if (json.flag(provider, "valid")) "up" else "down"});
+	printResult(io, std.mem.trimEnd(u8, text.written(), "\n"));
 }
 
 pub fn bench(io: Io, args: []const []const u8) !void {
@@ -189,7 +181,7 @@ pub fn plugin(io: Io, args: []const []const u8) !void {
 	try writer.writeAll("}}}");
 
 	const result = roundTrip(io, allocator, out.written(), false) catch std.process.exit(1);
-	printResult(io, result);
+	show(io, result);
 }
 
 pub fn call(io: Io, args: []const []const u8) !void {
@@ -245,7 +237,7 @@ pub fn call(io: Io, args: []const []const u8) !void {
 		std.process.exit(1);
 	};
 
-	if (!quiet and result.len > 0 and !std.mem.eql(u8, result, "{}")) printResult(io, result);
+	if (!quiet and result.len > 0 and !std.mem.eql(u8, result, "{}")) show(io, result);
 }
 
 pub fn ui(io: Io, args: []const []const u8) !void {
@@ -258,7 +250,7 @@ pub fn ui(io: Io, args: []const []const u8) !void {
 	defer arena.deinit();
 
 	const result = roundTrip(io, arena.allocator(), "{\"call\":{\"target\":\"ui\",\"method\":\"tree\",\"args\":{}}}", false) catch std.process.exit(1);
-	printResult(io, result);
+	show(io, result);
 }
 
 
@@ -329,7 +321,7 @@ pub fn open(io: Io, args: []const []const u8) !void {
 	out.writer.writeAll("}}}") catch return;
 
 	const result = roundTrip(io, allocator, out.written(), false) catch std.process.exit(1);
-	printResult(io, result);
+	show(io, result);
 }
 
 pub fn virtualMachines(io: Io, args: []const []const u8) !void {
@@ -342,9 +334,10 @@ pub fn virtualMachines(io: Io, args: []const []const u8) !void {
 		const allocator = std.heap.smp_allocator;
 		const repo = proc.repo(io, allocator);
 		const script = try std.fs.path.join(allocator, &.{ repo, "vm", "doctor" });
-		const result = exec.run(io, allocator, &.{ "sh", script, "--json" }) catch std.process.exit(1);
+		const result = (if (json_out) exec.run(io, allocator, &.{ "sh", script, "--json" }) else exec.run(io, allocator, &.{ "sh", script })) catch std.process.exit(1);
 		defer result.deinit(allocator);
-		printResult(io, result.out);
+		printResult(io, std.mem.trimEnd(u8, result.out, "\n"));
+		if (result.code != 0) std.process.exit(result.code);
 		return;
 	}
 
@@ -371,7 +364,7 @@ pub fn virtualMachines(io: Io, args: []const []const u8) !void {
 
 		app(io, &.{ "yudae", "app", "open", "vms", "--vm", rest[0] }) catch {};
 
-		printResult(io, result);
+		show(io, result);
 		return;
 	}
 
@@ -467,9 +460,27 @@ pub fn virtualMachines(io: Io, args: []const []const u8) !void {
 	try writer.writeAll("}}}");
 
 	const result = roundTrip(io, allocator, out.written(), false) catch std.process.exit(1);
-	printResult(io, result);
+
+	if (std.mem.eql(u8, method, "exec") and !json_out) return execOutput(io, result);
+	show(io, result);
 
 	if (std.mem.eql(u8, method, "run_scenario") and std.mem.indexOf(u8, result, "\"ok\":false") != null) std.process.exit(1);
+}
+
+fn execOutput(io: Io, body: []const u8) void {
+	var arena = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
+	defer arena.deinit();
+	const parsed = json.parse(arena.allocator(), body) catch return printResult(io, body);
+	const out = json.textAt(parsed.value, "out");
+	const err = json.textAt(parsed.value, "err");
+	const code = json.integer(json.field(parsed.value, "code"));
+
+	var buffer: [8192]u8 = undefined;
+	var writer = std.Io.File.stdout().writer(io, &buffer);
+	writer.interface.writeAll(out) catch {};
+	writer.interface.flush() catch {};
+	if (err.len > 0) std.debug.print("{s}", .{err});
+	if (code != 0) std.process.exit(@intCast(std.math.clamp(code, 1, 255)));
 }
 
 fn writeField(allocator: Allocator, writer: *std.Io.Writer, wrote: *bool, key: []const u8, value: []const u8) !void {
@@ -549,6 +560,24 @@ fn roundTrip(io: Io, allocator: Allocator, message: []const u8, quiet: bool) ![]
 	return error.NoReply;
 }
 
+fn show(io: Io, body: []const u8) void {
+	showDepth(io, body, 8);
+}
+
+fn showDepth(io: Io, body: []const u8, depth: usize) void {
+	if (json_out) return printResult(io, body);
+
+	var arena = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
+	defer arena.deinit();
+	const allocator = arena.allocator();
+
+	const parsed = json.parse(allocator, body) catch return printResult(io, body);
+	var out: std.Io.Writer.Allocating = .init(allocator);
+	human.write(allocator, &out.writer, parsed.value, depth) catch return printResult(io, body);
+	const text = std.mem.trimEnd(u8, out.written(), "\n");
+	if (text.len > 0) printResult(io, text);
+}
+
 fn printResult(io: Io, body: []const u8) void {
 	var buffer: [8192]u8 = undefined;
 	var writer = std.Io.File.stdout().writer(io, &buffer);
@@ -587,11 +616,8 @@ pub fn disk(io: Io, args: []const []const u8) !void {
 		const disk_state = json.field(parsed.value, "disk") orelse return error.NoDisk;
 
 		var out: std.Io.Writer.Allocating = .init(allocator);
-		try out.writer.print("{f}\n", .{std.json.fmt(disk_state, .{})});
-		var buffer: [8192]u8 = undefined;
-		var writer = std.Io.File.stdout().writer(io, &buffer);
-		try writer.interface.writeAll(out.written());
-		try writer.interface.flush();
+		try out.writer.print("{f}", .{std.json.fmt(disk_state, .{})});
+		show(io, out.written());
 		return;
 	}
 
@@ -604,16 +630,12 @@ pub fn disk(io: Io, args: []const []const u8) !void {
 		const parsed = json.parse(allocator, body) catch return error.StateUnreadable;
 		const disk_state = json.field(parsed.value, "disk") orelse return error.NoDisk;
 		var out: std.Io.Writer.Allocating = .init(allocator);
-		try out.writer.print("{f}\n", .{std.json.fmt(disk_state, .{})});
-
-		var buffer: [8192]u8 = undefined;
-		var writer = std.Io.File.stdout().writer(io, &buffer);
-		try writer.interface.writeAll(out.written());
-		try writer.interface.flush();
+		try out.writer.print("{f}", .{std.json.fmt(disk_state, .{})});
+		show(io, out.written());
 		return;
 	}
 
-	if (result.len > 0 and !std.mem.eql(u8, result, "{}")) printResult(io, result);
+	if (result.len > 0 and !std.mem.eql(u8, result, "{}")) show(io, result);
 }
 
 fn diskMessage(allocator: Allocator, method: []const u8, rest: []const []const u8) ![]u8 {
@@ -820,10 +842,12 @@ pub fn spawnCheck(io: Io, args: []const []const u8) !void {
 		std.process.exit(1);
 	}
 
-	var buffer: [8192]u8 = undefined;
-	var writer = std.Io.File.stdout().writer(io, &buffer);
-	try writer.interface.print("idle spawns {d} -> {d} over {d}s\n", .{ before, after, seconds });
-	try writer.interface.flush();
+	var buffer: [256]u8 = undefined;
+	const body = if (json_out)
+		try std.fmt.bufPrint(&buffer, "{{\"before\":{d},\"after\":{d},\"seconds\":{d}}}", .{ before, after, seconds })
+	else
+		try std.fmt.bufPrint(&buffer, "idle spawns {d} -> {d} over {d}s", .{ before, after, seconds });
+	printResult(io, body);
 }
 
 fn spawns(io: Io) !u64 {
@@ -861,7 +885,7 @@ pub fn settings(io: Io, args: []const []const u8) !void {
 	};
 
 	const result = roundTrip(io, allocator, message, false) catch std.process.exit(1);
-	if (result.len > 0 and !std.mem.eql(u8, result, "{}")) printResult(io, result);
+	if (result.len > 0 and !std.mem.eql(u8, result, "{}")) show(io, result);
 }
 
 fn settingsMessage(io: Io, allocator: Allocator, args: []const []const u8) ![]u8 {
