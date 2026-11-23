@@ -124,7 +124,7 @@ Item {
 
 			SequentialAnimation on pop {
 				PauseAnimation { duration: bubble.index * 32 }
-				NumberAnimation { from: 0; to: 1; duration: 420; easing.type: root.bubbles.length === 1 ? Easing.OutCubic : Easing.OutBack; easing.overshoot: 2.2 }
+				NumberAnimation { from: 0; to: 1; duration: Config.diskBubbleMs; easing.type: root.bubbles.length === 1 ? Easing.OutCubic : Easing.OutBack; easing.overshoot: 2.2 }
 			}
 
 			Rectangle {

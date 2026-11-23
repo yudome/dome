@@ -1,348 +1,74 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import qs
-import qs.services
 import qs.ui
+import qs.appkit
 
 AppWindow {
 	id: win
 
 	appTitle: "Disk"
-	appMinWidth: 900
-	appMinHeight: 560
-	implicitWidth: 1280
-	implicitHeight: 800
+	preset: "large"
 
-	property string tab: "map"
-	property var packageRows: []
-	readonly property var packageItems: win.packageRows.map(function (r) {
-		return { key: r.name, name: r.name, detail: r.version + "  " + r.repo + (r.orphan ? "  orphan" : ""), size: r.size, sizeText: r.sizeText, raw: r };
-	})
-	readonly property var cacheItems: win.cacheRows.map(function (r) {
-		return { key: r.id, name: r.label, detail: r.path, size: r.size, sizeText: r.sizeText, raw: r };
-	})
-	property var cacheRows: []
-	property var pending: null
-	property var job: null
-	property var mapSelection: ({})
-	property var packageSelection: ({})
-	property var cacheSelection: ({})
-	readonly property int mapSelectionCount: Object.keys(win.mapSelection).length
-	readonly property int packageSelectionCount: Object.keys(win.packageSelection).length
-	readonly property int cacheSelectionCount: Object.keys(win.cacheSelection).length
-	property int sidebarWidth: 248
-	readonly property var selectedRows: {
-		const tag = function (rows, group) {
-			return rows.map(function (r) { return Object.assign({ group: group }, r); });
-		};
-		return tag(Object.values(win.mapSelection), "Files").concat(tag(Object.values(win.packageSelection), "Packages"), tag(Object.values(win.cacheSelection), "Caches"));
-	}
-	readonly property real selectedTotal: win.sumSizes(win.selectedRows)
-
-	readonly property var disk: Yudae.diskState || ({})
-	readonly property var view: win.disk.view || null
-	readonly property var children: win.view && win.view.children ? win.view.children : []
-	readonly property string focus: win.disk.focus || win.disk.root || "/"
-	readonly property bool scanning: win.disk.status === "scanning"
-	readonly property real usedRatio: (win.disk.deviceTotal || 0) > 0 ? Math.min(1, (win.disk.used || 0) / win.disk.deviceTotal) : 0
-
-	function formatSize(bytes) {
-		const value = Number(bytes) || 0;
-
-		if (value >= 1024 * 1024 * 1024 * 1024)
-			return (value / (1024 * 1024 * 1024 * 1024)).toFixed(1) + " TB";
-		if (value >= 1024 * 1024 * 1024)
-			return (value / (1024 * 1024 * 1024)).toFixed(1) + " GB";
-		if (value >= 1024 * 1024)
-			return (value / (1024 * 1024)).toFixed(1) + " MB";
-		if (value >= 1024)
-			return (value / 1024).toFixed(1) + " kB";
-		return value + " B";
+	Store {
+		id: disk
 	}
 
-	function rowsOf(list) {
-		const out = [];
+	AppScaffold {
+		id: scaffold
 
-		for (let i = 0; i < list.length; i++) {
-			const entry = list[i];
-			out.push({
-				name: entry.name || "",
-				version: entry.version || "",
-				size: entry.size || 0,
-				sizeText: win.formatSize(entry.size || 0),
-				repo: entry.repo || entry.origin || "",
-				orphan: entry.orphan === true,
-				flatpak: entry.repo === undefined,
-			});
-		}
+		anchors.fill: parent
 
-		return out;
-	}
+		sidebar: AppSidebar {
+			title: "Selected"
 
-	function scan() {
-		win.mapSelection = ({});
-		Yudae.diskCommand("scan", { path: win.disk.root || "/" });
-	}
-
-	function openPath(child) {
-		Yudae.diskCommand("view", { path: child });
-	}
-
-	function up() {
-		const focus = win.focus;
-		const cut = focus.lastIndexOf("/");
-
-		if (cut <= 0) {
-			openPath("/");
-			return;
-		}
-
-		openPath(focus.substring(0, cut));
-	}
-
-	Component.onCompleted: {
-		win.loadPackages();
-		win.loadCaches();
-	}
-
-	function selectTab(name) {
-		win.tab = name;
-
-		if (name === "packages" && win.packageRows.length === 0)
-			loadPackages();
-		if (name === "caches" && win.cacheRows.length === 0)
-			loadCaches();
-	}
-
-	function loadPackages() {
-		Yudae.diskCommand("packages", {}, function (result) {
-			if (!result)
-				return;
-
-			win.packageRows = win.rowsOf(result.list || []).concat(win.rowsOf(result.flatpak || []));
-		});
-	}
-
-	function loadCaches() {
-		Yudae.diskCommand("caches", {}, function (result) {
-			if (!result)
-				return;
-
-			const rows = [];
-			const list = result.list || [];
-
-			for (let i = 0; i < list.length; i++) {
-				const entry = list[i];
-				rows.push({
-					id: entry.id || "",
-					label: entry.label || "",
-					path: entry.path || "",
-					tool: entry.tool || "",
-					size: entry.size || 0,
-					sizeText: win.formatSize(entry.size || 0),
-					root: entry.root === true,
-					exists: entry.exists === true,
-				});
+			SelectionSidebar {
+				store: disk
 			}
-
-			win.cacheRows = rows;
-		});
-	}
-
-	function toggleMapItem(item) {
-		const next = Object.assign({}, win.mapSelection);
-
-		if (next[item.path])
-			delete next[item.path];
-		else
-			next[item.path] = item;
-
-		win.mapSelection = next;
-	}
-
-	function togglePackage(row) {
-		const next = Object.assign({}, win.packageSelection);
-
-		if (next[row.name])
-			delete next[row.name];
-		else
-			next[row.name] = row;
-
-		win.packageSelection = next;
-	}
-
-	function toggleCache(row) {
-		const next = Object.assign({}, win.cacheSelection);
-
-		if (next[row.id])
-			delete next[row.id];
-		else
-			next[row.id] = row;
-
-		win.cacheSelection = next;
-	}
-
-	function sumSizes(rows) {
-		let size = 0;
-
-		for (let i = 0; i < rows.length; i++)
-			size += Number(rows[i].size) || 0;
-
-		return size;
-	}
-
-	function unselect(row) {
-		const drop = function (map, key) {
-			const next = Object.assign({}, map);
-			delete next[key];
-			return next;
-		};
-
-		if (row.group === "Packages")
-			win.packageSelection = drop(win.packageSelection, row.name);
-		else if (row.group === "Caches")
-			win.cacheSelection = drop(win.cacheSelection, row.id);
-		else
-			win.mapSelection = drop(win.mapSelection, row.path);
-	}
-
-	function cleanCurrent() {
-		const files = Object.values(win.mapSelection);
-		const pkgs = Object.values(win.packageSelection);
-		const caches = Object.values(win.cacheSelection);
-
-		if (files.length + pkgs.length + caches.length === 0)
-			return;
-
-		win.pending = {
-			kind: "clean-all",
-			items: files,
-			names: pkgs.map(function (r) { return r.name; }),
-			ids: caches.map(function (r) { return r.id; }),
-			count: files.length + pkgs.length + caches.length,
-			label: (files.length + pkgs.length + caches.length) + " items",
-			size: win.selectedTotal
-		};
-	}
-
-	function step(tasks, index, failed) {
-		if (index >= tasks.length) {
-			win.job = { done: tasks.length, total: tasks.length, label: "", failed: failed };
-			win.mapSelection = ({});
-			win.packageSelection = ({});
-			win.cacheSelection = ({});
-			Yudae.diskCommand("view", { path: win.focus });
-			win.loadPackages();
-			win.loadCaches();
-			jobTimer.restart();
-			return;
 		}
 
-		win.job = { done: index, total: tasks.length, label: tasks[index].label, failed: failed };
+		header: AppHeader {
+			title: "Disk"
+			actions: [disk.scanAction]
 
-		tasks[index].run(function (result) {
-			const bad = !result || result.ok === false || (result.error && result.error.length > 0);
-			win.step(tasks, index + 1, failed + (bad ? 1 : 0));
-		});
-	}
+			Tabs {
+				anchors.verticalCenter: parent.verticalCenter
+				model: [{ label: "Map", value: "map" }, { label: "Packages", value: "packages" }, { label: "Caches", value: "caches" }]
+				current: disk.tab
+				onPicked: function (value) { disk.selectTab(value); }
+			}
+		}
 
-	function confirmPending() {
-		if (!win.pending)
-			return;
-
-		const action = win.pending;
-		const tasks = [];
-
-		action.items.forEach(function (item) {
-			tasks.push({ label: item.name, run: function (done) { Yudae.diskCommand("delete", { path: item.path }, done); } });
-		});
-
-		action.ids.forEach(function (id) {
-			tasks.push({ label: id, run: function (done) { Yudae.diskCommand("clean", { id: id, confirm: true }, done); } });
-		});
-
-		if (action.names.length > 0)
-			tasks.push({ label: action.names.length + " packages", run: function (done) { Yudae.diskCommand("uninstall", { names: action.names, confirm: true }, done); } });
-
-		win.pending = null;
-		win.step(tasks, 0, 0);
-	}
-
-	Timer {
-		id: jobTimer
-
-		interval: 3500
-		onTriggered: win.job = null
-	}
-
-	Rectangle {
-		anchors.fill: parent
-		color: Config.surface
-	}
-
-	Column {
-		anchors.fill: parent
-		spacing: 0
-
-		Row {
-			width: parent.width
-			height: parent.height
-
-		Item {
-			width: win.sidebarWidth
-			height: parent.height
+		footer: AppFooter {
+			shown: disk.job.total > 0
+			task: disk.job
+			text: disk.job.running ? "Cleaning " + disk.job.label : disk.job.failed > 0 ? disk.job.failed + " failed" : "Cleaned"
+			tone: disk.job.failed > 0 ? "warning" : "plain"
 		}
 
 		Item {
-			width: parent.width - win.sidebarWidth
-			height: parent.height
+			anchors.fill: parent
 
-			Column {
-				anchors.fill: parent
-				anchors.margins: 22
-				visible: win.tab === "map"
-				spacing: 12
+			AppPage {
+				id: mapPage
+
+				visible: disk.tab === "map"
+				column: width
+				spacing: Metrics.gap
+				bottomPadding: 0
 
 				Item {
 					width: parent.width
-					height: 20
+					height: Metrics.chipHeight
 
-					Item {
-						id: upButton
-
+					Breadcrumb {
 						anchors.left: parent.left
-						anchors.verticalCenter: parent.verticalCenter
-						width: 20
-						height: 20
-						opacity: win.focus === (win.disk.root || "/") ? 0.3 : (upMouse.containsMouse ? 1 : 0.7)
-
-						Glyph {
-							anchors.centerIn: parent
-							glyph: "\uf062"
-							size: 13
-							color: Config.foreground
-						}
-
-						MouseArea {
-							id: upMouse
-
-							anchors.fill: parent
-							hoverEnabled: true
-							onClicked: win.up()
-						}
-					}
-
-					Text {
-						anchors.left: upButton.right
-						anchors.leftMargin: 10
 						anchors.right: usage.left
-						anchors.rightMargin: 12
+						anchors.rightMargin: Metrics.gap
 						anchors.verticalCenter: parent.verticalCenter
-						elide: Text.ElideMiddle
-
-						font.family: Config.fontFamily
-						font.pixelSize: 12
-						color: Config.foreground
-						text: win.focus
+						segments: disk.crumbs
+						onPicked: function (path) { disk.openPath(path); }
 					}
 
 					Column {
@@ -350,325 +76,74 @@ AppWindow {
 
 						anchors.right: parent.right
 						anchors.verticalCenter: parent.verticalCenter
-						width: 200
-						height: 20
-						spacing: 4
+						width: Math.min(Metrics.controlWidth * 0.75, parent.width / 3)
+						spacing: Metrics.gapSmall
 
-						Rectangle {
+						ProgressBar {
 							width: parent.width
-							height: 3
-							color: Config.dim
-
-							Rectangle {
-								width: parent.width * win.usedRatio
-								height: parent.height
-								color: Config.memoryBase
-							}
+							value: disk.usedRatio
 						}
 
-						Text {
+						Label {
 							width: parent.width
-
-							font.family: Config.fontFamily
-							font.pixelSize: 10
-							color: Config.dim
+							role: "caption"
 							horizontalAlignment: Text.AlignRight
-							text: win.formatSize(win.disk.used || 0) + " used  " + win.formatSize(win.disk.free || 0) + " free"
+							text: disk.usage
 						}
 					}
 				}
 
-				Item {
+				StateView {
 					width: parent.width
-					height: parent.height - 20 - 12 - (win.pending ? 40 : 0)
-					clip: true
+					height: Math.max(0, mapPage.height - mapPage.topPadding - Metrics.chipHeight - Metrics.gap - mapPage.padding)
+					status: disk.mapStatus
+					icon: "disk"
+					emptyText: disk.mapEmpty
+					onRetry: disk.scan()
 
 					Bubbles {
 						anchors.fill: parent
-						items: win.children
-						selected: win.mapSelection
-						onToggled: function (item) { win.toggleMapItem(item); }
+						clip: true
+						items: disk.entries
+						selected: disk.mapSelection
+						onToggled: function (item) { disk.toggleMapItem(item); }
 						onActivated: function (item) {
 							if (item.kind === "dir")
-								win.openPath(item.path);
+								disk.openPath(item.path);
 						}
 					}
-
-					Text {
-						anchors.centerIn: parent
-
-						font.family: Config.fontFamily
-						font.pixelSize: 13
-						color: Config.dim
-						text: win.scanning ? "Scanning" : (win.view ? "No children" : "Scan to build the map")
-						visible: win.children.length === 0
-					}
 				}
-
 			}
 
-			Item {
+			StateView {
 				anchors.fill: parent
-				visible: win.tab === "packages"
+				visible: disk.tab === "packages"
+				status: !disk.packagesLoaded ? "loading" : disk.packageRows.length === 0 ? "error" : "ready"
+				errorText: "No packages"
+				onRetry: disk.loadPackages()
 
 				RowList {
 					anchors.fill: parent
-					anchors.bottomMargin: win.pending || win.job ? 40 : 0
-					rows: win.packageItems
-					glyph: Config.diskIconPackage
-					selected: win.packageSelection
-					onToggled: function (row) { win.togglePackage(row.raw); }
-				}
-
-				Text {
-					anchors.centerIn: parent
-
-					font.family: Config.fontFamily
-					font.pixelSize: 13
-					color: Config.dim
-					text: "Load packages"
-					visible: win.packageRows.length === 0
-
-					MouseArea {
-						anchors.fill: parent
-						anchors.margins: -10
-						onClicked: win.loadPackages()
-					}
+					rows: disk.packageItems
+					selected: disk.packageSelection
+					onToggled: function (row) { disk.togglePackage(row.raw); }
 				}
 			}
 
-			Item {
+			StateView {
 				anchors.fill: parent
-				visible: win.tab === "caches"
+				visible: disk.tab === "caches"
+				status: !disk.cachesLoaded ? "loading" : disk.cacheRows.length === 0 ? "error" : "ready"
+				errorText: "No caches"
+				onRetry: disk.loadCaches()
 
 				RowList {
 					anchors.fill: parent
-					anchors.bottomMargin: win.pending || win.job ? 40 : 0
-					rows: win.cacheItems
-					glyph: Config.diskIconCache
-					selected: win.cacheSelection
-					onToggled: function (row) { win.toggleCache(row.raw); }
-				}
-
-				Text {
-					anchors.centerIn: parent
-
-					font.family: Config.fontFamily
-					font.pixelSize: 13
-					color: Config.dim
-					text: "Load caches"
-					visible: win.cacheRows.length === 0
-
-					MouseArea {
-						anchors.fill: parent
-						anchors.margins: -10
-						onClicked: win.loadCaches()
-					}
+					rows: disk.cacheItems
+					selected: disk.cacheSelection
+					onToggled: function (row) { disk.toggleCache(row.raw); }
 				}
 			}
-
-		}
-		}
-	}
-
-	Item {
-		id: header
-
-		x: 0
-		y: 0
-		width: win.sidebarWidth
-		height: 84
-		z: 3
-
-		Text {
-			id: titleText
-
-			anchors.left: parent.left
-			anchors.leftMargin: 14
-			anchors.top: parent.top
-			anchors.topMargin: 14
-
-			font.family: Config.fontFamily
-			font.pixelSize: 21
-			font.weight: Font.DemiBold
-			color: Config.foreground
-			text: "Disk"
-		}
-
-		Rectangle {
-			anchors.right: parent.right
-			anchors.rightMargin: 14
-			anchors.verticalCenter: titleText.verticalCenter
-			width: scanLabel.width + 22
-			height: 26
-			color: scanMouse.containsMouse ? Config.launcherHighlight : Config.launcherSearchBox
-
-			Text {
-				id: scanLabel
-
-				anchors.centerIn: parent
-
-				font.family: Config.fontFamily
-				font.pixelSize: 12
-				color: Config.foreground
-				text: "Scan"
-			}
-
-			MouseArea {
-				id: scanMouse
-
-				anchors.fill: parent
-				hoverEnabled: true
-				onClicked: win.scan()
-			}
-		}
-
-		Row {
-			anchors.left: parent.left
-			anchors.leftMargin: 14
-			anchors.top: titleText.bottom
-			anchors.topMargin: 14
-			spacing: 18
-
-			Repeater {
-				model: [["Map", "map"], ["Packages", "packages"], ["Caches", "caches"]]
-
-				delegate: Item {
-					required property var modelData
-
-					width: tabText.width
-					height: 20
-
-					Text {
-						id: tabText
-
-						anchors.centerIn: parent
-
-						font.family: Config.fontFamily
-						font.pixelSize: 12
-						color: win.tab === parent.modelData[1] ? Config.foreground : Config.dim
-						text: parent.modelData[0]
-					}
-
-					MouseArea {
-						anchors.fill: parent
-						hoverEnabled: true
-						onClicked: win.selectTab(parent.modelData[1])
-					}
-				}
-			}
-		}
-	}
-
-	Rectangle {
-		anchors.left: parent.left
-		anchors.leftMargin: win.sidebarWidth
-		anchors.right: parent.right
-		anchors.bottom: parent.bottom
-		height: 40
-		z: 4
-		visible: win.pending !== null || win.job !== null
-		color: Config.launcherSearchBox
-
-		Rectangle {
-			anchors.left: parent.left
-			anchors.top: parent.top
-			anchors.bottom: parent.bottom
-			width: win.job ? parent.width * win.job.done / Math.max(1, win.job.total) : 0
-			color: Config.diskAccent
-			opacity: 0.35
-
-			Behavior on width {
-				NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
-			}
-		}
-
-		Text {
-			anchors.left: parent.left
-			anchors.leftMargin: 22
-			anchors.right: answers.left
-			anchors.rightMargin: 16
-			anchors.verticalCenter: parent.verticalCenter
-			elide: Text.ElideRight
-
-			font.family: Config.fontFamily
-			font.pixelSize: 12
-			color: Config.foreground
-			text: win.job
-				? (win.job.done < win.job.total
-					? "Cleaning " + (win.job.done + 1) + " of " + win.job.total + "  " + win.job.label
-					: "Cleaned " + (win.job.total - win.job.failed) + " of " + win.job.total + (win.job.failed > 0 ? "  " + win.job.failed + " failed" : ""))
-				: (win.pending ? "Are you sure you want to delete " + (win.pending.count === 1 ? "this item" : "these " + win.pending.count + " items") + "?" : "")
-		}
-
-		Row {
-			id: answers
-
-			visible: win.job === null
-
-			anchors.right: parent.right
-			anchors.rightMargin: 22
-			anchors.verticalCenter: parent.verticalCenter
-			spacing: 18
-
-			Text {
-				font.family: Config.fontFamily
-				font.pixelSize: 12
-				font.weight: Font.DemiBold
-				color: yesMouse.containsMouse ? Config.red : Config.yellow
-				text: "Yes"
-
-				MouseArea {
-					id: yesMouse
-
-					anchors.fill: parent
-					anchors.margins: -6
-					hoverEnabled: true
-					onClicked: win.confirmPending()
-				}
-			}
-
-			Text {
-				font.family: Config.fontFamily
-				font.pixelSize: 12
-				color: noMouse.containsMouse ? Config.foreground : Config.dim
-				text: "No"
-
-				MouseArea {
-					id: noMouse
-
-					anchors.fill: parent
-					anchors.margins: -6
-					hoverEnabled: true
-					onClicked: win.pending = null
-				}
-			}
-		}
-	}
-
-	SelectionSidebar {
-		anchors.top: parent.top
-		anchors.left: parent.left
-		anchors.bottom: parent.bottom
-		topInset: header.height
-		width: win.sidebarWidth
-		rows: win.selectedRows
-		total: win.selectedTotal
-		canClean: win.selectedRows.length > 0
-		onClean: win.cleanCurrent()
-		onUnselect: function (row) { win.unselect(row); }
-	}
-
-	MouseArea {
-		x: win.sidebarWidth - 4
-		anchors.top: parent.top
-		anchors.bottom: parent.bottom
-		width: 8
-		cursorShape: Qt.SizeHorCursor
-		acceptedButtons: Qt.LeftButton
-		onPositionChanged: function (mouse) {
-			if (pressed)
-				win.sidebarWidth = Math.round(Math.max(180, Math.min(480, win.sidebarWidth + mouse.x - 4)));
 		}
 	}
 }

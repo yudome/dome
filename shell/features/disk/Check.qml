@@ -1,5 +1,6 @@
 import QtQuick
 import qs
+import qs.ui
 
 Item {
 	id: root
@@ -8,34 +9,46 @@ Item {
 
 	signal toggled()
 
-	implicitWidth: 20
-	implicitHeight: 20
+	implicitWidth: Config.appCaptionSize + Config.gapsIn
+	implicitHeight: implicitWidth
+	activeFocusOnTab: true
+
+	Accessible.role: Accessible.CheckBox
+	Accessible.checkable: true
+	Accessible.checked: root.checked
+	Accessible.onToggleAction: root.toggled()
+
+	Keys.onSpacePressed: root.toggled()
 
 	Rectangle {
 		anchors.fill: parent
 		radius: width / 2
-		color: root.checked ? Config.foreground : Qt.lighter(Config.launcherHighlight, 1.7)
+		color: root.checked ? Config.foreground : Config.toggleHover
 
 		Behavior on color {
-			ColorAnimation { duration: 110 }
+			ColorAnimation { duration: Config.toggleMs }
 		}
 	}
 
 	Rectangle {
 		anchors.centerIn: parent
-		width: root.checked ? 8 : 0
+		width: root.checked ? root.width * 0.4 : 0
 		height: width
 		radius: width / 2
 		color: Config.surface
 
 		Behavior on width {
-			NumberAnimation { duration: 110; easing.type: Easing.OutCubic }
+			NumberAnimation { duration: Config.toggleMs; easing.type: Easing.OutCubic }
 		}
+	}
+
+	FocusRing {
+		radius: height / 2
 	}
 
 	MouseArea {
 		anchors.fill: parent
-		anchors.margins: -4
+		anchors.margins: -Config.gapsIn
 		onClicked: root.toggled()
 	}
 }
