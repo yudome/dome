@@ -75,7 +75,8 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
     }
 
     SDecorationPositioningInfo getPositioningInfo() override {
-        const float PAD = currentPad();
+        const auto  WINDOW = m_window.lock();
+        const float PAD    = shouldHaveShadow(WINDOW) ? currentPad() : 0.F;
 
         SDecorationPositioningInfo info;
         info.policy         = DECORATION_POSITION_ABSOLUTE;
@@ -102,8 +103,11 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
         if (box.w < 1 || box.h < 1)
             return;
 
-        const float ROUNDING = std::max(0.F, WINDOW->presentation().rounding() + WINDOW->presentation().borderSize());
-        ensureTexture(box.w, box.h, ROUNDING, monitor->m_scale);
+        const float ROUNDING  = std::max(0.F, WINDOW->presentation().rounding() + WINDOW->presentation().borderSize());
+        const bool  ANIMATING = WINDOW->sizeAnimation()->isBeingAnimated() || WINDOW->positionAnimation()->isBeingAnimated();
+
+        if (!m_texture || !ANIMATING)
+            ensureTexture(box.w, box.h, ROUNDING, monitor->m_scale);
         if (!m_texture)
             return;
 
@@ -130,6 +134,11 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
 
     void damageEntire() override {
         damageAround(m_window.lock());
+    }
+
+    void refreshPositioning() {
+        damageAround(m_window.lock());
+        g_pDecorationPositioner->repositionDeco(this);
     }
 
     eDecorationLayer getDecorationLayer() override {
@@ -321,6 +330,15 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
 
 static std::unordered_map<Desktop::View::CWindow*, SP<CSoftShadowDecoration>> g_decorations;
 
+static void repositionFor(PHLWINDOW window) {
+    if (!window)
+        return;
+
+    const auto IT = g_decorations.find(window.get());
+    if (IT != g_decorations.end())
+        IT->second->refreshPositioning();
+}
+
 static void addDecoration(PHLWINDOW window) {
     if (!window || !validMapped(window))
         return;
@@ -340,6 +358,9 @@ static void addDecoration(PHLWINDOW window) {
 static CHyprSignalListener g_openListener;
 static CHyprSignalListener g_closeListener;
 static CHyprSignalListener g_reloadListener;
+static CHyprSignalListener g_rulesListener;
+static CHyprSignalListener g_fsListener;
+static CHyprSignalListener g_floatingListener;
 
 APICALL EXPORT std::string PLUGIN_API_VERSION() {
     return HYPRLAND_API_VERSION;
@@ -368,11 +389,12 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
     g_openListener     = Event::bus()->m_events.window.open.listen([](PHLWINDOW window) { addDecoration(window); });
     g_closeListener    = Event::bus()->m_events.window.close.listen([](PHLWINDOW window) { g_decorations.erase(window.get()); });
+    g_rulesListener    = Event::bus()->m_events.window.updateRules.listen([](PHLWINDOW window) { repositionFor(window); });
+    g_fsListener       = Event::bus()->m_events.window.fullscreen.listen([](PHLWINDOW window) { repositionFor(window); });
+    g_floatingListener = Event::bus()->m_events.window.floating.listen([](PHLWINDOW window) { repositionFor(window); });
     g_reloadListener   = Event::bus()->m_events.config.reloaded.listen([]() {
-        for (const auto& [window, decoration] : g_decorations) {
-            g_pDecorationPositioner->repositionDeco(decoration.get());
-            decoration->damageEntire();
-        }
+        for (const auto& [window, decoration] : g_decorations)
+            decoration->refreshPositioning();
     });
 
     for (const auto& WINDOW : Desktop::windowState()->windows())
