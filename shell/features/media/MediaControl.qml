@@ -1,9 +1,10 @@
 import QtQuick
 import qs.ui
+import qs.panelkit
 import qs
 import qs.services
 
-Item {
+PanelPage {
 	id: root
 
 	readonly property var media: Yudae.mediaState
@@ -15,12 +16,7 @@ Item {
 	readonly property bool known: root.media.known === true
 	readonly property bool present: (root.media.name || "") !== ""
 
-	focus: true
-
-	signal closeRequested()
-
-	implicitWidth: Config.mediaTooltipWidth + Config.mediaTooltipPadding * 2
-	implicitHeight: body.implicitHeight + Config.mediaTooltipPadding * 2
+	contentWidth: Config.mediaTooltipWidth
 
 	function send(action) {
 		Yudae.send({ cmd: { media: action } });
@@ -42,41 +38,9 @@ Item {
 		Input.media(event, root);
 	}
 
-	component Button: Item {
-		id: button
-
-		property string glyph: ""
-		property var onActivate
-
-		width: Config.mediaButtonGlyphSize
-		height: Config.mediaButtonGlyphSize
-
-		Label {
-			anchors.centerIn: parent
-
-			font.pixelSize: Config.mediaButtonGlyphSize
-			ink: Config.foreground
-			text: button.glyph
-		}
-
-		MouseArea {
-			id: hit
-
-			anchors.fill: parent
-			anchors.margins: -Config.barHitPadding
-
-			onClicked: {
-				if (button.onActivate)
-					button.onActivate();
-			}
-		}
-	}
-
 	Column {
 		id: body
 
-		x: Config.mediaTooltipPadding
-		y: Config.mediaTooltipPadding
 		width: Config.mediaTooltipWidth
 		spacing: Config.mediaRowGap
 
@@ -94,7 +58,7 @@ Item {
 
 				Rectangle {
 					anchors.fill: parent
-					color: Config.launcherSearchBox
+					color: Config.surfaceRaised
 				}
 
 				Icon {
@@ -154,8 +118,8 @@ Item {
 			Rectangle {
 				anchors.fill: parent
 				color: "transparent"
-				border.width: 1
-				border.color: Config.dim
+				border.width: Config.popupBorderWidth
+				border.color: Config.rule
 			}
 		}
 
@@ -223,28 +187,37 @@ Item {
 				anchors.horizontalCenter: parent.horizontalCenter
 				spacing: Config.mediaButtonGap
 
-				Button {
+				IconButton {
+					box: Config.mediaButtonGlyphSize
+					size: Config.mediaButtonGlyphSize
+					flat: true
+					hitMargin: Config.barHitPadding
+					inkIdle: Config.foreground
 					glyph: Config.iconPrev
-
-					onActivate: function () {
-						root.previous();
-					}
+					label: "Previous"
+					onClicked: root.previous()
 				}
 
-				Button {
+				IconButton {
+					box: Config.mediaButtonGlyphSize
+					size: Config.mediaButtonGlyphSize
+					flat: true
+					hitMargin: Config.barHitPadding
+					inkIdle: Config.foreground
 					glyph: root.playing ? Config.iconPause : Config.iconPlay
-
-					onActivate: function () {
-						root.togglePlay();
-					}
+					label: "Play"
+					onClicked: root.togglePlay()
 				}
 
-				Button {
+				IconButton {
+					box: Config.mediaButtonGlyphSize
+					size: Config.mediaButtonGlyphSize
+					flat: true
+					hitMargin: Config.barHitPadding
+					inkIdle: Config.foreground
 					glyph: Config.iconNext
-
-					onActivate: function () {
-						root.next();
-					}
+					label: "Next"
+					onClicked: root.next()
 				}
 			}
 		}

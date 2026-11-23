@@ -1,22 +1,19 @@
 import QtQuick
 import qs.ui
+import qs.panelkit
 import qs.services
 import qs
 
-Item {
+PanelPage {
 	id: root
 
-	signal closeRequested()
 	signal refreshRequested()
-
-	focus: true
 
 	readonly property var cells: Github.grid
 	readonly property int weeks: Config.contribWeeks
 	readonly property color accentInk: Config.mono ? Config.contribBaseMono : Config.contribBase
 
-	implicitWidth: Config.contribTooltipWidth + Config.contribTooltipPadding * 2
-	implicitHeight: column.implicitHeight + Config.contribTooltipPadding * 2
+	contentWidth: Config.contribTooltipWidth
 
 	onVisibleChanged: {
 		if (root.visible)
@@ -37,8 +34,6 @@ Item {
 	Column {
 		id: column
 
-		x: Config.contribTooltipPadding
-		y: Config.contribTooltipPadding
 		width: Config.contribTooltipWidth
 		spacing: 6
 
@@ -53,7 +48,7 @@ Item {
 
 				width: Config.contribAvatar
 				height: Config.contribAvatar
-				color: Config.launcherSearchBox
+				color: Config.surfaceRaised
 				clip: true
 
 				Icon {

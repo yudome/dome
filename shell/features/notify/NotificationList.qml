@@ -1,13 +1,12 @@
 import QtQuick
 import qs.ui
+import qs.panelkit
 import qs.appkit
 import qs.services
 import qs
 
-Item {
+PanelPage {
 	id: root
-
-	signal closeRequested()
 
 	property bool single: false
 	property bool closing: false
@@ -29,10 +28,9 @@ Item {
 		root.single ? Config.notifyRowHeight : Config.notifyVisibleRows * Config.notifyRowHeight,
 		root.single || root.opened ? list.contentHeight : 0)
 
-	focus: true
-
-	implicitWidth: Config.notifyWidth + Config.notifyPadding * 2
-	implicitHeight: Config.notifyPaddingY * 2 + root.viewport
+	contentWidth: Config.notifyWidth + Config.notifyPadding * 2
+	padding: 0
+	contentHeight: Config.notifyPaddingY * 2 + root.viewport
 
 	onCountChanged: root.clamp()
 	onSelectedChanged: root.reveal()
@@ -197,21 +195,16 @@ Item {
 				}
 			}
 
-			Rectangle {
-				x: 0
-				y: 0
+			Separator {
 				width: slot.width
-				height: Config.notifySeparator
-				color: Config.notifySeparatorColor
+				color: Config.rule
 				visible: slot.boxed && slot.index === 0
 			}
 
-			Rectangle {
-				x: 0
-				y: slot.height - Config.notifySeparator
+			Separator {
+				anchors.bottom: parent.bottom
 				width: slot.width
-				height: Config.notifySeparator
-				color: Config.notifySeparatorColor
+				color: Config.rule
 				visible: slot.boxed
 			}
 
