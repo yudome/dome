@@ -10,8 +10,11 @@ dotfiles/
   plugins/           source-only plugins: hypr, theme, shell, app; see docs/plugins.md
   hypr/              hyprland conf; the one non-config symlinked, hyprland reads ~/.config/hypr
   shell/             quickshell, run with `quickshell -p`, never symlinked
-    features/<name>/ one folder per feature: Card.qml Widget.qml Service.qml feature.json
-    ui/              primitives used twice or more; AppWindow is the xdg_toplevel primitive
+    features/<name>/ one folder per feature: App.qml Store.qml widget, panel, feature.json
+    ui/              generic primitives: icons, text, controls, rows, overlays, data visuals, scroll
+    appkit/          app chrome: AppWindow, AppScaffold, AppHeader, AppSidebar, AppPage, Metrics, Motion
+    panelkit/        widget popup chrome: PanelPage, PanelHeader, PanelRow, PanelFooter, ProcessPanel
+    app-<name>.qml   one entry per app (settings, vms, disk, gallery); `yudae app open <name>` runs it
     native/          Yudae.Native C++ QML module (VmDisplay) + yudae-pump
     lib/ lock/ launcher/ greeter/
     config/          one TOML per settings category; icons.toml holds every glyph
@@ -35,6 +38,13 @@ dotfiles/
 - The greeter starts the chosen session through `shell/features/greeter/session`, which sends its output to `~/.local/state/session.log`, so nothing is printed on the VT between the greeter and the desktop.
 - The greeter's third button opens the switch menu: one row for the session name and one for the user, arrows to change each, and that choice is used for the login. Sessions come from `/usr/share/wayland-sessions`.
 
+## UI layers
+
+- `ui` imports nothing from `appkit`, `panelkit` or features. `appkit` and `panelkit` import `ui`. Features import all three. Never reverse.
+- `ui`, `appkit` and `panelkit` never talk to the daemon (`Yudae`); state and daemon calls live in `features/<name>/Store.qml`, views compose the kits.
+- Colors from `Config` (`AppPalette` in apps), sizes from `Config`/`Metrics`, durations from `Config`/`Motion`.
+- `scripts/ui-check` enforces this in `xmake lint`; the full standard is `plans/appkit.md` and `docs/design-system.md`.
+
 ## xmake
 
 xmake orchestrates, it does not replace the real builders.
@@ -44,8 +54,8 @@ xmake orchestrates, it does not replace the real builders.
 | `xmake build` | daemon (wraps `zig build`), cursor plugin, `Yudae.Native` QML module, `yudae-pump` (native C++ targets) |
 | `xmake plugin` | rebuild every `plugins/*/Makefile` into `~/.local/state/yudae/build/<id>` |
 | `xmake link` | symlink `config/*` and `hypr/` into `~/.config` |
-| `xmake lint` | qmllint on `shell/`, `node shell/lib/check.js` |
-| `xmake test` | daemon parsers/protocol tests, plugin conformance, qml fixtures, idle-spawn test |
+| `xmake lint` | qmllint on `shell/`, every `shell/**/*.check.js`, `scripts/color-check`, `scripts/ui-check` |
+| `xmake test` | daemon parsers/protocol tests, plugin conformance, qml fixtures, `scripts/app-check` (every app and the shell loaded in a headless cage), idle-spawn test |
 | `xmake bench` | headless daemon cold build, size, start, idle RSS and spawns, then `yudaemond bench` against `bench/baseline.json` |
 | `xmake vm ...` | VM images and the image build bench; running VMs are `yudae vm` |
 | `xmake doctor` | what is missing and why |
