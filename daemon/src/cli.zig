@@ -706,6 +706,23 @@ fn diskMessage(allocator: Allocator, method: []const u8, rest: []const []const u
 	return out.written();
 }
 
+fn appName(name: []const u8) bool {
+	if (name.len == 0 or name.len > 32) return false;
+	for (name) |c| {
+		if (!std.ascii.isLower(c) and !std.ascii.isDigit(c) and c != '-') return false;
+	}
+	return true;
+}
+
+test "app names stay inside shell/app-<name>.qml" {
+	try std.testing.expect(appName("settings"));
+	try std.testing.expect(appName("kit-gallery2"));
+	try std.testing.expect(!appName(""));
+	try std.testing.expect(!appName("../etc"));
+	try std.testing.expect(!appName("a\"b"));
+	try std.testing.expect(!appName("Disk"));
+}
+
 pub fn app(io: Io, args: []const []const u8) !void {
 	if (args.len < 4 or !std.mem.eql(u8, args[2], "open")) {
 		std.debug.print("usage: yudae app open <name> [--vm <vm>] [--pane <pane>]\n", .{});
@@ -713,6 +730,10 @@ pub fn app(io: Io, args: []const []const u8) !void {
 	}
 
 	const name = args[3];
+	if (!appName(name)) {
+		std.debug.print("yudae: app names are lowercase letters, digits and dashes\n", .{});
+		std.process.exit(2);
+	}
 	var vm: []const u8 = "";
 	var pane: []const u8 = "";
 	var index: usize = 4;
@@ -752,14 +773,11 @@ pub fn app(io: Io, args: []const []const u8) !void {
 		}
 	}
 
-	const entry = if (std.mem.eql(u8, name, "vms"))
-		try std.fmt.allocPrint(allocator, "{s}/shell/app-vms.qml", .{repo})
-	else if (std.mem.eql(u8, name, "disk"))
-		try std.fmt.allocPrint(allocator, "{s}/shell/app-disk.qml", .{repo})
-	else if (std.mem.eql(u8, name, "settings"))
-		try std.fmt.allocPrint(allocator, "{s}/shell/app-settings.qml", .{repo})
-	else
-		try std.fmt.allocPrint(allocator, "{s}/shell/app.qml", .{repo});
+	const entry = try std.fmt.allocPrint(allocator, "{s}/shell/app-{s}.qml", .{ repo, name });
+	if (!proc.exists(io, entry)) {
+		std.debug.print("yudae: no app {s}\n", .{name});
+		std.process.exit(2);
+	}
 	const import_path = try std.fmt.allocPrint(allocator, "QML_IMPORT_PATH={s}/shell/native/qml", .{repo});
 
 	var argv: std.ArrayList([]const u8) = .empty;
