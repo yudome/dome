@@ -1,9 +1,10 @@
 import QtQuick
 import qs.ui
+import qs.panelkit
 import qs
 import qs.services
 
-Item {
+PanelPage {
 	id: root
 
 	readonly property var mix: Yudae.audio
@@ -11,10 +12,6 @@ Item {
 	readonly property bool onScreen: root.Window.window ? root.Window.window.visible : false
 
 	property int targetIndex: 0
-
-	signal closeRequested()
-
-	focus: true
 
 	property bool shown: false
 	property bool compact: false
@@ -44,11 +41,10 @@ Item {
 		root.pending = { id: -1, volume: -1 };
 	}
 
-	readonly property real contentWidth: Config.mixerWidth
 	readonly property var steps: Array(Config.mixerStepCount).fill(1)
 
-	implicitWidth: root.contentWidth + Config.mixerPadding * 2
-	implicitHeight: body.implicitHeight + Config.mixerPadding * 2
+	contentWidth: Config.mixerWidth
+	padding: Config.mixerPadding
 
 	readonly property var selectedNode: root.rows.length > 0
 		? root.rows[Calc.clamp(root.targetIndex, 0, root.rows.length - 1)]
@@ -231,7 +227,7 @@ Item {
 		readonly property int step: Math.round(row.level * Config.mixerStepCount) - 1
 		readonly property real hoverPad: Math.max(0, (row.height - Config.mixerFaderThickness) / 2)
 
-		height: Math.max(Config.mixerDeviceIconSize, Settings.fontSize)
+		height: Math.max(Config.mixerDeviceIconSize, Config.fontSize)
 		implicitHeight: height
 
 		HoverHandler {
@@ -262,20 +258,13 @@ Item {
 			width: Config.mixerDeviceIconSize
 			height: Math.min(Config.mixerDeviceIconSize, row.height)
 
-			AppIcon {
+			Icon {
 				anchors.centerIn: parent
-				implicitSize: Config.mixerIconSize
-				visible: row.iconSource !== ""
-				opacity: row.muted ? 0.45 : 1
-				source: row.iconSource
-			}
-
-			Glyph {
-				anchors.fill: parent
-				visible: row.iconSource === ""
 				size: Config.mixerIconSize
-				color: row.muted ? Config.muted : Config.foreground
-				glyph: row.glyph
+				opacity: row.muted ? Config.disabledOpacity : 1
+				source: row.iconSource
+				glyph: row.iconSource === "" ? row.glyph : ""
+				ink: row.muted ? Config.muted : Config.foreground
 			}
 		}
 
@@ -321,9 +310,6 @@ Item {
 	Column {
 		id: body
 
-		anchors.left: parent.left
-		anchors.top: parent.top
-		anchors.margins: Config.mixerPadding
 		width: root.contentWidth
 		spacing: Config.mixerChannelGap
 
@@ -348,9 +334,8 @@ Item {
 			}
 		}
 
-		Rectangle {
+		Separator {
 			width: body.width
-			height: Config.mixerSeparator
 			color: Config.mixerSeparatorColor
 			visible: root.deviceRows.length > 0 && root.appRows.length > 0
 		}
@@ -358,7 +343,7 @@ Item {
 		Repeater {
 			model: root.deviceRows
 
-			delegate: GlyphRow {
+			delegate: PanelRow {
 				id: device
 
 				required property var modelData
@@ -368,7 +353,7 @@ Item {
 
 				width: parent.width
 				glyph: Config.iconOutput
-				label: device.modelData.description || device.modelData.name || ""
+				title: device.modelData.description || device.modelData.name || ""
 				current: device.modelData.isDefault === true
 				dim: device.modelData.muted === true
 				selected: device.rowIndex === root.targetIndex && root.keyboard

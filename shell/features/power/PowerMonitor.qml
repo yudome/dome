@@ -1,5 +1,6 @@
 import QtQuick
 import qs.ui
+import qs.panelkit
 import qs
 import qs.services
 
@@ -42,12 +43,12 @@ ProcessPanel {
 
 	title: Config.powerGovernorTitle
 	showTotal: true
-	totalOverride: govStep.hoverLabel !== "" ? govStep.hoverLabel : root.governor
+	totalOverride: govStep.dragging ? String(govStep.shownValue) : root.governor
 	totalInk: root.accentInk
 	showProcessList: false
 	listInk: root.accentInk
-	panelWidth: Config.powerTooltipWidth
-	panelPadding: Config.powerTooltipPadding
+	contentWidth: Config.powerTooltipWidth
+	padding: Config.powerTooltipPadding
 
 	keyAction: function (event) {
 		if (event.key !== Qt.Key_Space && event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter)
@@ -69,17 +70,22 @@ ProcessPanel {
 			hotInk: !Config.mono && root.battery && root.battery.color ? root.battery.color : root.accentInk
 		},
 
-		GlyphBar {
+		Slider {
 			id: govStep
 
 			width: parent.width
-			model: root.governors
-			selected: root.governorIndex
-			ink: root.accentInk
-			glyph: root.governorGlyph
-			animated: true
-			follow: false
-			onPick: (next) => root.governorPicked(String(next))
+			label: Config.powerGovernorTitle
+			stops: root.governors
+			value: root.governors[root.governorIndex]
+			onMoved: (next) => root.governorPicked(String(next))
+
+			renderer: Component {
+				GlyphScale {
+					ink: root.accentInk
+					glyph: root.governorGlyph
+					animated: true
+				}
+			}
 		},
 
 		Separator {
@@ -94,19 +100,18 @@ ProcessPanel {
 			width: parent.width
 			height: Math.max(awakeGlyph.implicitHeight, awakeTitle.implicitHeight, awakeSwitch.implicitHeight) + 8
 
-			Text {
+			Icon {
 				id: awakeGlyph
 
 				anchors.left: parent.left
 				anchors.verticalCenter: parent.verticalCenter
 
-				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize + 2
-				color: awakeRow.armed ? root.accentInk : Config.dim
-				text: Config.iconAwake
+				size: Config.fontSize + 2
+				ink: awakeRow.armed ? root.accentInk : Config.dim
+				glyph: Config.iconAwake
 			}
 
-			Text {
+			Label {
 				id: awakeTitle
 
 				anchors.left: awakeGlyph.right
@@ -116,9 +121,7 @@ ProcessPanel {
 				anchors.verticalCenter: parent.verticalCenter
 				elide: Text.ElideRight
 
-				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize
-				color: awakeRow.armed ? Config.foreground : Config.dim
+				ink: awakeRow.armed ? Config.foreground : Config.dim
 				text: root.awakeModes[root.awakeIndex].title
 			}
 

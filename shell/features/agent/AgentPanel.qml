@@ -4,13 +4,14 @@ import Quickshell.Io
 import qs
 import qs.services
 import qs.ui
+import qs.panelkit
 
 // The agent panel: the work that is done, the agent itself, and the plan the
 // agent runs on, side by side.
 //
 // The panel keeps one size, so the popup it lives in never changes size
 // while it is open.
-Item {
+PanelPage {
 	id: root
 
 	property var source: null
@@ -64,7 +65,7 @@ Item {
 				: Config.agentIdleText
 
 	// The height of one row of work.
-	readonly property real rowHeight: Settings.fontSize + 6
+	readonly property real rowHeight: Config.fontSize + 6
 
 	// The face sits in the popup's own window, which covers the screen, so the
 	// pointer is tracked against the panel's position on that screen.
@@ -101,8 +102,9 @@ Item {
 		return Math.tanh((Yudae.cursor.y - root.faceCenter.y) / (root.gazeArm * 2));
 	}
 
-	implicitWidth: Config.agentPanelWidth + 2 * Config.agentPanelPadding
-	implicitHeight: 2 * Config.agentPanelPadding + content.y + Math.max(doneList.y + doneList.height, planStack.height)
+	contentWidth: Config.agentPanelWidth
+	contentHeight: workArea.y + Math.max(doneList.y + doneList.height, planStack.height)
+	padding: Config.agentPanelPadding
 
 	clip: true
 
@@ -158,7 +160,6 @@ Item {
 		id: body
 
 		anchors.fill: parent
-		anchors.margins: Config.agentPanelPadding
 
 		property int tab: 0
 
@@ -220,7 +221,7 @@ Item {
 					selectOnFocus: false
 
 					font.family: Config.fontFamily
-					font.pixelSize: Settings.fontSize
+					font.pixelSize: Config.fontSize
 					text: root.agentName
 
 					onAccepted: root.saveAgentName(nameField.text)
@@ -239,12 +240,10 @@ Item {
 						ink: Config.muted
 					}
 
-					Text {
+					Label {
 						anchors.verticalCenter: parent.verticalCenter
 
-						font.family: Config.fontFamily
-						font.pixelSize: Settings.fontSize
-						color: root.state === "error" ? Config.red : Config.muted
+						ink: root.state === "error" ? Config.red : Config.muted
 						text: Yudae.online ? root.stateText : root.stateText + " (offline)"
 					}
 				}
@@ -254,23 +253,19 @@ Item {
 					visible: root.detail !== "" && !root.detailHidden
 					spacing: 6
 
-					Text {
+					Label {
 						anchors.verticalCenter: parent.verticalCenter
 						width: Math.min(implicitWidth, stateBox.width - 24)
 						elide: Text.ElideRight
 
-						font.family: Config.fontFamily
-						font.pixelSize: Settings.fontSize
-						color: Config.muted
+						ink: Config.muted
 						text: root.detail
 					}
 
-					Text {
+					Label {
 						anchors.verticalCenter: parent.verticalCenter
 
-						font.family: Config.fontFamily
-						font.pixelSize: Settings.fontSize
-						color: dismissDetailHit.containsMouse ? Config.foreground : Config.muted
+						ink: dismissDetailHit.containsMouse ? Config.foreground : Config.muted
 						text: Config.iconClose
 
 						MouseArea {
@@ -287,50 +282,16 @@ Item {
 			}
 		}
 
-		Row {
+		Tabs {
 			id: tabs
 
 			anchors.top: header.bottom
 			anchors.topMargin: 10
 			anchors.left: parent.left
-
-			spacing: 16
-
-			Repeater {
-				model: [Config.agentTasksTitle, Config.agentPlanTitle]
-
-				delegate: Item {
-					id: tabItem
-
-					required property int index
-					required property string modelData
-
-					width: tabLabel.implicitWidth
-					height: tabLabel.implicitHeight + 4
-
-					Text {
-						id: tabLabel
-
-						font.family: Config.fontFamily
-						font.pixelSize: Settings.fontSize
-						color: body.tab === tabItem.index ? Config.foreground : Config.muted
-						text: tabItem.modelData
-					}
-
-					Rectangle {
-						anchors.bottom: parent.bottom
-						width: parent.width
-						height: 1
-						color: Config.foreground
-						visible: body.tab === tabItem.index
-					}
-
-					MouseArea {
-						anchors.fill: parent
-						onClicked: body.tab = tabItem.index
-					}
-				}
-			}
+			height: Config.rowHeight
+			model: [{ label: Config.agentTasksTitle, value: 0 }, { label: Config.agentPlanTitle, value: 1 }]
+			current: body.tab
+			onPicked: function (value) { body.tab = value; }
 		}
 
 		Rectangle {
@@ -345,7 +306,7 @@ Item {
 		}
 
 		Item {
-			id: content
+			id: workArea
 
 			anchors.top: tabLine.bottom
 			anchors.topMargin: 8
@@ -416,16 +377,14 @@ Item {
 					}
 				}
 
-				Text {
+				Label {
 					id: workTitle
 
 					anchors.top: planRingStrip.bottom
 					anchors.topMargin: Yudae.planRings.length > 0 ? 8 : 0
 					anchors.left: parent.left
 
-					font.family: Config.fontFamily
-					font.pixelSize: Settings.fontSize
-					color: Config.muted
+					ink: Config.muted
 					text: Config.agentWorkingText
 				}
 
@@ -457,16 +416,14 @@ Item {
 					}
 				}
 
-				Text {
+				Label {
 					id: doneTitle
 
 					anchors.top: workList.bottom
 					anchors.topMargin: 6
 					anchors.left: parent.left
 
-					font.family: Config.fontFamily
-					font.pixelSize: Settings.fontSize
-					color: Config.muted
+					ink: Config.muted
 					text: Config.agentDoneTitle
 				}
 
@@ -546,22 +503,18 @@ Item {
 									fillMode: Image.PreserveAspectFit
 								}
 
-								Text {
-									font.family: Config.fontFamily
-									font.pixelSize: Settings.fontSize
-									color: Config.foreground
+								Label {
+									ink: Config.foreground
 									text: planBlock.modelData.title
 								}
 							}
 
-							Text {
+							Label {
 								width: planBlock.width
 								visible: planBlock.modelData.failure !== ""
 								elide: Text.ElideRight
 
-								font.family: Config.fontFamily
-								font.pixelSize: Settings.fontSize
-								color: Config.muted
+								ink: Config.muted
 								text: planBlock.modelData.failure
 							}
 
@@ -582,16 +535,14 @@ Item {
 									// every bar starts and ends in the same place. The
 									// percentage sits before the bar, so the bar is
 									// read as the rest.
-									Text {
+									Label {
 										id: limitLabel
 
 										anchors.left: parent.left
 										anchors.verticalCenter: parent.verticalCenter
 										width: 68
 
-										font.family: Config.fontFamily
-										font.pixelSize: Settings.fontSize
-										color: Config.foreground
+										ink: Config.foreground
 										text: modelData.title
 									}
 
@@ -609,7 +560,7 @@ Item {
 										track: Config.dim
 									}
 
-									Text {
+									Label {
 										id: limitValue
 
 										anchors.right: limitReset.left
@@ -619,13 +570,11 @@ Item {
 
 										horizontalAlignment: Text.AlignRight
 
-										font.family: Config.fontFamily
-										font.pixelSize: Settings.fontSize
-										color: limitRow.alarming ? Config.red : Config.muted
+										ink: limitRow.alarming ? Config.red : Config.muted
 										text: Math.round(modelData.percent) + "%"
 									}
 
-									Text {
+									Label {
 										id: limitReset
 
 										anchors.right: parent.right
@@ -634,9 +583,7 @@ Item {
 
 										horizontalAlignment: Text.AlignRight
 
-										font.family: Config.fontFamily
-										font.pixelSize: Settings.fontSize
-										color: Config.muted
+										ink: Config.muted
 										text: root.countdown(modelData.resetsAt)
 									}
 								}
@@ -644,14 +591,12 @@ Item {
 						}
 					}
 
-					Text {
+					Label {
 						width: parent.width
 						visible: Yudae.plans.length === 0 && root.planError !== "" && root.planError !== "expired"
 						elide: Text.ElideRight
 
-						font.family: Config.fontFamily
-						font.pixelSize: Settings.fontSize
-						color: Config.muted
+						ink: Config.muted
 						text: root.planError
 					}
 				}

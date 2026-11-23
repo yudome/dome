@@ -1,5 +1,6 @@
 import QtQuick
 import qs.ui
+import qs.panelkit
 import qs
 import qs.services
 
@@ -19,8 +20,11 @@ ProcessPanel {
 	detailColor: root.accentInk
 	listInk: root.accentInk
 	totalInk: root.mem ? root.mem.ink : root.accentInk
-	panelWidth: Config.memoryTooltipWidth
-	panelPadding: Config.memoryTooltipPadding
+	procs: Yudae.system.panel ? Yudae.system.panel.rows || [] : []
+	onQuery: function (field, filter) { Yudae.systemCommand({ panel: { field: field, query: filter } }); }
+	onKill: function (proc) { Yudae.cmd("launcher", { kill: proc.pid }); }
+	contentWidth: Config.memoryTooltipWidth
+	padding: Config.memoryTooltipPadding
 	topCount: Config.memoryTopCount
 	psField: "rss"
 	rowColor: (row) => row.color || root.accentInk
@@ -112,23 +116,19 @@ ProcessPanel {
 				width: parent.width
 				height: Math.max(segmentLabel.implicitHeight, segmentValue.implicitHeight)
 
-				Text {
+				Label {
 					id: segmentLabel
 
-					font.family: Config.fontFamily
-					font.pixelSize: Settings.fontSize
-					color: modelData.color || root.accentInk
+					ink: modelData.color || root.accentInk
 					text: modelData.label
 				}
 
-				Text {
+				Label {
 					id: segmentValue
 
 					anchors.right: parent.right
 
-					font.family: Config.fontFamily
-					font.pixelSize: Settings.fontSize
-					color: modelData.color || root.accentInk
+					ink: modelData.color || root.accentInk
 					text: modelData.text
 				}
 			}

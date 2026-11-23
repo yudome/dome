@@ -66,7 +66,7 @@ Row {
 		id: ink
 
 		font.family: Config.fontFamily
-		font.pixelSize: Settings.fontSize
+		font.pixelSize: Config.fontSize
 		text: Config.valueSample
 	}
 
@@ -74,15 +74,14 @@ Row {
 		implicitWidth: Config.trayGroupSize
 		implicitHeight: root.lineHeight
 
-		Text {
+		Icon {
 			anchors.centerIn: parent
-			font.family: Config.fontFamily
-			font.pixelSize: Settings.iconSize + Config.trayChevronBoost
-			color: BarInk.pick(root.bar, "tray", Config.foreground)
-			text: Config.iconChevron
+			size: Config.iconSize + Config.trayChevronBoost
+			ink: BarInk.pick(root.bar, "tray", Config.foreground)
+			glyph: Config.iconChevron
 			rotation: root.expanded ? 180 : 0
 
-			Behavior on color {
+			Behavior on ink {
 				enabled: BarInk.fading
 				ColorAnimation {
 					duration: BarInk.fadeMs
@@ -118,12 +117,12 @@ Row {
 			implicitWidth: Config.trayIconSize
 			implicitHeight: root.lineHeight
 
-			AppIcon {
+			Icon {
 				id: icon
 
 				anchors.centerIn: parent
 				source: slot.iconSource
-				implicitSize: Config.trayIconSize
+				size: Config.trayIconSize
 				visible: false
 			}
 

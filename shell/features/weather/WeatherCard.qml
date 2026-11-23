@@ -1,14 +1,11 @@
 import QtQuick
 import qs.ui
+import qs.panelkit
 import qs
 import qs.services
 
-Item {
+PanelPage {
 	id: root
-
-	signal closeRequested()
-
-	focus: true
 
 	HoverHandler {
 		id: cardHover
@@ -41,8 +38,8 @@ Item {
 	readonly property real statWidth: (card.width - heroGlyphMetrics.width - Config.weatherCardGap * 4 - heroTempMetrics.width - heroUnitMetrics.width) / 3
 	readonly property real dayCardHeight: Config.weatherDayGap * 6 + dayLabelMetrics.height + dayGlyphMetrics.height + dayTempMetrics.height * 3
 
-	implicitWidth: Config.weatherCardWidth + Config.weatherCardPadding * 2
-	implicitHeight: card.implicitHeight + Config.weatherCardPadding * 2
+	contentWidth: Config.weatherCardWidth
+	padding: Config.weatherCardPadding
 
 	onQueryChanged: {
 		root.pickIndex = 0;
@@ -249,8 +246,6 @@ Item {
 	Column {
 		id: card
 
-		x: Config.weatherCardPadding
-		y: Config.weatherCardPadding
 		width: Config.weatherCardWidth
 		spacing: Config.weatherCardGap
 
@@ -265,8 +260,9 @@ Item {
 
 				anchors.left: parent.left
 				anchors.bottom: parent.bottom
+				width: heroGlyphMetrics.width
 				height: heroGlyphMetrics.height
-				pixelSize: Config.weatherHeroGlyphSize
+				size: Config.weatherHeroGlyphSize
 				glyph: root.loading ? Config.weatherLoadingIcon : (root.now.icon ? root.now.icon : Config.weatherIcon)
 			}
 
@@ -278,19 +274,18 @@ Item {
 				width: tempNumber.width + tempUnitText.width + 2
 				height: tempNumber.height + Config.weatherHeroUnitTop
 
-				Text {
+				Label {
 					id: tempNumber
 
 					anchors.left: parent.left
 					anchors.bottom: parent.bottom
 					height: heroTempMetrics.height
-					font.family: Config.fontFamily
 					font.pixelSize: Config.weatherHeroTempSize
-					color: Config.foreground
+					ink: Config.foreground
 					text: root.tempValue
 				}
 
-				Text {
+				Label {
 					id: tempUnitText
 
 					anchors.left: tempNumber.right
@@ -298,9 +293,8 @@ Item {
 					anchors.topMargin: (heroTempInk.tightBoundingRect.y - heroTempInk.boundingRect.y)
 						- (heroUnitInk.tightBoundingRect.y - heroUnitInk.boundingRect.y)
 					height: heroUnitMetrics.height
-					font.family: Config.fontFamily
 					font.pixelSize: Config.weatherHeroUnitSize
-					color: Config.foreground
+					ink: Config.foreground
 					text: root.tempUnit
 				}
 			}
@@ -319,7 +313,7 @@ Item {
 					width: root.statsWidth
 					height: placeMetrics.height
 
-					Text {
+					Label {
 						id: placeText
 
 						visible: !root.editing
@@ -328,9 +322,8 @@ Item {
 						width: Math.min(implicitWidth, root.placeMaxWidth)
 						height: placeMetrics.height
 						elide: Text.ElideRight
-						font.family: Config.fontFamily
 						font.pixelSize: Config.weatherPlaceSize
-						color: placeHit.containsMouse ? Config.foreground : Config.muted
+						ink: placeHit.containsMouse ? Config.foreground : Config.muted
 						text: root.placeName
 
 						MouseArea {
@@ -343,7 +336,7 @@ Item {
 						}
 					}
 
-					RevealIcon {
+					IconButton {
 						id: leftArrow
 
 						visible: !root.editing
@@ -351,13 +344,18 @@ Item {
 						anchors.leftMargin: Config.weatherCardHeaderGap
 						anchors.verticalCenter: parent.verticalCenter
 						height: placeMetrics.height
+						width: placeMetrics.height
+						box: placeMetrics.height
+						flat: true
+						reveal: true
 						shown: root.headerShown
-						font.pixelSize: Config.weatherPlaceSize
-						text: Config.weatherIconLeft
+						size: Config.weatherPlaceSize
+						inkIdle: Config.dim
+						glyph: Config.weatherIconLeft
 						onClicked: Weather.shift(-1)
 					}
 
-					RevealIcon {
+					IconButton {
 						id: rightArrow
 
 						visible: !root.editing
@@ -365,22 +363,32 @@ Item {
 						anchors.leftMargin: Config.weatherCardHeaderGap
 						anchors.verticalCenter: parent.verticalCenter
 						height: placeMetrics.height
+						width: placeMetrics.height
+						box: placeMetrics.height
+						flat: true
+						reveal: true
 						shown: root.headerShown
-						font.pixelSize: Config.weatherPlaceSize
-						text: Config.weatherIconRight
+						size: Config.weatherPlaceSize
+						inkIdle: Config.dim
+						glyph: Config.weatherIconRight
 						onClicked: Weather.shift(1)
 					}
 
-					RevealIcon {
+					IconButton {
 						id: addIcon
 
 						visible: !root.editing
 						anchors.right: parent.right
 						anchors.verticalCenter: parent.verticalCenter
 						height: placeMetrics.height
+						width: placeMetrics.height
+						box: placeMetrics.height
+						flat: true
+						reveal: true
 						shown: root.headerShown
-						font.pixelSize: Config.weatherPlaceSize
-						text: Config.weatherIconAdd
+						size: Config.weatherPlaceSize
+						inkIdle: Config.dim
+						glyph: Config.weatherIconAdd
 						onClicked: root.startEdit("", true)
 					}
 
@@ -418,22 +426,20 @@ Item {
 						width: root.statWidth
 						spacing: 3
 
-						Text {
+						Label {
 							width: parent.width
 							height: heroLabelMetrics.height
-							font.family: Config.fontFamily
 							font.pixelSize: Config.weatherHeroLabelSize
-							color: Config.muted
+							ink: Config.muted
 							text: "FEELS"
 						}
 
-						Text {
+						Label {
 							width: parent.width
 							height: heroValueMetrics.height
 							elide: Text.ElideRight
-							font.family: Config.fontFamily
 							font.pixelSize: Config.weatherHeroValueSize
-							color: Config.foreground
+							ink: Config.foreground
 							text: root.now.feels ? root.now.feels : "--"
 						}
 					}
@@ -442,22 +448,20 @@ Item {
 						width: root.statWidth
 						spacing: 3
 
-						Text {
+						Label {
 							width: parent.width
 							height: heroLabelMetrics.height
-							font.family: Config.fontFamily
 							font.pixelSize: Config.weatherHeroLabelSize
-							color: Config.muted
+							ink: Config.muted
 							text: "WIND"
 						}
 
-						Text {
+						Label {
 							width: parent.width
 							height: heroValueMetrics.height
 							elide: Text.ElideRight
-							font.family: Config.fontFamily
 							font.pixelSize: Config.weatherHeroValueSize
-							color: Config.foreground
+							ink: Config.foreground
 							text: root.now.wind ? root.now.wind : "--"
 						}
 					}
@@ -466,22 +470,20 @@ Item {
 						width: root.statWidth
 						spacing: 3
 
-						Text {
+						Label {
 							width: parent.width
 							height: heroLabelMetrics.height
-							font.family: Config.fontFamily
 							font.pixelSize: Config.weatherHeroLabelSize
-							color: Config.muted
+							ink: Config.muted
 							text: "HUMID"
 						}
 
-						Text {
+						Label {
 							width: parent.width
 							height: heroValueMetrics.height
 							elide: Text.ElideRight
-							font.family: Config.fontFamily
 							font.pixelSize: Config.weatherHeroValueSize
-							color: Config.foreground
+							ink: Config.foreground
 							text: root.now.humidity ? root.now.humidity : "--"
 						}
 					}
@@ -507,7 +509,7 @@ Item {
 					active: suggestRow.chosen || suggestHit.containsMouse
 				}
 
-				Text {
+				Label {
 					id: suggestName
 
 					anchors.left: parent.left
@@ -515,22 +517,20 @@ Item {
 					anchors.verticalCenter: parent.verticalCenter
 					width: Math.min(implicitWidth, suggestRow.width * 0.55)
 					elide: Text.ElideRight
-					font.family: Config.fontFamily
 					font.pixelSize: Config.weatherPlaceSize
-					color: suggestRow.chosen || suggestHit.containsMouse ? Config.launcherHighlightText : Config.foreground
+					ink: suggestRow.chosen || suggestHit.containsMouse ? Config.launcherHighlightText : Config.foreground
 					text: String(suggestRow.modelData.name || "")
 				}
 
-				Text {
+				Label {
 					anchors.left: suggestName.right
 					anchors.leftMargin: Config.weatherCardGap
 					anchors.right: parent.right
 					anchors.rightMargin: Config.weatherCardGap
 					anchors.verticalCenter: parent.verticalCenter
 					elide: Text.ElideRight
-					font.family: Config.fontFamily
 					font.pixelSize: Config.weatherPlaceSize
-					color: suggestRow.chosen || suggestHit.containsMouse ? Config.launcherHighlightText : Config.muted
+					ink: suggestRow.chosen || suggestHit.containsMouse ? Config.launcherHighlightText : Config.muted
 					text: suggestRow.modelData.region
 				}
 
@@ -586,13 +586,12 @@ Item {
 							topPadding: Config.weatherDayGap
 							spacing: Config.weatherDayGap
 
-							Text {
+							Label {
 								width: parent.width
 								height: dayLabelMetrics.height
 								horizontalAlignment: Text.AlignHCenter
-								font.family: Config.fontFamily
 								font.pixelSize: Config.weatherDayLabelSize
-								color: Config.weatherDayLabelColor
+								ink: Config.weatherDayLabelColor
 								text: dayCell.row ? dayCell.row.day : ""
 							}
 
@@ -609,42 +608,41 @@ Item {
 								height: dayGlyphMetrics.height
 
 								Icon {
-									x: parent.width / 2 - (glyphInk.tightBoundingRect.x + glyphInk.tightBoundingRect.width / 2)
-									pixelSize: Config.weatherDayGlyphSize
+									anchors.centerIn: parent
+									width: Config.weatherDayGlyphSize
+									height: Config.weatherDayGlyphSize
+									size: Config.weatherDayGlyphSize
 									glyph: dayCell.glyph
 								}
 							}
 
-							Text {
+							Label {
 								width: parent.width
 								height: dayTempMetrics.height
 								horizontalAlignment: Text.AlignHCenter
 								elide: Text.ElideRight
-								font.family: Config.fontFamily
 								font.pixelSize: root.dayTempPixel
-								color: Config.foreground
+								ink: Config.foreground
 								text: dayCell.row ? dayCell.row.high : ""
 							}
 
-							Text {
+							Label {
 								width: parent.width
 								height: dayTempMetrics.height
 								horizontalAlignment: Text.AlignHCenter
 								elide: Text.ElideRight
-								font.family: Config.fontFamily
 								font.pixelSize: root.dayTempPixel
-								color: Config.muted
+								ink: Config.muted
 								text: dayCell.row ? dayCell.row.low : ""
 							}
 
-							Text {
+							Label {
 								width: parent.width
 								height: dayTempMetrics.height
 								horizontalAlignment: Text.AlignHCenter
 								elide: Text.ElideRight
-								font.family: Config.fontFamily
 								font.pixelSize: root.dayTempPixel
-								color: Config.muted
+								ink: Config.muted
 								text: dayCell.row ? dayCell.row.precip : ""
 							}
 						}

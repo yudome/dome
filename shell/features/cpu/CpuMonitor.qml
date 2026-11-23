@@ -1,5 +1,6 @@
 import QtQuick
 import qs.ui
+import qs.panelkit
 import qs
 import qs.services
 
@@ -20,8 +21,11 @@ ProcessPanel {
 	detailColor: root.accentInk
 	listInk: root.accentInk
 	totalInk: root.sys.ink || root.accentInk
-	panelWidth: Config.cpuTooltipWidth
-	panelPadding: Config.cpuTooltipPadding
+	procs: Yudae.system.panel ? Yudae.system.panel.rows || [] : []
+	onQuery: function (field, filter) { Yudae.systemCommand({ panel: { field: field, query: filter } }); }
+	onKill: function (proc) { Yudae.cmd("launcher", { kill: proc.pid }); }
+	contentWidth: Config.cpuTooltipWidth
+	padding: Config.cpuTooltipPadding
 	topCount: Config.cpuTopCount
 	psField: "pcpu"
 	rowColor: (row) => row.color || root.accentInk

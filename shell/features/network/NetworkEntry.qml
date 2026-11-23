@@ -40,8 +40,8 @@ Column {
 		corner: Config.rowHeight / 2
 		padding: Config.rowInset
 		glyph: Config.iconLock
-		size: Settings.fontSize
-		glyphSize: Settings.fontSize + 2
+		size: Config.fontSize
+		glyphSize: Config.fontSize + 2
 		glyphSlot: Config.rowHeight - 2 * Config.rowInset
 		gap: Config.mixerListGap
 		placeholder: Config.networkPasswordHint
@@ -65,15 +65,13 @@ Column {
 		}
 	}
 
-	Text {
+	Label {
 		width: parent.width
 		visible: entry.asking && entry.errorText !== ""
 		wrapMode: Text.WordWrap
 		maximumLineCount: 2
 		elide: Text.ElideRight
-		font.family: Config.fontFamily
-		font.pixelSize: Settings.fontSize
-		color: entry.errorInk
+		ink: entry.errorInk
 		text: entry.errorText
 	}
 }

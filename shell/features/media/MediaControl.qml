@@ -51,12 +51,11 @@ Item {
 		width: Config.mediaButtonGlyphSize
 		height: Config.mediaButtonGlyphSize
 
-		Text {
+		Label {
 			anchors.centerIn: parent
 
-			font.family: Config.fontFamily
 			font.pixelSize: Config.mediaButtonGlyphSize
-			color: Config.foreground
+			ink: Config.foreground
 			text: button.glyph
 		}
 
@@ -98,13 +97,12 @@ Item {
 					color: Config.launcherSearchBox
 				}
 
-				Text {
+				Icon {
 					anchors.centerIn: parent
 					visible: art.shown === ""
-					font.family: Config.fontFamily
-					font.pixelSize: Math.round(art.height * 0.2)
-					color: Config.muted
-					text: Config.iconApp
+					size: Math.round(art.height * 0.2)
+					ink: Config.muted
+					glyph: Config.iconApp
 				}
 
 				Image {
@@ -165,24 +163,21 @@ Item {
 			width: parent.width
 			spacing: Config.mediaLineGap
 
-			Text {
+			Label {
 				width: parent.width
 				horizontalAlignment: Text.AlignHCenter
 				elide: Text.ElideRight
-				font.family: Config.fontFamily
 				font.pixelSize: Config.mediaTitleSize
-				color: root.present ? Config.foreground : Config.muted
+				ink: root.present ? Config.foreground : Config.muted
 				text: root.title !== "" ? root.title : Config.mediaEmpty
 			}
 
-			Text {
+			Label {
 				width: parent.width
 				visible: root.artist !== "" || root.album !== ""
 				horizontalAlignment: Text.AlignHCenter
 				elide: Text.ElideRight
-				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize
-				color: Config.foreground
+				ink: Config.foreground
 				text: [root.artist, root.album].filter(s => s !== "").join(" - ")
 			}
 		}
@@ -194,23 +189,19 @@ Item {
 			height: elapsed.implicitHeight
 			visible: root.known
 
-			Text {
+			Label {
 				id: elapsed
 
 				anchors.left: parent.left
 
-				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize
-				color: Config.foreground
+				ink: Config.foreground
 				text: root.media.elapsed || ""
 			}
 
-			Text {
+			Label {
 				anchors.right: parent.right
 
-				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize
-				color: Config.muted
+				ink: Config.muted
 				text: root.media.total || ""
 			}
 		}

@@ -1,5 +1,6 @@
 import QtQuick
 import qs.ui
+import qs.appkit
 import qs.services
 import qs
 
@@ -134,16 +135,6 @@ Item {
 		Input.notifications(event, root);
 	}
 
-	MouseArea {
-		anchors.fill: parent
-		acceptedButtons: Qt.NoButton
-
-		onWheel: function (wheel) {
-			list.contentY = Calc.clamp(list.contentY + (wheel.angleDelta.y > 0 ? -Config.notifyRowHeight : Config.notifyRowHeight), 0, Math.max(0, list.contentHeight - list.height));
-			wheel.accepted = true;
-		}
-	}
-
 	ListView {
 		id: list
 
@@ -153,8 +144,8 @@ Item {
 		height: root.viewport
 		clip: true
 		spacing: 0
-		interactive: false
 		boundsBehavior: Flickable.StopAtBounds
+		acceptedButtons: Qt.NoButton
 		keyNavigationEnabled: false
 		model: root.model
 
@@ -234,13 +225,11 @@ Item {
 				color: Config.surfaceTranslucent
 				visible: !root.single && slot.cutTop
 
-				Text {
+				Label {
 					id: aboveLabel
 
 					anchors.centerIn: parent
-					font.family: Config.fontFamily
-					font.pixelSize: Settings.fontSize
-					color: Config.foreground
+					ink: Config.foreground
 					text: Config.iconUp
 				}
 			}
@@ -255,29 +244,26 @@ Item {
 				color: Config.surfaceTranslucent
 				visible: !root.single && slot.cutBottom
 
-				Text {
+				Label {
 					id: belowLabel
 
 					anchors.centerIn: parent
-					font.family: Config.fontFamily
-					font.pixelSize: Settings.fontSize
-					color: Config.foreground
+					ink: Config.foreground
 					text: Config.iconDown
 				}
 			}
 		}
 	}
 
-	Scrollbar {
+	AppScroll {
+		anchors.fill: list
 		view: list
 	}
 
-	Text {
+	EmptyState {
 		anchors.centerIn: list
 		visible: root.empty
-		font.family: Config.fontFamily
-		font.pixelSize: Settings.fontSize
-		color: Config.muted
+		icon: "bell"
 		text: Config.notifyEmpty
 	}
 }

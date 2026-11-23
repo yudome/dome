@@ -56,13 +56,12 @@ Item {
 				color: Config.launcherSearchBox
 				clip: true
 
-				Text {
+				Icon {
 					anchors.centerIn: parent
 					visible: avatar.status !== Image.Ready
-					font.family: Config.fontFamily
-					font.pixelSize: Math.round(slot.height * 0.6)
-					color: root.accentInk
-					text: Config.iconGithub
+					size: Math.round(slot.height * 0.6)
+					ink: root.accentInk
+					glyph: Config.iconGithub
 				}
 
 				Image {
@@ -76,7 +75,7 @@ Item {
 				}
 			}
 
-			Text {
+			Label {
 				id: who
 
 				anchors.left: slot.right
@@ -84,20 +83,16 @@ Item {
 				anchors.verticalCenter: parent.verticalCenter
 				width: Math.max(0, person.width - slot.width - year.width - Config.notifySlotGap * 2)
 				elide: Text.ElideRight
-				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize
-				color: root.accentInk
+				ink: root.accentInk
 				text: root.statusLine()
 			}
 
-			Text {
+			Label {
 				id: year
 
 				anchors.right: parent.right
 				anchors.verticalCenter: parent.verticalCenter
-				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize
-				color: root.accentInk
+				ink: root.accentInk
 				text: Github.total > 0 ? Github.total + " this year" : ""
 			}
 
@@ -112,14 +107,13 @@ Item {
 			width: column.width
 			height: Config.contribCell
 
-			Text {
+			Label {
 				id: less
 
 				x: 0
 				anchors.verticalCenter: parent.verticalCenter
-				font.family: Config.fontFamily
 				font.pixelSize: Config.notifyAppFontSize
-				color: Config.muted
+				ink: Config.muted
 				text: "less"
 			}
 
@@ -137,14 +131,13 @@ Item {
 				}
 			}
 
-			Text {
+			Label {
 				id: more
 
 				x: (legend.base + 5) * legend.step
 				anchors.verticalCenter: parent.verticalCenter
-				font.family: Config.fontFamily
 				font.pixelSize: Config.notifyAppFontSize
-				color: Config.muted
+				ink: Config.muted
 				text: "more"
 			}
 		}
@@ -159,12 +152,10 @@ Item {
 			colorFor: (value) => Github.levelInk[value ? value.level : 0] || Config.contribEmpty
 		}
 
-		Text {
+		Label {
 			width: column.width
-			font.family: Config.fontFamily
-			font.pixelSize: Config.notifyAppFontSize
-			color: Config.muted
-			text: Github.loading ? "refreshing..." : (Github.fetched > 0 ? "updated " + Qt.formatDateTime(new Date(Github.fetched), "MMM d h:mm AP") + " · r to refresh" : "r to fetch")
+			role: "caption"
+			text: Github.loading ? "Refreshing" : (Github.fetched > 0 ? "Updated " + Qt.formatDateTime(new Date(Github.fetched), "MMM d h:mm AP") : "")
 		}
 	}
 }

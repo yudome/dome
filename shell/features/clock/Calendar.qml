@@ -1,15 +1,12 @@
 import QtQuick
 import Quickshell
 import qs.ui
+import qs.panelkit
 import qs
 import qs.services
 
-Item {
+PanelPage {
 	id: root
-
-	signal closeRequested()
-
-	focus: true
 
 	property date today: clock.date
 	property int weekStart: Config.calendarWeekStart
@@ -24,8 +21,8 @@ Item {
 	readonly property real mondayInk: (Config.calendarCellWidth - weekdayMetrics.width) / 2 + weekdayMetrics.tightBoundingRect.x
 	readonly property real titleX: root.mondayInk - monthMetrics.tightBoundingRect.x
 
-	implicitWidth: card.implicitWidth + Config.calendarPadding * 2
-	implicitHeight: card.implicitHeight + Config.calendarPadding * 2
+	contentWidth: card.implicitWidth
+	padding: Config.calendarPadding
 
 	SystemClock {
 		id: clock
@@ -64,6 +61,10 @@ Item {
 		Yudae.send({ cmd: { calendar: { months: months } } });
 	}
 
+	function reset() {
+		Yudae.send({ cmd: { calendar: { reset: true } } });
+	}
+
 	function stepYears(years) {
 		Yudae.send({ cmd: { calendar: { years: years } } });
 	}
@@ -75,8 +76,6 @@ Item {
 	Column {
 		id: card
 
-		x: Config.calendarPadding
-		y: Config.calendarPadding
 		width: root.gridWidth
 		spacing: Config.calendarGap
 
@@ -97,21 +96,19 @@ Item {
 				anchors.verticalCenter: parent.verticalCenter
 				spacing: Config.calendarTitleGap
 
-				Text {
+				Label {
 					id: month
 
-					font.family: Config.fontFamily
 					font.pixelSize: Config.calendarMonthSize
-					color: Config.calendarBase
+					ink: Config.calendarBase
 					text: root.monthText
 				}
 
-				Text {
+				Label {
 					id: yearLabel
 
-					font.family: Config.fontFamily
 					font.pixelSize: Config.calendarMonthSize
-					color: Config.calendarBase
+					ink: Config.calendarBase
 					text: root.yearText
 				}
 			}
@@ -123,21 +120,29 @@ Item {
 				anchors.verticalCenter: parent.verticalCenter
 				spacing: Config.calendarArrowGap
 
-				RevealIcon {
-					font.pixelSize: Config.calendarArrowSize
-					baseColor: Config.calendarBase
+				IconButton {
+					anchors.verticalCenter: parent.verticalCenter
+					box: Config.calendarArrowSize
+					size: Config.calendarArrowSize
+					flat: true
+					reveal: true
 					shown: root.arrowsShown
-					hitMargin: -Config.calendarArrowSize / 2
-					text: Config.iconPrev
+					hitMargin: Config.calendarArrowSize / 2
+					inkIdle: Config.calendarBase
+					glyph: Config.iconPrev
 					onClicked: root.stepMonths(-1)
 				}
 
-				RevealIcon {
-					font.pixelSize: Config.calendarArrowSize
-					baseColor: Config.calendarBase
+				IconButton {
+					anchors.verticalCenter: parent.verticalCenter
+					box: Config.calendarArrowSize
+					size: Config.calendarArrowSize
+					flat: true
+					reveal: true
 					shown: root.arrowsShown
-					hitMargin: -Config.calendarArrowSize / 2
-					text: Config.iconNext
+					hitMargin: Config.calendarArrowSize / 2
+					inkIdle: Config.calendarBase
+					glyph: Config.iconNext
 					onClicked: root.stepMonths(1)
 				}
 			}
@@ -155,16 +160,15 @@ Item {
 				Repeater {
 					model: root.weekdays
 
-					delegate: Text {
+					delegate: Label {
 						required property string modelData
 
 						width: Config.calendarCellWidth
 						height: Config.calendarCellHeight
 						horizontalAlignment: Text.AlignHCenter
 						verticalAlignment: Text.AlignVCenter
-						font.family: Config.fontFamily
 						font.pixelSize: Config.calendarWeekdaySize
-						color: Config.foreground
+						ink: Config.foreground
 						text: modelData
 					}
 				}
@@ -205,11 +209,10 @@ Item {
 							border.color: Config.calendarCursor
 						}
 
-						Text {
+						Label {
 							anchors.centerIn: parent
-							font.family: Config.fontFamily
 							font.pixelSize: Config.calendarDaySize
-							color: !cell.day.outside || cell.day.today || cell.day.cursor ? Config.foreground : Config.calendarOutside
+							ink: !cell.day.outside || cell.day.today || cell.day.cursor ? Config.foreground : Config.calendarOutside
 							text: cell.day.day
 						}
 					}
@@ -246,27 +249,25 @@ Item {
 						width: meters.width
 						height: Config.calendarMeterRow
 
-						Text {
+						Label {
 							id: meterLabel
 
 							anchors.verticalCenter: parent.verticalCenter
 							width: Config.calendarMeterLabelWidth
-							font.family: Config.fontFamily
 							font.pixelSize: Config.calendarMeterLabelSize
-							color: Config.foreground
+							ink: Config.foreground
 							text: modelData.icon + " " + modelData.label
 						}
 
-						Text {
+						Label {
 							id: meterValue
 
 							anchors.right: parent.right
 							anchors.verticalCenter: parent.verticalCenter
 							width: Config.calendarMeterValueWidth
 							horizontalAlignment: Text.AlignRight
-							font.family: Config.fontFamily
 							font.pixelSize: Config.calendarMeterValueSize
-							color: Config.foreground
+							ink: Config.foreground
 							text: modelData.pct + "%"
 						}
 

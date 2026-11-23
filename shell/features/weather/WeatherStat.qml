@@ -10,8 +10,8 @@ BarStat {
 
 	mode: "icon"
 	showBar: false
-	iconSize: Settings.iconSize + 4
-	iconLift: -2.5 + (root.glyphInkHeight - Settings.iconSize) / 5
+	iconSize: Config.iconSize + 4
+	iconLift: -2.5 + (root.glyphInkHeight - Config.iconSize) / 5
 	readonly property real baselineLift: Math.ceil(Config.barThickness)
 	barColor: Config.mono ? Config.weatherBaseMono : Config.weatherBase
 	icon: Weather.current.code >= 0 ? Weather.current.icon : Config.weatherLoadingIcon

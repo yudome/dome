@@ -26,7 +26,7 @@ Row {
 		id: digitMetrics
 
 		font.family: Config.fontFamily
-		font.pixelSize: Settings.fontSize
+		font.pixelSize: Config.fontSize
 		text: "8"
 	}
 
@@ -34,7 +34,7 @@ Row {
 		id: sampleMetrics
 
 		font.family: Config.fontFamily
-		font.pixelSize: Settings.fontSize
+		font.pixelSize: Config.fontSize
 		text: Config.valueSample
 	}
 
@@ -110,13 +110,11 @@ Row {
 				}
 			}
 
-			Text {
+			Label {
 				id: label
 
 				anchors.centerIn: selector
-				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize
-				color: ws.labelColor
+				ink: ws.labelColor
 				text: "" + ws.workspaceId
 			}
 

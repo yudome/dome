@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import qs
 import qs.ui
+import qs.panelkit
 import qs.services
 
 ProcessPanel {
@@ -50,7 +51,7 @@ ProcessPanel {
 	readonly property color testInk: root.speed.stage === "up" ? root.upInk : root.downInk
 	readonly property string buttonText: root.testing
 		? (root.speed.stage === "down" ? Config.networkSpeedTestingDown : Config.networkSpeedTestingUp)
-		: root.done ? "\u{2193} " + root.speed.downText + " \u{2191} " + root.speed.upText + " " + Config.networkSpeedAgain
+		: root.done ? "\u{2193} " + root.speed.downText + "  \u{2191} " + root.speed.upText
 			: Config.networkSpeedNone
 
 	title: Config.networkTitle
@@ -103,8 +104,8 @@ ProcessPanel {
 
 		return Input.network(event, root);
 	}
-	panelWidth: Config.networkTooltipWidth
-	panelPadding: Config.networkTooltipPadding
+	contentWidth: Config.networkTooltipWidth
+	padding: Config.networkTooltipPadding
 
 	function adapterOf(kind) {
 		for (let i = 0; i < root.adapters.length; i++) {
@@ -194,7 +195,7 @@ ProcessPanel {
 				width: parent.width
 				spacing: Config.networkRowGap
 
-				GlyphRow {
+				PanelRow {
 					id: lanRow
 
 					readonly property var adapter: root.adapterOf("ethernet")
@@ -202,25 +203,23 @@ ProcessPanel {
 					width: parent.width
 					visible: lanRow.adapter !== null
 					height: visible ? implicitHeight : 0
-					hoverable: true
 					glyph: Config.iconEthernet
-					label: lanRow.adapter && lanRow.adapter.connected ? (lanRow.adapter.connection || Config.networkEthernetLabel) : Config.networkEthernetLabel
+					title: lanRow.adapter && lanRow.adapter.connected ? (lanRow.adapter.connection || Config.networkEthernetLabel) : Config.networkEthernetLabel
 					current: lanRow.adapter !== null && lanRow.adapter.active
 					dim: lanRow.adapter !== null && !lanRow.adapter.connected
 
 					onActivated: root.useKind("ethernet")
 				}
 
-				GlyphRow {
+				PanelRow {
 					id: radioRow
 
 					readonly property var adapter: root.adapterOf("wifi")
 
 					width: parent.width
-					hoverable: true
 					glyph: !root.radio ? Config.iconWifiOff
 						: Config.wifiGlyph(root.litBars > 0 ? root.litBars : 4)
-					label: !root.radio ? Config.networkWifiOff
+					title: !root.radio ? Config.networkWifiOff
 						: radioRow.adapter && radioRow.adapter.connected ? (radioRow.adapter.connection || Config.networkWifiLabel)
 						: Config.networkWifiIdle
 					current: radioRow.adapter !== null && radioRow.adapter.active
@@ -248,7 +247,7 @@ ProcessPanel {
 
 						Glyph {
 							anchors.fill: parent
-							size: Settings.fontSize
+							size: Config.fontSize
 							color: Config.foreground
 							glyph: root.listOpen ? Config.iconUp : Config.iconDown
 						}
@@ -296,13 +295,12 @@ ProcessPanel {
 					}
 				}
 
-				GlyphRow {
+				PanelRow {
 					width: parent.width
 					visible: root.otherWifi.length > 0 && root.knownWifi.length > 0
 					height: visible ? implicitHeight : 0
-					hoverable: true
 					glyph: root.othersOpen ? Config.iconUp : Config.iconDown
-					label: Config.networkOtherLabel
+					title: Config.networkOtherLabel
 
 					onActivated: root.othersOpen = !root.othersOpen
 				}
@@ -335,24 +333,20 @@ ProcessPanel {
 			width: parent.width
 			height: Math.max(rateDown.implicitHeight, rateUp.implicitHeight)
 
-			Text {
+			Label {
 				id: rateDown
 
-				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize
-				color: root.downInk
+				ink: root.downInk
 				text: "\u{2193} " + root.net.downText
 			}
 
-			Text {
+			Label {
 				id: rateUp
 
 				anchors.left: rateDown.right
 				anchors.leftMargin: Config.networkGraphGap * 3
 
-				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize
-				color: root.upInk
+				ink: root.upInk
 				text: "\u{2191} " + root.net.upText
 			}
 		},
@@ -391,16 +385,14 @@ ProcessPanel {
 				width: parent.width
 				height: Math.max(detailLabel.implicitHeight, detailValue.implicitHeight)
 
-				Text {
+				Label {
 					id: detailLabel
 
-					font.family: Config.fontFamily
-					font.pixelSize: Settings.fontSize
-					color: modelData.ink === "up" ? root.upInk : Config.foreground
+					ink: modelData.ink === "up" ? root.upInk : Config.foreground
 					text: modelData.label
 				}
 
-				Text {
+				Label {
 					id: detailValue
 
 					anchors.right: parent.right
@@ -408,9 +400,7 @@ ProcessPanel {
 					elide: Text.ElideRight
 					horizontalAlignment: Text.AlignRight
 
-					font.family: Config.fontFamily
-					font.pixelSize: Settings.fontSize
-					color: modelData.ink === "up" ? root.upInk : Config.foreground
+					ink: modelData.ink === "up" ? root.upInk : Config.foreground
 					text: modelData.text || Config.networkWiredNothing
 				}
 			}
@@ -426,12 +416,10 @@ ProcessPanel {
 			readonly property bool hot: !dnsRow.live && (root.dnsOpen || dnsHit.containsMouse)
 			readonly property bool live: root.dnsTyping || root.net.dnsPending === true
 
-			Text {
+			Label {
 				id: dnsLabel
 
-				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize
-				color: Config.foreground
+				ink: Config.foreground
 				text: "dns"
 			}
 
@@ -445,7 +433,7 @@ ProcessPanel {
 				height: dnsValue.implicitHeight + 4
 			}
 
-			Text {
+			Label {
 				id: dnsValue
 
 				visible: !dnsRow.live
@@ -454,9 +442,7 @@ ProcessPanel {
 				elide: Text.ElideRight
 				horizontalAlignment: Text.AlignRight
 
-				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize
-				color: dnsRow.hot ? Config.launcherHighlightText : Config.foreground
+				ink: dnsRow.hot ? Config.launcherHighlightText : Config.foreground
 				text: root.net.dnsError || root.dns
 			}
 
@@ -473,7 +459,7 @@ ProcessPanel {
 				selectByMouse: true
 
 				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize
+				font.pixelSize: Config.fontSize
 				text: root.dnsDraft
 
 				onEdited: root.dnsDraft = text
@@ -531,7 +517,7 @@ ProcessPanel {
 				active: runButton.activeFocus || runHit.containsMouse
 			}
 
-			Text {
+			Label {
 				id: runLabel
 
 				anchors.centerIn: parent
@@ -540,9 +526,7 @@ ProcessPanel {
 				elide: Text.ElideRight
 				horizontalAlignment: Text.AlignHCenter
 
-				font.family: Config.fontFamily
-				font.pixelSize: Settings.fontSize
-				color: runButton.activeFocus || runHit.containsMouse ? Config.launcherHighlightText : root.done ? root.downInk : Config.foreground
+				ink: runButton.activeFocus || runHit.containsMouse ? Config.launcherHighlightText : root.done ? root.downInk : Config.foreground
 				text: root.buttonText
 			}
 
