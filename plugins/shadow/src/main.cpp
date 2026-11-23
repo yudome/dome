@@ -286,11 +286,14 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
             return mask;
         };
 
-        std::vector<float> mainMask    = buildMask(OFFSET);
-        std::vector<float> contactMask = buildMask(0.F);
-
+        std::vector<float> mainMask = buildMask(OFFSET);
         blur(mainMask, TEXW, TEXH, boxRadius((RANGE / 3.F) * AVGSCALE));
-        blur(contactMask, TEXW, TEXH, boxRadius(2.F * AVGSCALE));
+
+        std::vector<float> contactMask;
+        if (CONTACT > 0.F) {
+            contactMask = buildMask(0.F);
+            blur(contactMask, TEXW, TEXH, boxRadius(2.F * AVGSCALE));
+        }
 
         std::vector<unsigned char> pixels(static_cast<size_t>(TEXW) * TEXH * 4, 0);
 
@@ -310,7 +313,7 @@ class CSoftShadowDecoration : public IHyprWindowDecoration {
 
                 const size_t INDEX = static_cast<size_t>(y) * TEXW + x;
                 const float  MAIN  = ALPHA * mainMask[INDEX];
-                const float  EDGE  = CONTACT * contactMask[INDEX];
+                const float  EDGE  = CONTACT > 0.F ? CONTACT * contactMask[INDEX] : 0.F;
                 float        a     = 1.F - (1.F - MAIN) * (1.F - EDGE);
                 if (a <= 0.F)
                     continue;
@@ -378,7 +381,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_range   = makeShared<Config::Values::CFloatValue>("plugin:shadow:range", "Visible shadow falloff in logical pixels", 72.F, Config::Values::SFloatValueOptions{.min = 4.F, .max = 120.F});
     g_offset  = makeShared<Config::Values::CFloatValue>("plugin:shadow:offset", "Downward shadow shift in logical pixels", 0.F, Config::Values::SFloatValueOptions{.min = -32.F, .max = 64.F});
     g_alpha   = makeShared<Config::Values::CFloatValue>("plugin:shadow:alpha", "Main shadow strength", 0.55F, Config::Values::SFloatValueOptions{.min = 0.F, .max = 1.F});
-    g_contact = makeShared<Config::Values::CFloatValue>("plugin:shadow:contact", "Tight contact shadow strength", 0.12F, Config::Values::SFloatValueOptions{.min = 0.F, .max = 1.F});
+    g_contact = makeShared<Config::Values::CFloatValue>("plugin:shadow:contact", "Tight contact shadow strength", 0.F, Config::Values::SFloatValueOptions{.min = 0.F, .max = 1.F});
 
     HyprlandAPI::addConfigValueV2(PHANDLE, g_enabled);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_range);

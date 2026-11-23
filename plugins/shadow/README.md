@@ -18,7 +18,7 @@ Set in the yudae load list (`~/.local/state/yudae/plugins.toml`):
 range = 72    # visible falloff, logical px
 offset = 0    # downward shift, logical px
 alpha = 0.55  # ambient layer strength
-contact = 0.12
+contact = 0
 ```
 
 `enabled = false` hands shadows back to Hyprland.
