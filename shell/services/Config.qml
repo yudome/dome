@@ -263,7 +263,7 @@ QtObject {
 
 	// volume mixer
 	readonly property var mixerWidth: settings.mixerWidth !== undefined ? settings.mixerWidth : 246
-	readonly property var mixerChannelGap: settings.mixerChannelGap !== undefined ? settings.mixerChannelGap : 8
+	readonly property var mixerChannelGap: settings.mixerChannelGap !== undefined ? settings.mixerChannelGap : 4
 	readonly property var mixerFaderThickness: settings.mixerFaderThickness !== undefined ? settings.mixerFaderThickness : 4
 	readonly property var mixerIconSize: settings.mixerIconSize !== undefined ? settings.mixerIconSize : 22
 	readonly property var mixerDeviceIconSize: settings.mixerDeviceIconSize !== undefined ? settings.mixerDeviceIconSize : 26

@@ -46,7 +46,7 @@ memoryTopCount = 5  # 1..12
 # Volume mixer
 [mixer]
 mixerWidth = 246
-mixerChannelGap = 8
+mixerChannelGap = 4
 mixerFaderThickness = 4
 mixerIconSize = 22
 mixerDeviceIconSize = 26
