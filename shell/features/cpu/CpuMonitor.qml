@@ -107,13 +107,6 @@ ProcessPanel {
 						source: cell.processIcon
 						visible: cell.processIcon !== "" && appIcon.status !== Image.Error
 					}
-
-					Icon {
-						anchors.fill: parent
-						size: Config.launcherIconSize
-						name: "process"
-						visible: cell.processIcon === "" || appIcon.status === Image.Error
-					}
 				}
 
 				Label {

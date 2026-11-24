@@ -156,7 +156,6 @@ QtObject {
 	// nerd font glyphs
 	readonly property var iconClose: settings.iconClose !== undefined ? settings.iconClose : "\uf00d"
 	readonly property var iconCpu: settings.iconCpu !== undefined ? settings.iconCpu : "\uf2db"
-	readonly property var iconProcess: settings.iconProcess !== undefined ? settings.iconProcess : "\uf0874"
 	readonly property var iconChevron: settings.iconChevron !== undefined ? settings.iconChevron : "\uf053"
 	readonly property var iconMemory: settings.iconMemory !== undefined ? settings.iconMemory : "\uefc5"
 	readonly property var iconBell: settings.iconBell !== undefined ? settings.iconBell : "\uf0f3"
@@ -722,7 +721,6 @@ QtObject {
 		chevron: root.iconChevron,
 		close: root.iconClose,
 		cpu: root.iconCpu,
-		process: root.iconProcess,
 		day: root.calendarIconDay,
 		display: root.iconDisplay,
 		disk: root.iconDisk,
