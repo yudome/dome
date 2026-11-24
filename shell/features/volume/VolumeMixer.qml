@@ -209,7 +209,7 @@ PanelPage {
 			root.pending = { id: -1, volume: -1 };
 	}
 
-	component MixRow: Item {
+	component MixRow: PanelRow {
 		id: row
 
 		property var node
@@ -218,64 +218,36 @@ PanelPage {
 
 		readonly property bool stream: !!row.node && row.node.isStream === true
 		readonly property bool muted: !!row.node && row.node.muted === true
-		readonly property bool selected: row.rowIndex === root.targetIndex
 		readonly property real volume: root.volumeOf(row.node)
 		readonly property string iconSource: row.stream ? root.iconFor(row.node) : ""
-		readonly property string glyph: row.stream ? Config.iconApp : Config.iconVolumeHigh
 		readonly property real level: Calc.clamp(row.volume / Config.mixerMaxVolume, 0, 1)
 		readonly property int step: Math.round(row.level * Config.mixerStepCount) - 1
 		readonly property real hoverPad: Math.max(0, (row.height - Config.mixerFaderThickness) / 2)
 
-		height: Math.max(Config.mixerDeviceIconSize, Config.fontSize)
-		implicitHeight: height
+		selected: row.rowIndex === root.targetIndex && root.keyboard
+		dim: row.muted
 
-		HoverHandler {
-			id: hover
+		onActivated: {
+			root.keyboard = false;
+			root.targetIndex = row.rowIndex;
+			root.activateNode(row.node);
 		}
 
-		Highlight {
-			id: hl
-
-			active: (row.selected && root.keyboard) || hover.hovered
-		}
-
-		MouseArea {
-			anchors.fill: parent
-
-			onClicked: {
-				root.keyboard = false;
-				root.targetIndex = row.rowIndex;
-				root.activateNode(row.node);
-			}
-		}
-
-		Item {
-			id: iconSlot
-
-			anchors.left: parent.left
-			anchors.verticalCenter: parent.verticalCenter
-			width: Config.mixerDeviceIconSize
-			height: Math.min(Config.mixerDeviceIconSize, row.height)
-
+		leading: Component {
 			Icon {
-				anchors.centerIn: parent
 				size: Config.mixerIconSize
 				opacity: row.muted ? Config.disabledOpacity : 1
 				source: row.iconSource
-				glyph: row.iconSource === "" ? row.glyph : ""
-				ink: row.muted ? Config.muted : Config.foreground
+				glyph: row.iconSource === "" ? (row.stream ? Config.iconApp : Config.iconVolumeHigh) : ""
+				ink: row.ink
 			}
 		}
 
-		Item {
+		body: Item {
 			id: fader
 
-			anchors.left: iconSlot.right
-			anchors.leftMargin: Config.mixerListGap
-			anchors.right: parent.right
+			anchors.fill: parent
 			anchors.rightMargin: Config.mixerListGap
-			anchors.verticalCenter: parent.verticalCenter
-			height: parent.height
 
 			StepBar {
 				id: faderBar
@@ -290,7 +262,7 @@ PanelPage {
 				selected: row.step
 				level: root.shift ? row.level : -1
 				lens: false
-				ink: row.muted && !hl.active ? Config.dim : hl.ink
+				ink: row.muted && !row.hot ? Config.dim : Config.foreground
 			}
 
 			MouseArea {
@@ -311,6 +283,12 @@ PanelPage {
 
 		width: root.contentWidth
 		spacing: Config.mixerChannelGap
+
+		PanelHeader {
+			width: parent.width
+			visible: !root.compact && root.rows.length > 0
+			title: "Sound"
+		}
 
 		MixRow {
 			width: parent.width
@@ -336,7 +314,13 @@ PanelPage {
 		Separator {
 			width: body.width
 			color: Config.rule
-			visible: root.deviceRows.length > 0 && root.appRows.length > 0
+			visible: !root.compact && root.deviceRows.length > 0 && root.appRows.length > 0
+		}
+
+		PanelHeader {
+			width: parent.width
+			visible: !root.compact && root.deviceRows.length > 0
+			title: "Output"
 		}
 
 		Repeater {
