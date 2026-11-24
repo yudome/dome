@@ -1238,12 +1238,19 @@ PanelWindow {
 							readonly property bool pinned: row.modelData.pinned === true
 							readonly property bool wide: row.modelData.kind === "kaomoji"
 
+							InkLine {
+								id: nameCap
+
+								target: rowName
+								edge: "cap"
+							}
+
 							Item {
 								id: rowIcon
 
 								anchors.left: parent.left
 								anchors.leftMargin: Config.launcherPadding
-								anchors.verticalCenter: parent.verticalCenter
+								anchors.verticalCenter: nameCap.verticalCenter
 								width: row.wide ? root.kaomojiSlot : root.iconSlot
 								height: root.iconSlot
 

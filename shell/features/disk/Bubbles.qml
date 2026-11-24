@@ -164,13 +164,14 @@ Item {
 						anchors.left: nameText.left
 						anchors.leftMargin: -width - 4
 						anchors.verticalCenter: parent.verticalCenter
+						anchors.verticalCenterOffset: -nameText.capOffset
 						visible: bubble.r < 55
 						glyph: bubble.isDir ? Config.diskIconDir : Config.diskIconFile
 						size: nameText.font.pixelSize
 						color: bubble.checked ? Config.surface : bubble.tint
 					}
 
-					Text {
+					Label {
 						id: nameText
 
 						anchors.horizontalCenter: parent.horizontalCenter
@@ -179,10 +180,9 @@ Item {
 						horizontalAlignment: Text.AlignHCenter
 						elide: Text.ElideMiddle
 
-						font.family: Config.fontFamily
 						font.pixelSize: Math.max(10, Math.min(20, bubble.r * 0.26))
 						font.weight: Font.Medium
-						color: bubble.checked ? Config.surface : Config.foreground
+						ink: bubble.checked ? Config.surface : Config.foreground
 						text: bubble.modelData.item.name
 					}
 				}
