@@ -35,6 +35,7 @@ PanelPage {
 		: Math.max(8, Math.floor(Config.weatherDayTempSize * (root.dayCellWidth - 2) / root.dayTextWidth))
 	readonly property real statsWidth: root.statWidth * 3 + Config.weatherCardGap * 2
 	readonly property real placeMaxWidth: root.statsWidth - leftArrow.width - rightArrow.width - addIcon.width - Config.weatherCardHeaderGap * 3
+	readonly property string heroIcon: root.loading ? Config.weatherLoadingIcon : (root.now.icon ? root.now.icon : Config.weatherIcon)
 	readonly property real statWidth: (card.width - heroGlyphMetrics.width - Config.weatherCardGap * 4 - heroTempMetrics.width - heroUnitMetrics.width) / 3
 	readonly property real dayCardHeight: Config.weatherDayGap * 6 + dayLabelMetrics.height + dayGlyphMetrics.height + dayTempMetrics.height * 3
 
@@ -159,7 +160,7 @@ PanelPage {
 
 		font.family: Config.fontFamily
 		font.pixelSize: Config.weatherHeroGlyphSize
-		text: ""
+		text: root.heroIcon
 	}
 
 	TextMetrics {
@@ -254,7 +255,7 @@ PanelPage {
 				width: heroGlyphMetrics.width
 				height: heroGlyphMetrics.height
 				size: Config.weatherHeroGlyphSize
-				glyph: root.loading ? Config.weatherLoadingIcon : (root.now.icon ? root.now.icon : Config.weatherIcon)
+				glyph: root.heroIcon
 			}
 
 			Item {
