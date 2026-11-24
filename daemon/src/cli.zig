@@ -372,7 +372,7 @@ pub fn open(io: Io, args: []const []const u8) !void {
 
 pub fn virtualMachines(io: Io, args: []const []const u8) !void {
 	if (args.len < 3) {
-		std.debug.print("usage: yudae vm <create|list|start|stop|exec|screenshot|key|type|click|move|wait|sleep|wake|destroy|snapshot|restore|fork|state|view|scenario|doctor> [args...]\n", .{});
+		std.debug.print("usage: yudae vm <create|list|start|stop|exec|screenshot|key|type|click|move|drag|wait|sleep|wake|destroy|snapshot|restore|fork|state|view|scenario|doctor> [args...]\n", .{});
 		std.process.exit(2);
 	}
 
@@ -480,9 +480,12 @@ pub fn virtualMachines(io: Io, args: []const []const u8) !void {
 		try writeArrayField(allocator, writer, &wrote, "keys", positional.items);
 	} else if (std.mem.eql(u8, method, "ui")) {
 		if (positional.items.len >= 1) try writeField(allocator, writer, &wrote, "action", positional.items[0]);
-	} else if (std.mem.eql(u8, method, "click") or std.mem.eql(u8, method, "move")) {
+	} else if (std.mem.eql(u8, method, "click") or std.mem.eql(u8, method, "move") or std.mem.eql(u8, method, "drag")) {
 		if (positional.items.len >= 1) try writeRawField(writer, &wrote, "x", positional.items[0]);
 		if (positional.items.len >= 2) try writeRawField(writer, &wrote, "y", positional.items[1]);
+		if (positional.items.len >= 3) try writeRawField(writer, &wrote, "toX", positional.items[2]);
+		if (positional.items.len >= 4) try writeRawField(writer, &wrote, "toY", positional.items[3]);
+		if (positional.items.len >= 5) try writeRawField(writer, &wrote, "steps", positional.items[4]);
 	} else if (std.mem.eql(u8, method, "gui")) {
 		if (positional.items.len >= 1) try writeField(allocator, writer, &wrote, "app", positional.items[0]);
 	} else if (std.mem.eql(u8, method, "scroll")) {

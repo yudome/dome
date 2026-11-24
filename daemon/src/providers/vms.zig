@@ -227,7 +227,7 @@ pub const Vms = struct {
 			const wakeable = std.mem.eql(u8, method, "exec") or std.mem.eql(u8, method, "state") or
 				std.mem.eql(u8, method, "screenshot") or std.mem.eql(u8, method, "key") or
 				std.mem.eql(u8, method, "type") or std.mem.eql(u8, method, "click") or
-				std.mem.eql(u8, method, "move") or std.mem.eql(u8, method, "wait") or
+				std.mem.eql(u8, method, "move") or std.mem.eql(u8, method, "drag") or std.mem.eql(u8, method, "wait") or
 				std.mem.eql(u8, method, "wake") or std.mem.eql(u8, method, "view") or
 				std.mem.eql(u8, method, "gui") or std.mem.eql(u8, method, "scroll");
 
@@ -250,6 +250,7 @@ pub const Vms = struct {
 		if (std.mem.eql(u8, method, "type")) return self.typeVm(args, allocator);
 		if (std.mem.eql(u8, method, "click")) return self.clickVm(args, allocator);
 		if (std.mem.eql(u8, method, "move")) return self.moveVm(args, allocator);
+		if (std.mem.eql(u8, method, "drag")) return self.dragVm(args, allocator);
 		if (std.mem.eql(u8, method, "wait")) return self.waitVm(args, allocator);
 		if (std.mem.eql(u8, method, "snapshot")) return self.snapshotVm(args, allocator);
 		if (std.mem.eql(u8, method, "restore")) return self.restoreVm(args, allocator);
@@ -1699,7 +1700,7 @@ pub const Vms = struct {
 					}
 				}
 
-				for ([_][]const u8{ "x", "y", "timeout" }) |key| {
+				for ([_][]const u8{ "x", "y", "toX", "toY", "steps", "button", "timeout" }) |key| {
 					if (json.field(step, key)) |value| {
 						try step_writer.writeAll(",");
 						try std.json.Stringify.encodeJsonString(key, .{}, step_writer);
@@ -2108,6 +2109,34 @@ pub const Vms = struct {
 		return allocator.dupe(u8, "{\"ok\":true}");
 	}
 
+	fn dragVm(self: *Vms, args: json.Value, allocator: Allocator) ![]u8 {
+		const name = json.textAt(args, "name");
+		if (self.humanHolds(name) and !humanRequest(args)) return error.HumanControl;
+		const client = self.qmpOf(name) orelse return error.NotRunning;
+		const screen = self.screenOf(name);
+		const from = [2]f64{ json.numberAt(args, "x"), json.numberAt(args, "y") };
+		const to = [2]f64{ json.numberAt(args, "toX"), json.numberAt(args, "toY") };
+		const steps: usize = @intCast(std.math.clamp(json.integer(json.field(args, "steps")), 0, 200));
+		const button = if (std.mem.eql(u8, json.textAt(args, "button"), "right")) "right" else "left";
+
+		try pointer(self.io, client, allocator, from[0], from[1], screen);
+		sleep.ms(40);
+		try buttonEvent(client, allocator, button, true);
+		sleep.ms(60);
+
+		const count = if (steps > 0) steps else 16;
+		for (1..count + 1) |index| {
+			const at = dragPoint(from, to, index, count);
+			try pointer(self.io, client, allocator, at[0], at[1], screen);
+			sleep.ms(16);
+		}
+
+		sleep.ms(60);
+		try buttonEvent(client, allocator, button, false);
+
+		return allocator.dupe(u8, "{\"ok\":true}");
+	}
+
 	fn waitVm(self: *Vms, args: json.Value, allocator: Allocator) ![]u8 {
 		const name = json.textAt(args, "name");
 		const until = json.textAt(args, "until");
@@ -2486,6 +2515,20 @@ fn pointer(io: Io, client: *qmp.Qmp, allocator: Allocator, x: f64, y: f64, scree
 	try writer.print("{{\"events\":[{{\"type\":\"abs\",\"data\":{{\"axis\":\"x\",\"value\":{d}}}}},{{\"type\":\"abs\",\"data\":{{\"axis\":\"y\",\"value\":{d}}}}}]}}", .{ px, py });
 
 	_ = client.execute(allocator, "input-send-event", body.written()) catch return error.InputFailed;
+}
+
+fn dragPoint(from: [2]f64, to: [2]f64, index: usize, count: usize) [2]f64 {
+	const t: f64 = @as(f64, @floatFromInt(index)) / @as(f64, @floatFromInt(@max(count, 1)));
+	return .{ from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t };
+}
+
+test "a drag walks from the press point to the release point" {
+	const first = dragPoint(.{ 10, 20 }, .{ 110, 220 }, 1, 4);
+	try std.testing.expectEqual(@as(f64, 35), first[0]);
+	try std.testing.expectEqual(@as(f64, 70), first[1]);
+	const last = dragPoint(.{ 10, 20 }, .{ 110, 220 }, 4, 4);
+	try std.testing.expectEqual(@as(f64, 110), last[0]);
+	try std.testing.expectEqual(@as(f64, 220), last[1]);
 }
 
 fn buttonEvent(client: *qmp.Qmp, allocator: Allocator, button: []const u8, down: bool) !void {
