@@ -880,6 +880,12 @@ PanelWindow {
 		if (intent.query !== root.query || intent.forced !== root.forced || intent.group !== root.group)
 			return false;
 
+		if (root.mode === "procs" && root.live.intent
+				&& intent.query === root.live.intent.query
+				&& intent.forced === root.live.intent.forced
+				&& intent.group === root.live.intent.group)
+			return true;
+
 		root.live = root.state;
 		root.ghostName = root.query !== "" && root.results.length > 0 && root.results[0].name ? String(root.results[0].name) : "";
 		root.settled = true;
