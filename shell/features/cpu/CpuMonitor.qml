@@ -10,6 +10,7 @@ ProcessPanel {
 	readonly property var sys: Yudae.system.cpu || ({})
 	readonly property var history: root.sys.graph || []
 	readonly property var cores: root.source && root.source.cores ? root.source.cores : []
+	readonly property var recent: Yudae.system.processes ? Yudae.system.processes.slice(0, Config.cpuTopCount) : []
 	readonly property color accentInk: Config.mono ? Config.cpuBaseMono : Config.cpuBase
 	readonly property var overview: [
 		{ label: "system", text: (root.sys.system || 0).toFixed(2) + "%" },
@@ -66,6 +67,65 @@ ProcessPanel {
 					role: "value"
 					ink: root.accentInk
 					text: modelData.text
+				}
+			}
+		},
+
+		PanelBand {
+			width: parent.width
+			bleed: root.padding + Config.gapsIn
+			ink: root.accentInk
+			title: Config.topProcessTitle
+		},
+
+		Repeater {
+			model: root.recent
+
+			delegate: Item {
+				id: cell
+
+				required property var modelData
+
+				readonly property string processIcon: AppIcons.iconOfPid(cell.modelData.pid)
+
+				width: parent.width
+				height: Config.procRowHeight
+
+				Item {
+					id: iconSlot
+
+					anchors.left: parent.left
+					anchors.verticalCenter: parent.verticalCenter
+					width: Config.launcherIconSize
+					height: Config.launcherIconSize
+
+					Icon {
+						id: appIcon
+
+						anchors.fill: parent
+						size: Config.launcherIconSize
+						source: cell.processIcon
+						visible: cell.processIcon !== "" && appIcon.status !== Image.Error
+					}
+				}
+
+				Label {
+					anchors.left: iconSlot.right
+					anchors.leftMargin: Config.gapsIn * 2
+					anchors.right: amount.left
+					anchors.rightMargin: Config.gapsIn * 2
+					anchors.verticalCenter: parent.verticalCenter
+					text: modelData.name
+				}
+
+				Label {
+					id: amount
+
+					anchors.right: parent.right
+					anchors.verticalCenter: parent.verticalCenter
+					role: "value"
+					ink: modelData.color || root.accentInk
+					text: modelData.valueText
 				}
 			}
 		}

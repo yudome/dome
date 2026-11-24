@@ -6,17 +6,20 @@ cpuPeak = "#e05252"  # same as red
 cpuPeakMono = "#ffffff"  # same as foreground
 cpuCore = "#7aa2f7"
 cpuIdle = "#2f2f2f"
+cpuTopCount = 5  # 1..12
 cpuTooltipWidth = 240
 cpuGraphHeight = 64
 cpuBarsHeight = 32
 cpuDotPitch = 5
 cpuOverviewTitle = "Overview"  # hidden
+topProcessTitle = "Top processes"  # hidden
 procRowHeight = 22
 procsGap = 2
 procSearchPadding = 4
 procSearchHint = "f to type"  # hidden
 procSearchMinWidth = 140
 procKillSignal = "-9"  # hidden
+psIgnore = ["ps", "ps <defunct>"]
 procHintKey = "f"  # hidden
 procKillKey = "q"  # hidden
 
@@ -39,6 +42,7 @@ memoryVizHeight = 12
 memoryWarnAt = 60  # 0..100
 memoryDangerAt = 85  # 0..100
 memoryTooltipWidth = 240  # same as cpuTooltipWidth
+memoryTopCount = 5
 
 # Volume mixer
 [mixer]

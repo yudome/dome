@@ -230,6 +230,8 @@ QtObject {
 	readonly property var cpuBarsHeight: settings.cpuBarsHeight !== undefined ? settings.cpuBarsHeight : 32
 	readonly property var cpuDotPitch: settings.cpuDotPitch !== undefined ? settings.cpuDotPitch : 5
 	readonly property var cpuOverviewTitle: settings.cpuOverviewTitle !== undefined ? settings.cpuOverviewTitle : "Overview"
+	readonly property var cpuTopCount: settings.cpuTopCount !== undefined ? settings.cpuTopCount : 5
+	readonly property var topProcessTitle: settings.topProcessTitle !== undefined ? settings.topProcessTitle : "Top processes"
 	readonly property var procRowHeight: settings.procRowHeight !== undefined ? settings.procRowHeight : 22
 	readonly property var procsGap: settings.procsGap !== undefined ? settings.procsGap : 2
 	readonly property var procSearchHint: settings.procSearchHint !== undefined ? settings.procSearchHint : "f to type"
@@ -257,6 +259,7 @@ QtObject {
 	readonly property var memoryWarnAt: settings.memoryWarnAt !== undefined ? settings.memoryWarnAt : 60
 	readonly property var memoryDangerAt: settings.memoryDangerAt !== undefined ? settings.memoryDangerAt : 85
 	readonly property var memoryTooltipWidth: settings.memoryTooltipWidth !== undefined ? settings.memoryTooltipWidth : 240
+	readonly property var memoryTopCount: settings.memoryTopCount !== undefined ? settings.memoryTopCount : 5
 
 	// volume mixer
 	readonly property var mixerWidth: settings.mixerWidth !== undefined ? settings.mixerWidth : 246
