@@ -245,50 +245,50 @@ PanelPage {
 			id: hero
 
 			width: card.width
-			height: tempBox.height
+			height: heroTempMetrics.height + Config.weatherHeroUnitTop
+
+			InkLine {
+				id: statLine
+
+				target: feelsValue
+			}
 
 			Icon {
 				id: heroGlyph
 
 				anchors.left: parent.left
-				anchors.bottom: parent.bottom
+				anchors.bottom: statLine.bottom
+				anchors.bottomMargin: -heroGlyph.inkBelow
 				width: heroGlyphMetrics.width
 				height: heroGlyphMetrics.height
 				size: Config.weatherHeroGlyphSize
 				glyph: root.heroIcon
 			}
 
-			Item {
-				id: tempBox
+			Label {
+				id: tempNumber
 
 				anchors.left: heroGlyph.right
 				anchors.leftMargin: Config.weatherCardGap
-				width: tempNumber.width + tempUnitText.width + 2
-				height: tempNumber.height + Config.weatherHeroUnitTop
+				anchors.bottom: statLine.bottom
+				anchors.bottomMargin: -tempNumber.inkBelow
+				height: heroTempMetrics.height
+				font.pixelSize: Config.weatherHeroTempSize
+				ink: Config.foreground
+				text: root.tempValue
+			}
 
-				Label {
-					id: tempNumber
+			Label {
+				id: tempUnitText
 
-					anchors.left: parent.left
-					anchors.bottom: parent.bottom
-					height: heroTempMetrics.height
-					font.pixelSize: Config.weatherHeroTempSize
-					ink: Config.foreground
-					text: root.tempValue
-				}
-
-				Label {
-					id: tempUnitText
-
-					anchors.left: tempNumber.right
-					anchors.top: tempNumber.top
-					anchors.topMargin: (heroTempInk.tightBoundingRect.y - heroTempInk.boundingRect.y)
-						- (heroUnitInk.tightBoundingRect.y - heroUnitInk.boundingRect.y)
-					height: heroUnitMetrics.height
-					font.pixelSize: Config.weatherHeroUnitSize
-					ink: Config.foreground
-					text: root.tempUnit
-				}
+				anchors.left: tempNumber.right
+				anchors.top: tempNumber.top
+				anchors.topMargin: (heroTempInk.tightBoundingRect.y - heroTempInk.boundingRect.y)
+					- (heroUnitInk.tightBoundingRect.y - heroUnitInk.boundingRect.y)
+				height: heroUnitMetrics.height
+				font.pixelSize: Config.weatherHeroUnitSize
+				ink: Config.foreground
+				text: root.tempUnit
 			}
 
 			Item {
@@ -423,6 +423,8 @@ PanelPage {
 						}
 
 						Label {
+							id: feelsValue
+
 							width: parent.width
 							height: heroValueMetrics.height
 							elide: Text.ElideRight
