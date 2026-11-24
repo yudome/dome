@@ -14,19 +14,13 @@ ProcessPanel {
 	readonly property color buffersInk: Config.mono ? Config.memoryBuffersMono : Config.memoryBuffers
 	readonly property color warnInk: Config.mono ? Config.memoryWarnMono : Config.memoryWarn
 	readonly property color dangerInk: Config.mono ? Config.memoryDangerMono : Config.memoryDanger
+	readonly property var recent: Yudae.system.byMem ? Yudae.system.byMem.slice(0, Config.memoryTopCount) : []
 
 	title: "Memory"
 	detail: root.mem ? root.mem.committedText + " of " + root.mem.poolText : ""
 	detailColor: root.accentInk
-	listInk: root.accentInk
 	totalInk: root.mem ? root.mem.ink : root.accentInk
-	procs: Yudae.system.panel ? Yudae.system.panel.rows || [] : []
-	onQuery: function (field, filter) { Yudae.systemCommand({ panel: { field: field, query: filter } }); }
-	onKill: function (proc) { Yudae.cmd("launcher", { kill: proc.pid }); }
 	contentWidth: Config.memoryTooltipWidth
-	topCount: Config.memoryTopCount
-	psField: "rss"
-	rowColor: (row) => row.color || root.accentInk
 
 	function usage() {
 		const m = root.mem;
@@ -129,6 +123,65 @@ ProcessPanel {
 
 					ink: modelData.color || root.accentInk
 					text: modelData.text
+				}
+			}
+		},
+
+		PanelBand {
+			width: parent.width
+			bleed: root.padding + Config.gapsIn
+			ink: root.accentInk
+			title: Config.topProcessTitle
+		},
+
+		Repeater {
+			model: root.recent
+
+			delegate: Item {
+				id: cell
+
+				required property var modelData
+
+				readonly property string processIcon: AppIcons.iconOfPid(cell.modelData.pid)
+
+				width: parent.width
+				height: Config.procRowHeight
+
+				Item {
+					id: iconSlot
+
+					anchors.left: parent.left
+					anchors.verticalCenter: parent.verticalCenter
+					width: Config.launcherIconSize
+					height: Config.launcherIconSize
+
+					Icon {
+						id: appIcon
+
+						anchors.fill: parent
+						size: Config.launcherIconSize
+						source: cell.processIcon
+						visible: cell.processIcon !== "" && appIcon.status !== Image.Error
+					}
+				}
+
+				Label {
+					anchors.left: iconSlot.right
+					anchors.leftMargin: Config.gapsIn * 2
+					anchors.right: amount.left
+					anchors.rightMargin: Config.gapsIn * 2
+					anchors.verticalCenter: parent.verticalCenter
+					text: modelData.name
+				}
+
+				Label {
+					id: amount
+
+					anchors.right: parent.right
+					anchors.verticalCenter: parent.verticalCenter
+					role: "value"
+					ink: modelData.color || root.accentInk
+					text: modelData.valueText
 				}
 			}
 		}
