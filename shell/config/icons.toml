@@ -2,6 +2,7 @@
 [icons]
 iconClose = "\uF00D"
 iconCpu = "\uF2DB"
+iconProcess = "\uF0874"
 iconChevron = "\uF053"
 iconMemory = "\uEFC5"
 iconBell = "\uF0F3"
