@@ -20,7 +20,7 @@ Rectangle {
 	radius: Config.appControlRadius
 	color: root.boxed || input.activeFocus || hit.containsMouse ? Config.surfaceHover : "transparent"
 	border.width: input.activeFocus ? Config.popupBorderWidth : 0
-	border.color: Config.rule
+	border.color: Config.foreground
 	opacity: root.enabled ? 1 : Config.disabledOpacity
 
 	function revert() {
@@ -69,6 +69,7 @@ Rectangle {
 			input.focus = false;
 		}
 
+		onAccepted: input.focus = false
 		onEditingFinished: {
 			if (input.text === root.text)
 				return;

@@ -29,7 +29,7 @@ Item {
 	Rectangle {
 		anchors.fill: parent
 		radius: Config.appControlRadius
-		color: root.selected ? Config.surfaceRaised : Config.surfaceHover
+		color: root.selected ? Config.toggleHover : Config.surfaceHover
 		opacity: root.selected || hit.containsMouse ? 1 : 0
 
 		Behavior on opacity {

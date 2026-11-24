@@ -121,9 +121,8 @@ PanelPage {
 
 				IconButton {
 					anchors.verticalCenter: parent.verticalCenter
-					box: Config.calendarArrowSize
+					box: Config.calendarArrowSize + Config.gapsIn * 2
 					size: Config.calendarArrowSize
-					flat: true
 					reveal: true
 					shown: root.arrowsShown
 					hitMargin: Config.calendarArrowSize / 2
@@ -134,9 +133,8 @@ PanelPage {
 
 				IconButton {
 					anchors.verticalCenter: parent.verticalCenter
-					box: Config.calendarArrowSize
+					box: Config.calendarArrowSize + Config.gapsIn * 2
 					size: Config.calendarArrowSize
-					flat: true
 					reveal: true
 					shown: root.arrowsShown
 					hitMargin: Config.calendarArrowSize / 2

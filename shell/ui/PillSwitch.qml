@@ -139,6 +139,7 @@ Item {
 
 					anchors.fill: parent
 					hoverEnabled: true
+					cursorShape: Qt.PointingHandCursor
 
 					onClicked: root.pick(slot.modelData)
 				}

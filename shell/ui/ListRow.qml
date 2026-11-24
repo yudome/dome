@@ -47,8 +47,10 @@ Item {
 
 	Rectangle {
 		anchors.fill: parent
+		anchors.leftMargin: root.inset > 0 ? 0 : -Config.appControlRadius
+		anchors.rightMargin: root.inset > 0 ? 0 : -Config.appControlRadius
 		radius: Config.appControlRadius
-		color: root.selected ? Config.surfaceRaised : Config.surfaceHover
+		color: root.selected ? Config.toggleHover : Config.surfaceHover
 		opacity: root.hot ? 1 : 0
 
 		Behavior on opacity {
@@ -82,12 +84,16 @@ Item {
 		anchors.verticalCenter: parent.verticalCenter
 		spacing: Config.mixerListGap
 
-		Loader {
+		Item {
 			width: root.leadingWidth
 			height: root.leadingWidth
 			visible: root.leading !== null
-			active: root.leading !== null
-			sourceComponent: root.leading
+
+			Loader {
+				anchors.centerIn: parent
+				active: root.leading !== null
+				sourceComponent: root.leading
+			}
 		}
 
 		Item {

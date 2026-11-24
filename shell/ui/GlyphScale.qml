@@ -113,7 +113,7 @@ Item {
 		color: Config.foreground
 		border.width: root.dragging ? Config.stepBarLensPad : Config.stepBarGap
 		border.color: root.ink
-		scale: root.dragging ? 1.15 : 1
+		scale: root.dragging || root.hovered ? 1.15 : 1
 		antialiasing: true
 
 		Rectangle {

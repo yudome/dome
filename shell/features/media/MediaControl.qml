@@ -180,7 +180,7 @@ PanelPage {
 			id: controls
 
 			width: parent.width
-			height: Config.mediaButtonGlyphSize
+			height: Config.mediaButtonGlyphSize + Config.gapsIn * 2
 			visible: root.present
 
 			Row {
@@ -188,9 +188,8 @@ PanelPage {
 				spacing: Config.mediaButtonGap
 
 				IconButton {
-					box: Config.mediaButtonGlyphSize
+					box: Config.mediaButtonGlyphSize + Config.gapsIn * 2
 					size: Config.mediaButtonGlyphSize
-					flat: true
 					hitMargin: Config.barHitPadding
 					inkIdle: Config.foreground
 					glyph: Config.iconPrev
@@ -199,9 +198,8 @@ PanelPage {
 				}
 
 				IconButton {
-					box: Config.mediaButtonGlyphSize
+					box: Config.mediaButtonGlyphSize + Config.gapsIn * 2
 					size: Config.mediaButtonGlyphSize
-					flat: true
 					hitMargin: Config.barHitPadding
 					inkIdle: Config.foreground
 					glyph: root.playing ? Config.iconPause : Config.iconPlay
@@ -210,9 +208,8 @@ PanelPage {
 				}
 
 				IconButton {
-					box: Config.mediaButtonGlyphSize
+					box: Config.mediaButtonGlyphSize + Config.gapsIn * 2
 					size: Config.mediaButtonGlyphSize
-					flat: true
 					hitMargin: Config.barHitPadding
 					inkIdle: Config.foreground
 					glyph: Config.iconNext

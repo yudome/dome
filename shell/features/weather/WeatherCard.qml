@@ -337,7 +337,6 @@ PanelPage {
 						height: placeMetrics.height
 						width: placeMetrics.height
 						box: placeMetrics.height
-						flat: true
 						reveal: true
 						shown: root.headerShown
 						size: Config.weatherPlaceSize
@@ -356,7 +355,6 @@ PanelPage {
 						height: placeMetrics.height
 						width: placeMetrics.height
 						box: placeMetrics.height
-						flat: true
 						reveal: true
 						shown: root.headerShown
 						size: Config.weatherPlaceSize
@@ -374,7 +372,6 @@ PanelPage {
 						height: placeMetrics.height
 						width: placeMetrics.height
 						box: placeMetrics.height
-						flat: true
 						reveal: true
 						shown: root.headerShown
 						size: Config.weatherPlaceSize

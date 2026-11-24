@@ -15,7 +15,7 @@ Item {
 	readonly property bool danger: root.kind === "danger" || root.armed
 	readonly property bool filled: root.kind === "primary" || root.armed
 	readonly property bool iconOnly: root.text === ""
-	readonly property color fill: root.armed ? Config.red : root.kind === "primary" ? Config.foreground : hit.containsMouse ? Config.toggleHover : root.kind === "secondary" ? Config.surfaceHover : "transparent"
+	readonly property color fill: root.armed ? Config.red : root.kind === "primary" ? Config.foreground : hit.containsMouse ? Config.toggleHover : root.kind === "secondary" || root.kind === "danger" ? Config.surfaceHover : "transparent"
 	readonly property color ink: root.filled ? Config.surface : root.danger ? Config.red : Config.foreground
 
 	signal clicked()

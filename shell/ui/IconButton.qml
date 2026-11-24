@@ -14,7 +14,6 @@ Item {
 	property bool danger: false
 	property bool reveal: false
 	property bool shown: true
-	property bool flat: false
 	property real hitMargin: 0
 	property color ink: root.danger ? Config.red : Config.foreground
 	property color inkIdle: root.danger ? Config.red : Config.muted
@@ -48,8 +47,7 @@ Item {
 	Rectangle {
 		anchors.fill: parent
 		radius: Config.appControlRadius
-		color: root.selected ? Config.surfaceRaised : Config.surfaceHover
-		visible: !root.flat
+		color: hit.containsMouse ? Config.toggleHover : Config.surfaceHover
 		opacity: root.selected || hit.containsMouse ? 1 : 0
 
 		Behavior on opacity {
