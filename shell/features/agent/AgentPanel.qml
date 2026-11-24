@@ -259,21 +259,13 @@ PanelPage {
 						text: root.detail
 					}
 
-					Label {
+					IconButton {
 						anchors.verticalCenter: parent.verticalCenter
-
-						ink: dismissDetailHit.containsMouse ? Config.foreground : Config.muted
-						text: Config.iconClose
-
-						MouseArea {
-							id: dismissDetailHit
-
-							anchors.fill: parent
-							anchors.margins: -4
-							hoverEnabled: true
-
-							onClicked: root.dismissDetail()
-						}
+						box: Config.fontSize + Config.gapsIn * 2
+						size: Config.appCaptionSize
+						name: "close"
+						label: "Dismiss"
+						onClicked: root.dismissDetail()
 					}
 				}
 			}

@@ -271,27 +271,18 @@ PanelWindow {
 			easing.type: Easing.InOutCubic
 		}
 
-		Text {
+		IconButton {
 			id: closeButton
 
 			visible: root.closable && (!root.centeredSide || root.pinnedSide)
 			anchors.right: parent.right
 			anchors.top: parent.top
-			anchors.margins: Config.tooltipCloseInset
-			font.family: Config.fontFamily
-			font.pixelSize: Config.tooltipCloseSize
-			color: closeHit.containsMouse ? Config.foreground : Config.muted
-			text: Config.iconClose
-
-			MouseArea {
-				id: closeHit
-
-				anchors.fill: parent
-				anchors.margins: -Config.tooltipCloseSize / 3
-				hoverEnabled: true
-
-				onClicked: root.close()
-			}
+			anchors.margins: Math.max(0, Config.tooltipCloseInset - Config.gapsIn)
+			box: Config.tooltipCloseSize + Config.gapsIn * 2
+			size: Config.tooltipCloseSize
+			name: "close"
+			label: "Close"
+			onClicked: root.close()
 		}
 	}
 }

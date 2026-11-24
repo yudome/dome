@@ -103,6 +103,9 @@ def check(path, failures):
             fail(number, "raw Text; use Label")
         if any(GLYPH_TEXT.match(d) for d in direct):
             fail(number, "glyph drawn as Text; use Icon")
+    for number, direct in blocks(lines, "Label"):
+        if any(GLYPH_TEXT.match(d) for d in direct):
+            fail(number, "glyph drawn as Label; use Icon or IconButton")
 
 
 def main():

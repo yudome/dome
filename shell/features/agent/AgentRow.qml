@@ -97,27 +97,16 @@ Item {
 	}
 
 	// The cross that takes the finished work off the list.
-	Label {
+	IconButton {
 		id: dismiss
 
 		anchors.right: parent.right
 		anchors.verticalCenter: parent.verticalCenter
-		width: 14
-
 		visible: root.dismissable
-		horizontalAlignment: Text.AlignHCenter
-
-		ink: dismissHit.containsMouse ? Config.foreground : Config.muted
-		text: Config.iconClose
-
-		MouseArea {
-			id: dismissHit
-
-			anchors.fill: parent
-			anchors.margins: -4
-			hoverEnabled: true
-
-			onClicked: root.dismissed()
-		}
+		box: Config.fontSize + Config.gapsIn * 2
+		size: Config.appCaptionSize
+		name: "close"
+		label: "Dismiss"
+		onClicked: root.dismissed()
 	}
 }

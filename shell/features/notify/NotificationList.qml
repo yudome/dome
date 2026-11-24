@@ -218,12 +218,12 @@ PanelPage {
 				color: Config.surfaceTranslucent
 				visible: !root.single && slot.cutTop
 
-				Label {
+				Icon {
 					id: aboveLabel
 
 					anchors.centerIn: parent
-					ink: Config.foreground
-					text: Config.iconUp
+					size: Config.fontSize
+					name: "up"
 				}
 			}
 
@@ -237,12 +237,12 @@ PanelPage {
 				color: Config.surfaceTranslucent
 				visible: !root.single && slot.cutBottom
 
-				Label {
+				Icon {
 					id: belowLabel
 
 					anchors.centerIn: parent
-					ink: Config.foreground
-					text: Config.iconDown
+					size: Config.fontSize
+					name: "down"
 				}
 			}
 		}
