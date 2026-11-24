@@ -17,7 +17,6 @@ toggleFaded = "#cdd6f4"
 
 [bar]
 borderFallbackColor = "#89b4fa"
-barStatMono = true
 
 [cpu]
 cpuBase = "#cba6f7"
