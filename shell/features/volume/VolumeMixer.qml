@@ -299,14 +299,13 @@ PanelPage {
 		}
 
 		Repeater {
-			model: root.appRows
+			model: root.appRows.length
 
 			delegate: MixRow {
-				required property var modelData
 				required property int index
 
 				width: parent.width
-				node: modelData
+				node: root.appRows[index] ?? null
 				rowIndex: root.globalOffset + index
 			}
 		}
