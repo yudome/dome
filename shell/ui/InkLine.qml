@@ -20,7 +20,9 @@ Item {
 			return 0;
 		}
 
-		const ink = root.edge === "top" ? root.target.inkTop : root.edge === "mid" ? (root.target.inkTop + root.target.inkBottom) / 2 : root.target.inkBottom;
+		const mid = (root.target.inkTop + root.target.inkBottom) / 2;
+		const cap = root.target.capOffset === undefined ? mid : root.target.height / 2 - root.target.capOffset;
+		const ink = root.edge === "top" ? root.target.inkTop : root.edge === "cap" ? cap : root.edge === "mid" ? mid : root.target.inkBottom;
 		let item = root.target;
 		let y = ink;
 
