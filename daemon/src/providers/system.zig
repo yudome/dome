@@ -60,6 +60,9 @@ const ProcessOut = struct {
 
 const CpuOut = struct {
 	pct: f64,
+	user: f64,
+	system: f64,
+	idle: f64,
 	color: []const u8,
 	ink: []const u8,
 	coreInk: [][]const u8,
@@ -239,6 +242,9 @@ pub const System = struct {
 	mutex: std.Io.Mutex = .init,
 	scratch: std.heap.ArenaAllocator,
 	cpu_pct: f64 = 0,
+	cpu_user: f64 = 0,
+	cpu_system: f64 = 0,
+	cpu_idle: f64 = 0,
 	cores: [max_cores]f64 = @splat(0),
 	core_count: usize = 0,
 	mem_total: i64 = 0,
@@ -546,6 +552,11 @@ pub const System = struct {
 		if (count_cores == self.last_cpu_count) {
 			total_pct = percentOf(self.last_cpu[0], now[0]) * 100;
 
+			const split = splitOf(self.last_cpu[0], now[0]);
+			self.cpu_user = split.user;
+			self.cpu_system = split.system;
+			self.cpu_idle = split.idle;
+
 			var core: usize = 1;
 			while (core < count_cores) : (core += 1) {
 				self.cores[core - 1] = percentOf(self.last_cpu[core], now[core]) * 100;
@@ -558,6 +569,21 @@ pub const System = struct {
 		self.last_cpu = now;
 		self.last_cpu_count = count_cores;
 		self.mutex.unlock(self.io);
+	}
+
+	const Split = struct { user: f64 = 0, system: f64 = 0, idle: f64 = 0 };
+
+	fn splitOf(before: [4]i64, after: [4]i64) Split {
+		const total = (after[0] + after[1] + after[2] + after[3]) - (before[0] + before[1] + before[2] + before[3]);
+		if (total <= 0) return .{};
+
+		const scale = 100.0 / @as(f64, @floatFromInt(total));
+
+		return .{
+			.user = @as(f64, @floatFromInt((after[0] - before[0]) + (after[1] - before[1]))) * scale,
+			.system = @as(f64, @floatFromInt(after[2] - before[2])) * scale,
+			.idle = @as(f64, @floatFromInt(after[3] - before[3])) * scale,
+		};
 	}
 
 	fn percentOf(before: [4]i64, after: [4]i64) f64 {
@@ -883,6 +909,9 @@ pub const System = struct {
 			.governors = governor_list.items,
 			.cpu = .{
 				.pct = cpu_pct,
+				.user = @round(self.cpu_user * 100) / 100,
+				.system = @round(self.cpu_system * 100) / 100,
+				.idle = @round(self.cpu_idle * 100) / 100,
 				.color = try inkText(arena, color.mix(self.palette.cpu_base, self.palette.red, cpu_pct / 100)),
 				.ink = try inkText(arena, self.palette.cpuInk(cpu_pct)),
 				.coreInk = core_ink.items,
