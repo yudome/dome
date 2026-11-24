@@ -227,7 +227,6 @@ QtObject {
 	readonly property var cpuIdle: settings.cpuIdle !== undefined ? settings.cpuIdle : "#2f2f2f"
 	readonly property var cpuTooltipWidth: settings.cpuTooltipWidth !== undefined ? settings.cpuTooltipWidth : 240
 	readonly property var cpuGraphHeight: settings.cpuGraphHeight !== undefined ? settings.cpuGraphHeight : 64
-	readonly property var cpuGraphSamples: settings.cpuGraphSamples !== undefined ? settings.cpuGraphSamples : 48
 	readonly property var cpuBarsHeight: settings.cpuBarsHeight !== undefined ? settings.cpuBarsHeight : 32
 	readonly property var cpuDotPitch: settings.cpuDotPitch !== undefined ? settings.cpuDotPitch : 5
 	readonly property var cpuOverviewTitle: settings.cpuOverviewTitle !== undefined ? settings.cpuOverviewTitle : "Overview"

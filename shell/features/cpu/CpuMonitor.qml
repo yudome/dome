@@ -8,7 +8,7 @@ ProcessPanel {
 	id: root
 
 	readonly property var sys: Yudae.system.cpu || ({})
-	readonly property var history: root.source && root.source.history ? root.source.history : []
+	readonly property var history: root.sys.graph || []
 	readonly property var cores: root.source && root.source.cores ? root.source.cores : []
 	readonly property var recent: Yudae.system.processes ? Yudae.system.processes.slice(0, Config.cpuTopCount) : []
 	readonly property color accentInk: Config.mono ? Config.cpuBaseMono : Config.cpuBase

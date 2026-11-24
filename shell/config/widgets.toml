@@ -9,7 +9,6 @@ cpuIdle = "#2f2f2f"
 cpuTopCount = 5  # 1..12
 cpuTooltipWidth = 240
 cpuGraphHeight = 64
-cpuGraphSamples = 48
 cpuBarsHeight = 32
 cpuDotPitch = 5
 cpuOverviewTitle = "Overview"  # hidden
