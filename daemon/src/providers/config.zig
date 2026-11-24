@@ -909,7 +909,7 @@ test "settings.schema reads pages, titles, types and hints from config.toml" {
 		\\# Bar
 		\\[bar]
 		\\barCells = 15  # 4..30
-		\\barStatMode = "icon"  # icon | text
+		\\barMode = "icon"  # icon | text
 		\\barFloating = false
 		\\barBorderWidth = 0  # barFloating ? -1 : 0
 		\\barTitle = "x"  # hidden

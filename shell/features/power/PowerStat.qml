@@ -27,11 +27,6 @@ BarStat {
 	dim: root.applyFailed
 	iconLift: root.battery === null ? 2 : 0
 	icon: root.batteryIcon(root.battery)
-	barColor: root.battery === null ? Config.foreground : (root.battery.color || Config.powerBase)
-	textColor: root.barColor
-	pct: root.battery ? root.battery.pct : 0
-	value: root.battery ? Math.round(root.battery.pct) + "%" : ""
-	showBar: root.battery !== null
 	iconWidth: 20
 	iconHeight: root.iconInkHeight
 	iconComponent: root.battery === null ? null : flowIcon

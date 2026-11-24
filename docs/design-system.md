@@ -48,17 +48,17 @@ Chrome colors exist once: every search box, card and calendar box is `surfaceRai
 
 ### Type
 
-`fontFamily` (GoogleSansCode), `fontSize` body, `appTitleSize` title, `appHeadingSize` section heading, `appCaptionSize` caption, `iconSize`, `lineLength`. `valueSample` sizes numeric bar slots; `Label { role: "value" }` uses tabular figures so values never jitter.
+`fontFamily` (GoogleSansCode), `fontSize` body, `appTitleSize` title, `appHeadingSize` section heading, `appCaptionSize` caption, `iconSize`. `valueSample` sizes numeric bar slots; `Label { role: "value" }` uses tabular figures so values never jitter.
 
 ### Space and shape
 
 App geometry (`[app]` in `appearance.toml`): `appHeaderHeight` 56, `appRowHeight` 48, `appSidebarWidth` 220, `appSidebarWideWidth` 260, `appSidebarMin`/`appSidebarMax`, `appPadding` 32, `appPaddingCompact` 16, `appPaddingWide` 48, `appColumn` 900, `appGap` 16, `appSectionGap` 40, `appRadius` 12, `appControlRadius` 8, `appControlWidth` 272, `appChipHeight` 30, `appCompactWidth` 640, `appWideWidth` 1200, window presets `appSmall*` 720x480, `appMedium*` 960x640, `appLarge*` 1200x800, floor `appFloor*` 480x360, `appScrim`, `disabledOpacity`.
 
-Shared: `spacing` 12, `gapsIn` 4, `gapsOut` 8, `rowHeight`, `rowInset`, `panelPadding` 12 (every bar popup), `popupBorderWidth` 1, `scrollbarWidth` 2, `scrollbarHoverWidth` 6, `scrollbarMinThumb` 12. Bar: `barInset`, `barPadding`, `barStatSpacing`, `barCells`, `barThickness`.
+Shared: `spacing` 12, `gapsIn` 4, `gapsOut` 8, `rowHeight`, `rowInset`, `panelPadding` 12 (every bar popup), `popupBorderWidth` 1, `scrollbarWidth` 2, `scrollbarHoverWidth` 6, `scrollbarMinThumb` 12. Bar: `barInset`, `barPadding`, `barStatSpacing`.
 
 ### Motion
 
-Every duration ends in `Ms`: `popupFadeMs` 140, `popupSlideMs` 400, `toggleMs` 160, `windowStepMs`, `scrollbarFadeMs` 200, `scrollbarIdleMs` 900, `tooltipDelayMs` 600, `confirmMs` 5000, `barFadeMs`, `barSlideMs`, `barSweepMs`, `workspaceMorphMs`, `agentMorphMs`, `stepBarMs`. No local durations; `scripts/ui-check` rejects radius and duration literals.
+Every duration ends in `Ms`: `popupFadeMs` 140, `popupSlideMs` 400, `toggleMs` 160, `windowStepMs`, `scrollbarFadeMs` 200, `scrollbarIdleMs` 900, `tooltipDelayMs` 600, `confirmMs` 5000, `barFadeMs`, `barSlideMs`, `workspaceMorphMs`, `agentMorphMs`, `stepBarMs`. No local durations; `scripts/ui-check` rejects radius and duration literals.
 
 ### Icons
 

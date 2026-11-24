@@ -93,7 +93,6 @@ QtObject {
 	readonly property var valueSample: settings.valueSample !== undefined ? settings.valueSample : "0123456789.%G"
 	readonly property var iconSize: settings.iconSize !== undefined ? settings.iconSize : 10
 	readonly property var spacing: settings.spacing !== undefined ? settings.spacing : 12
-	readonly property var lineLength: settings.lineLength !== undefined ? settings.lineLength : 45
 	readonly property var scrollbarWidth: settings.scrollbarWidth !== undefined ? settings.scrollbarWidth : 2
 	readonly property var scrollbarHoverWidth: settings.scrollbarHoverWidth !== undefined ? settings.scrollbarHoverWidth : 6
 	readonly property var scrollbarMinThumb: settings.scrollbarMinThumb !== undefined ? settings.scrollbarMinThumb : 12
@@ -113,22 +112,15 @@ QtObject {
 	readonly property var trayMenuRowHeight: settings.trayMenuRowHeight !== undefined ? settings.trayMenuRowHeight : 18
 	readonly property var trayMenuSeparator: settings.trayMenuSeparator !== undefined ? settings.trayMenuSeparator : 1
 
-	// the bar itself, its cells and the sweep that runs through them
+	// the bar itself
 	readonly property var barHitPadding: settings.barHitPadding !== undefined ? settings.barHitPadding : 4
 	readonly property var barStatSpacing: settings.barStatSpacing !== undefined ? settings.barStatSpacing : 16
-	readonly property var barCells: settings.barCells !== undefined ? settings.barCells : 15
 	readonly property var barInset: settings.barInset !== undefined ? settings.barInset : 8
 	readonly property var barPadding: settings.barPadding !== undefined ? settings.barPadding : 8
 	readonly property var barFloating: settings.barFloating !== undefined ? settings.barFloating : false
 	readonly property var barBorderWidth: settings.barBorderWidth !== undefined ? settings.barBorderWidth : 0
-	readonly property var barStatMode: settings.barStatMode !== undefined ? settings.barStatMode : "icon"
-	readonly property var barStatMono: settings.barStatMono !== undefined ? settings.barStatMono : true
-	readonly property var barThickness: settings.barThickness !== undefined ? settings.barThickness : 1.5
-	readonly property var barSweepMs: settings.barSweepMs !== undefined ? settings.barSweepMs : 1400
 	readonly property var barSlideMs: settings.barSlideMs !== undefined ? settings.barSlideMs : 400
 	readonly property var barFullscreenSlide: settings.barFullscreenSlide !== undefined ? settings.barFullscreenSlide : false
-	readonly property var sweepFade: settings.sweepFade !== undefined ? settings.sweepFade : 0.45
-	readonly property var sweepSteps: settings.sweepSteps !== undefined ? settings.sweepSteps : 5
 	readonly property var clockFormat: settings.clockFormat !== undefined ? settings.clockFormat : "ddd MMM d h:mm AP"
 	readonly property var borderFallbackWidth: settings.borderFallbackWidth !== undefined ? settings.borderFallbackWidth : 1
 	readonly property var borderFallbackColor: settings.borderFallbackColor !== undefined ? settings.borderFallbackColor : "#ffffff"
@@ -556,7 +548,6 @@ QtObject {
 	readonly property var notifyHistory: settings.notifyHistory !== undefined ? settings.notifyHistory : 50
 	readonly property var notifyGoneOpacity: settings.notifyGoneOpacity !== undefined ? settings.notifyGoneOpacity : 0.55
 	readonly property var notifyEmpty: settings.notifyEmpty !== undefined ? settings.notifyEmpty : "Nothing yet"
-	readonly property var notifySweepWidth: settings.notifySweepWidth !== undefined ? settings.notifySweepWidth : 30
 	readonly property var notifyTimeout: settings.notifyTimeout !== undefined ? settings.notifyTimeout : 6000
 	readonly property var notifyDismissKey: settings.notifyDismissKey !== undefined ? settings.notifyDismissKey : "d"
 	readonly property var notifyClearKey: settings.notifyClearKey !== undefined ? settings.notifyClearKey : "x"

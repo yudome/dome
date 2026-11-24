@@ -11,12 +11,6 @@ BarStat {
 	property bool keyboardPopup: false
 
 	icon: Config.iconBell
-	value: String(Notifications.count)
-	pct: Notifications.empty ? 0 : 100
-	barColor: Notifications.empty ? Config.dim : Config.notifyBase
-	textColor: Config.foreground
-	sweep: true
-	sweepWidth: Config.notifySweepWidth
 
 	function wantKeyboard(flag) {
 		root.keyboardPopup = flag === true;

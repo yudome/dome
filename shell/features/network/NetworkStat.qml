@@ -15,9 +15,6 @@ BarStat {
 
 	property bool testPending: false
 
-	mode: "icon"
-	barColor: Config.mono ? Config.networkBaseMono : Config.networkBase
-	textColor: root.barColor
 	icon: root.isWifi ? root.wifiIcon : (!root.linked && root.net.hasWifi === true ? Config.iconWifiOff : Config.iconEthernet)
 
 	function requestSpeedTest() {

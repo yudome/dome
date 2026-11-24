@@ -16,15 +16,6 @@ BarStat {
 
 	inkId: "agent"
 
-	mode: "icon"
-	showBar: false
-
-	// The face has no bar under it, so the stat is shorter than the others.
-	// The row is aligned by the bottom, so the face would sit lower than the
-	// glyphs beside it. Lifting it by the thickness of the bar puts it back on
-	// the same line.
-	readonly property real baselineLift: Math.ceil(Config.barThickness)
-
 	// The face is drawn as a solid body with the eyes punched out of it, so
 	// the only transparent part of the icon is the eyes. The body is smaller
 	// than the slot it is drawn in, so the slot is made larger to make up for

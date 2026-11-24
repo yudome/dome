@@ -22,7 +22,6 @@ Row {
 
 		return [];
 	}
-	readonly property real baselineLift: Math.ceil(Config.barThickness)
 
 	// The bar gives every widget a slot whether it has anything to show or
 	// not, so a widget that is empty says so and the slot is taken away.

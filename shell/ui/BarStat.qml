@@ -1,18 +1,12 @@
 import QtQuick
-import QtQuick.Window
 import qs
 import qs.services
 
 Item {
 	id: root
 
-	property real pct: 0
-	property string mode: Config.barStatMode
-	property bool mono: Config.barStatMono
 	property bool dim: false
 	property color dimColor: Config.foreground
-	property color barColor: Config.red
-	property color textColor: root.barColor
 	property string icon: ""
 	property real iconSize: Config.iconSize
 	property string inkId: ""
@@ -21,11 +15,6 @@ Item {
 	property real iconWidth: 0
 	property real iconMinWidth: 0
 	property real iconHeight: 0
-	property string value: ""
-	property real gap: 0
-	property bool showBar: true
-	property bool sweep: false
-	property real sweepWidth: 0
 	property var bar: null
 	readonly property bool onScreen: root.bar !== null && root.bar.visible && !root.bar.fullscreen
 	property var onActivate
@@ -66,16 +55,10 @@ Item {
 			root.bar.activateWidget(root, root.popupKeyboard);
 	}
 
-	readonly property bool iconMode: root.mode === "icon"
 	readonly property real iconBreadth: root.iconComponent ? root.iconWidth : Math.max(iconMetrics.width, root.iconMinWidth)
-	readonly property color inkColor: BarInk.pick(root.bar, root.inkId, root.dim ? root.dimColor : (root.mono ? Config.foreground : root.textColor))
-	readonly property color fillColor: root.mono ? Config.foreground : root.barColor
-	readonly property int filled: Math.min(Config.barCells, Math.max(0, Math.round(root.pct / 100 * Config.barCells)))
-	readonly property real valueAscent: -valueMetrics.boundingRect.y
-	readonly property real iconAscent: -iconMetrics.boundingRect.y
-	readonly property real valueBelow: valueMetrics.tightBoundingRect.y + valueMetrics.tightBoundingRect.height
-	readonly property real inkAbove: Math.max(-iconsMetrics.tightBoundingRect.y, -valueMetrics.tightBoundingRect.y)
-	readonly property real inkBelow: Math.max(iconsMetrics.tightBoundingRect.y + iconsMetrics.tightBoundingRect.height, root.valueBelow)
+	readonly property color inkColor: BarInk.pick(root.bar, root.inkId, root.dim ? root.dimColor : Config.foreground)
+	readonly property real inkAbove: -iconsMetrics.tightBoundingRect.y
+	readonly property real inkBelow: iconsMetrics.tightBoundingRect.y + iconsMetrics.tightBoundingRect.height
 	readonly property real baselineLift: 0
 
 	// The ink box of the icon font, measured from the baseline the glyphs sit
@@ -97,9 +80,8 @@ Item {
 	readonly property real glyphInkCentre: iconMetrics.tightBoundingRect.y + iconMetrics.tightBoundingRect.height / 2
 	readonly property real glyphInkHeight: iconMetrics.tightBoundingRect.height
 
-	implicitWidth: root.iconMode ? Math.ceil(root.iconBreadth + root.gap) : Config.lineLength + root.gap
-	readonly property real contentHeight: Math.round(root.inkAbove + root.inkBelow)
-	implicitHeight: root.contentHeight + (root.showBar ? Math.ceil(Config.barThickness) : 0)
+	implicitWidth: Math.ceil(root.iconBreadth)
+	implicitHeight: Math.round(root.inkAbove + root.inkBelow)
 
 	Tooltip {
 		id: popupWindow
@@ -131,13 +113,6 @@ Item {
 		text: root.icon
 	}
 
-	TextMetrics {
-		id: valueMetrics
-		font.family: Config.fontFamily
-		font.pixelSize: Config.fontSize
-		text: Config.valueSample
-	}
-
 	MouseArea {
 		anchors.fill: parent
 		anchors.margins: -Config.barHitPadding
@@ -145,160 +120,46 @@ Item {
 		onClicked: root.clicked()
 	}
 
-	Item {
-		id: content
+	Icon {
+		id: labelIcon
 
-		anchors.left: parent.left
-		anchors.top: parent.top
-		anchors.bottom: parent.bottom
-		width: Config.lineLength
+		visible: root.iconComponent === null
+		x: 0
+		y: root.iconInkCentre - height / 2 - root.iconLift
+		width: iconMetrics.advanceWidth
+		height: root.iconSize
+		size: root.iconSize
+		glyph: root.icon
+		ink: root.inkColor
 
-		Icon {
-			id: labelIcon
-
-			visible: root.iconComponent === null
-			x: 0
-			y: root.iconInkCentre - height / 2 - root.iconLift
-			width: iconMetrics.advanceWidth
-			height: root.iconSize
-			size: root.iconSize
-			glyph: root.icon
-			ink: root.inkColor
-
-			Behavior on ink {
-				enabled: BarInk.fading
-				ColorAnimation {
-					duration: BarInk.fadeMs
-				}
+		Behavior on ink {
+			enabled: BarInk.fading
+			ColorAnimation {
+				duration: BarInk.fadeMs
 			}
 		}
+	}
 
-		Icon {
-			id: iconSlot
+	Icon {
+		id: iconSlot
 
-			readonly property real drawnSize: root.iconHeight > 0 ? root.iconHeight : root.iconWidth
-			readonly property real drawnWidth: root.iconHeight > 0 ? root.iconWidth : 0
+		readonly property real drawnSize: root.iconHeight > 0 ? root.iconHeight : root.iconWidth
+		readonly property real drawnWidth: root.iconHeight > 0 ? root.iconWidth : 0
 
-			visible: root.iconComponent !== null
-			x: 0
-			y: root.iconInkCentre - iconSlot.drawnSize / 2 - root.iconLift
-			width: iconSlot.drawnWidth > 0 ? iconSlot.drawnWidth : iconSlot.drawnSize
-			height: iconSlot.drawnSize
-			size: iconSlot.drawnSize
-			ink: root.inkColor
+		visible: root.iconComponent !== null
+		x: 0
+		y: root.iconInkCentre - iconSlot.drawnSize / 2 - root.iconLift
+		width: iconSlot.drawnWidth > 0 ? iconSlot.drawnWidth : iconSlot.drawnSize
+		height: iconSlot.drawnSize
+		size: iconSlot.drawnSize
+		ink: root.inkColor
 
-			Loader {
-				property color ink: iconSlot.ink
+		Loader {
+			property color ink: iconSlot.ink
 
-				anchors.fill: parent
-				active: root.iconComponent !== null
-				sourceComponent: root.iconComponent
-			}
-		}
-
-		Text {
-			id: labelValue
-
-			visible: !root.iconMode
-			x: root.iconComponent === null ? labelIcon.width : root.iconWidth
-			y: root.inkAbove - root.valueAscent
-			width: Math.max(labelValue.implicitWidth, content.width - (root.iconComponent === null ? labelIcon.width : root.iconWidth))
-			horizontalAlignment: Text.AlignHCenter
-			font.family: Config.fontFamily
-			font.pixelSize: Config.fontSize
-			color: root.inkColor
-			text: root.value
-
-			Behavior on color {
-				enabled: BarInk.fading
-				ColorAnimation {
-					duration: BarInk.fadeMs
-				}
-			}
-		}
-
-		Item {
-			id: line
-
-			visible: root.showBar && !root.iconMode
-			anchors.left: parent.left
-			anchors.bottom: parent.bottom
-			width: parent.width
-			height: Config.barThickness
-			clip: true
-
-			Rectangle {
-				anchors.fill: parent
-				color: Config.dim
-			}
-
-			Rectangle {
-				id: fill
-
-				visible: !root.sweep
-				anchors.left: parent.left
-				anchors.top: parent.top
-				anchors.bottom: parent.bottom
-				width: line.width * root.filled / Config.barCells
-				color: root.fillColor
-			}
-
-			Item {
-				id: sweepLine
-
-				visible: root.sweep && root.filled > 0
-				anchors.top: parent.top
-				anchors.bottom: parent.bottom
-				width: root.sweepWidth > 0 ? Math.min(root.sweepWidth, line.width) : line.width
-
-				readonly property real dpr: Screen.devicePixelRatio > 0 ? Screen.devicePixelRatio : 1
-				readonly property int steps: Math.max(1, Config.sweepSteps)
-				readonly property int deviceWidth: Math.max(sweepLine.steps, Math.round(width * sweepLine.dpr))
-				readonly property int fadePixels: Math.round(sweepLine.deviceWidth * Config.sweepFade)
-
-				property real travel: -sweepLine.deviceWidth
-
-				function edge(step) {
-					return Math.round(step * sweepLine.fadePixels / sweepLine.steps);
-				}
-
-				function toLocal(pixels) {
-					return pixels / sweepLine.dpr;
-				}
-
-				x: sweepLine.toLocal(Math.round(sweepLine.travel))
-
-				Repeater {
-					model: sweepLine.steps
-
-					delegate: Rectangle {
-						required property int index
-
-						x: sweepLine.toLocal(sweepLine.edge(index))
-						width: sweepLine.toLocal(sweepLine.edge(index + 1) - sweepLine.edge(index))
-						anchors.top: parent.top
-						anchors.bottom: parent.bottom
-						color: root.fillColor
-						opacity: (index + 1) / (sweepLine.steps + 1)
-					}
-				}
-
-				Rectangle {
-					anchors.top: parent.top
-					anchors.bottom: parent.bottom
-					x: sweepLine.toLocal(sweepLine.fadePixels)
-					width: sweepLine.toLocal(sweepLine.deviceWidth - sweepLine.fadePixels)
-					color: root.fillColor
-				}
-
-				NumberAnimation on travel {
-					from: -sweepLine.deviceWidth
-					to: Math.round(line.width * sweepLine.dpr)
-					duration: Config.barSweepMs
-					loops: Animation.Infinite
-					running: sweepLine.visible
-				}
-			}
+			anchors.fill: parent
+			active: root.iconComponent !== null
+			sourceComponent: root.iconComponent
 		}
 	}
 }

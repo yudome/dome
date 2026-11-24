@@ -10,11 +10,9 @@ BarStat {
 
 	readonly property var source: Yudae.system.cpu || ({})
 	readonly property var cores: root.source.cores || []
+	readonly property real pct: root.source.pct || 0
 
-	pct: root.source.pct || 0
-	barColor: root.source.color || Config.cpuBase
 	icon: Config.iconCpu
-	value: Math.round(root.pct) + "%"
 
 	popupContent: Component {
 		CpuMonitor {

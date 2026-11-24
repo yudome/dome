@@ -20,7 +20,6 @@ Item {
 	property real popupPadding: -1
 	property alias popupContent: popupWindow.contentSource
 
-	readonly property real baselineLift: Math.ceil(Config.barThickness)
 	readonly property alias popupVisible: popupWindow.shown
 
 	function openPopup() {

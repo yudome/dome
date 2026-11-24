@@ -38,14 +38,11 @@ BarStat {
 	readonly property int audioTick: Yudae.audio.tick || 0
 	onAudioTickChanged: root.pingVolume()
 
-	pct: root.volume * 100
-	barColor: Config.volumeBase
-	textColor: Config.volumeBase
+	readonly property real pct: root.volume * 100
 	dim: root.isMuted
 	icon: root.pct >= 67 ? Config.iconVolumeHigh
 		: root.pct >= 34 ? Config.iconVolumeMid
 		: Config.iconVolumeLow
-	value: Math.round(root.pct) + "%"
 	iconMinWidth: widest.width
 
 	TextMetrics {

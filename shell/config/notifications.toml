@@ -15,7 +15,6 @@ notifyVisibleRows = 5  # 1..12
 notifyHistory = 50
 notifyGoneOpacity = 0.55
 notifyEmpty = "Nothing yet"  # hidden
-notifySweepWidth = 30
 notifyTimeout = 6000  # 1000..20000
 notifyDismissKey = "d"  # hidden
 notifyClearKey = "x"  # hidden
