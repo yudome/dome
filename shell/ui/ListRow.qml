@@ -19,6 +19,7 @@ Item {
 	property Component leading: null
 
 	default property alias trailing: tail.data
+	property alias body: middle.data
 
 	readonly property bool hovered: hover.hovered
 	readonly property bool hot: root.selected || (root.hoverable && hover.hovered)
@@ -122,12 +123,21 @@ Item {
 		spacing: Config.mixerListGap
 	}
 
-	Column {
+	Item {
+		id: middle
+
 		anchors.left: lead.right
 		anchors.leftMargin: root.hasLeading ? Config.mixerListGap : 0
 		anchors.right: tail.left
 		anchors.rightMargin: tail.children.length > 0 ? Config.mixerListGap : 0
+		height: root.height
+	}
+
+	Column {
+		anchors.left: middle.left
+		anchors.right: middle.right
 		anchors.verticalCenter: parent.verticalCenter
+		visible: root.title !== "" || root.subtitle !== ""
 
 		Label {
 			id: titleLabel
