@@ -1,6 +1,7 @@
 module panelkit
 PanelPage 1.0 PanelPage.qml
 PanelHeader 1.0 PanelHeader.qml
+PanelBand 1.0 PanelBand.qml
 PanelRow 1.0 PanelRow.qml
 PanelFooter 1.0 PanelFooter.qml
 ProcessPanel 1.0 ProcessPanel.qml

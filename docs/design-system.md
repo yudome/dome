@@ -102,7 +102,7 @@ Every glyph is `iconX` in `config/icons.toml`, mirrored as `Config.iconX`, plus 
 
 ### `shell/panelkit`
 
-`PanelPage` (padding, content width, `closeRequested`), `PanelHeader` (title, value, trailing slot), `PanelRow`, `PanelFooter`, `ProcessPanel` (header, detail, viz, process list; data in, `query` and `kill` out).
+`PanelPage` (padding, content width, `closeRequested`), `PanelHeader` (title, value, trailing slot), `PanelBand` (section title on a raised surface, bleeds to the panel edges), `PanelRow`, `PanelFooter`, `ProcessPanel` (header, detail, viz, process list; data in, `query` and `kill` out).
 
 ## Sizes
 
