@@ -48,8 +48,14 @@ versions.jump(5)
 assert(last() == "name:v5.5", "jumping from a plain workspace keeps its slot")
 
 state.name = "v9.10"
+calls = #dispatched
 versions.jump(10)
-assert(last() == "name:v9.10", "jumping to a version already shown does nothing new")
+assert(#dispatched == calls, "jumping to the version already shown does nothing")
+
+state.name = "9"
+calls = #dispatched
+versions.jump(1)
+assert(#dispatched == calls, "jumping to the base version already shown does nothing")
 
 state.name = "special:magic"
 local count = #dispatched
@@ -83,16 +89,22 @@ assert(#dispatched == calls, "a slot that never held a version stays on the base
 state.name = "v8.5"
 calls = #dispatched
 versions.visit(8, 5)
-assert(#dispatched == calls + 1 and last() == "name:v8.5", "visiting a version focuses it")
+assert(#dispatched == calls, "visiting the version already shown does nothing")
+
+state.name = "v8.5"
+calls = #dispatched
+versions.visit(8, 4)
+assert(#dispatched == calls + 1 and last() == "name:v8.4", "visiting another version focuses it")
 
 state.name = "8"
 calls = #dispatched
 versions.landing("8")
-assert(last() == "name:v8.5", "a visited slot returns to the version it was visited on")
+assert(#dispatched == calls + 1 and last() == "name:v8.4", "a visited slot returns to the version it was visited on")
 
+state.name = "v8.4"
 calls = #dispatched
 versions.visit(8, 1)
-assert(last() == 8, "visiting the base version lands on the plain workspace")
+assert(#dispatched == calls + 1 and last() == 8, "visiting the base version lands on the plain workspace")
 
 state.name = "8"
 calls = #dispatched

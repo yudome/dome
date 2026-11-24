@@ -22,6 +22,9 @@ end
 
 local function gotoWorkspace(workspace)
     return function()
+        local active = hl.get_active_workspace()
+        if versions.slotOf(active and active.name) == workspace then return end
+
         hl.dispatch(hl.dsp.focus({ workspace = workspace }))
     end
 end

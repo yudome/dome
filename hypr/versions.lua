@@ -55,9 +55,9 @@ local function current()
 end
 
 local function jump(version)
-	local slot = current()
+	local slot, shown = current()
 
-	if not slot or version < 1 or version > versions then
+	if not slot or version < 1 or version > versions or version == shown then
 		return
 	end
 
@@ -111,7 +111,9 @@ local function landing(workspace)
 end
 
 local function visit(slot, version)
-	if not slot or version < 1 or version > versions then
+	local shownSlot, shown = current()
+
+	if not slot or version < 1 or version > versions or (slot == shownSlot and version == shown) then
 		return
 	end
 

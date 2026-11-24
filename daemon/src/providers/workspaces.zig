@@ -106,6 +106,12 @@ pub const Workspaces = struct {
 	pub fn focus(self: *Workspaces, id: i64) void {
 		if (id < 1) return;
 
+		self.mutex.lockUncancelable(self.io);
+		const shown = self.focused_slot;
+		self.mutex.unlock(self.io);
+
+		if (id == shown) return;
+
 		const thread = std.Thread.spawn(.{}, focusThread, .{ self, id }) catch return;
 		thread.detach();
 	}
