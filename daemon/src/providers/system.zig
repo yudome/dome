@@ -14,6 +14,7 @@ const Writer = std.Io.Writer;
 const Hub = hubmod.Hub;
 
 const max_cores = 64;
+const graph_len = 60;
 pub const max_top = 48;
 
 fn sanitize(name: []const u8) []const u8 {
@@ -67,6 +68,7 @@ const CpuOut = struct {
 	ink: []const u8,
 	coreInk: [][]const u8,
 	cores: []f64,
+	graph: []f64,
 	model: []const u8,
 	spec: []const u8,
 	threads: i64,
@@ -245,6 +247,9 @@ pub const System = struct {
 	cpu_user: f64 = 0,
 	cpu_system: f64 = 0,
 	cpu_idle: f64 = 0,
+	cpu_graph: [graph_len]f64 = @splat(0),
+	cpu_graph_count: usize = 0,
+	cpu_graph_at: usize = 0,
 	cores: [max_cores]f64 = @splat(0),
 	core_count: usize = 0,
 	mem_total: i64 = 0,
@@ -556,6 +561,10 @@ pub const System = struct {
 			self.cpu_user = split.user;
 			self.cpu_system = split.system;
 			self.cpu_idle = split.idle;
+
+			self.cpu_graph[self.cpu_graph_at] = total_pct;
+			self.cpu_graph_at = (self.cpu_graph_at + 1) % graph_len;
+			if (self.cpu_graph_count < graph_len) self.cpu_graph_count += 1;
 
 			var core: usize = 1;
 			while (core < count_cores) : (core += 1) {
@@ -869,6 +878,13 @@ pub const System = struct {
 		var core_ink: std.ArrayListUnmanaged([]const u8) = .empty;
 		for (cores.items) |core| try core_ink.append(arena, try inkText(arena, color.mix(self.palette.cpu_idle, self.palette.cpuAccent(), core / 100)));
 
+		var graph: std.ArrayListUnmanaged(f64) = .empty;
+		const graph_start = if (self.cpu_graph_count < graph_len) 0 else self.cpu_graph_at;
+		for (0..self.cpu_graph_count) |index| {
+			const at = (graph_start + index) % graph_len;
+			try graph.append(arena, @round(self.cpu_graph[at] * 10) / 10);
+		}
+
 		var processes: std.ArrayListUnmanaged(ProcessOut) = .empty;
 		for (self.top[0..self.top_count]) |*entry| {
 			const load = @round(entry.cpu * 10) / 10;
@@ -916,6 +932,7 @@ pub const System = struct {
 				.ink = try inkText(arena, self.palette.cpuInk(cpu_pct)),
 				.coreInk = core_ink.items,
 				.cores = cores.items,
+				.graph = graph.items,
 				.model = self.cpu_model,
 				.spec = self.cpu_spec,
 				.threads = self.cpu_threads,
