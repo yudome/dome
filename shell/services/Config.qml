@@ -145,9 +145,7 @@ QtObject {
 	readonly property var popupBorderWidth: settings.popupBorderWidth !== undefined ? settings.popupBorderWidth : 1
 	readonly property var volumeOsdMs: settings.volumeOsdMs !== undefined ? settings.volumeOsdMs : 1500
 
-	// the tooltip body and its close button
-	readonly property var tooltipCloseSize: settings.tooltipCloseSize !== undefined ? settings.tooltipCloseSize : 14
-	readonly property var tooltipCloseInset: settings.tooltipCloseInset !== undefined ? settings.tooltipCloseInset : 6
+	// the tooltip body
 	readonly property var tooltipOffsetX: settings.tooltipOffsetX !== undefined ? settings.tooltipOffsetX : 0
 	readonly property var tooltipGap: settings.tooltipGap !== undefined ? settings.tooltipGap : 7
 	readonly property var tooltipGapRight: settings.tooltipGapRight !== undefined ? settings.tooltipGapRight : 3

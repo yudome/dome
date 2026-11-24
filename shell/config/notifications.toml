@@ -35,8 +35,6 @@ volumeOsdMs = 1500
 
 # Tooltips
 [tooltip]
-tooltipCloseSize = 14
-tooltipCloseInset = 6
 tooltipOffsetX = 0
 tooltipGap = 7
 tooltipGapRight = 3

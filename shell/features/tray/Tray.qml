@@ -168,7 +168,6 @@ Row {
 		anchorItem: root.menuAnchor
 		contentPadding: Config.trayMenuPadding
 		wantsKeyboard: true
-		closable: false
 
 		MenuLevel {
 			entries: root.menuEntries

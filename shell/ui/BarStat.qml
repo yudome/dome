@@ -32,7 +32,6 @@ Item {
 	property bool popupWanted: true
 	property bool popupKeyboard: true
 	property bool popupPersistent: false
-	property bool popupClosable: true
 	property bool popupPreload: false
 	property bool popupSlide: false
 	property bool popupAlignRight: false
@@ -115,7 +114,6 @@ Item {
 		centered: root.popupCentered
 		alwaysCentered: root.popupAlwaysCentered
 		centerScreen: root.popupCenterScreen
-		closable: root.popupClosable
 		borderWidth: root.popupBorderWidth
 	}
 

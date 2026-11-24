@@ -26,7 +26,6 @@ PanelWindow {
 	readonly property string side: root.alignRight ? "right" : !root.centered ? "anchor" : root.alwaysCentered ? "center" : root.fullscreen ? "float" : "anchor"
 	readonly property bool centeredSide: root.centered && root.side !== "right"
 	readonly property bool pinnedSide: root.alwaysCentered && root.side !== "right"
-	property bool closable: true
 	property real contentPadding: -1
 	property Component contentSource: null
 
@@ -269,20 +268,6 @@ PanelWindow {
 			to: root.slideX - root.cardX
 			duration: Config.popupSlideMs
 			easing.type: Easing.InOutCubic
-		}
-
-		IconButton {
-			id: closeButton
-
-			visible: root.closable && (!root.centeredSide || root.pinnedSide)
-			anchors.right: parent.right
-			anchors.top: parent.top
-			anchors.margins: Math.max(0, Config.tooltipCloseInset - Config.gapsIn)
-			box: Config.tooltipCloseSize + Config.gapsIn * 2
-			size: Config.tooltipCloseSize
-			name: "close"
-			label: "Close"
-			onClicked: root.close()
 		}
 	}
 }

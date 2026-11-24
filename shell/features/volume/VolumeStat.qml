@@ -61,7 +61,6 @@ BarStat {
 	property bool mixerCompact: false
 	popupKeyboard: !root.osd
 	popupPersistent: root.osd
-	popupClosable: !root.osd
 	popupPreload: true
 	popupCentered: true
 
