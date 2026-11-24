@@ -9,6 +9,9 @@ Text {
 
 	readonly property real roleSize: root.role === "title" ? Config.appTitleSize : root.role === "heading" ? Config.appHeadingSize : root.role === "caption" ? Config.appCaptionSize : Config.fontSize
 	readonly property real capOffset: (cap.ascent + cap.descent) / 2 - cap.ascent + capInk.tightBoundingRect.height / 2
+	readonly property real inkTop: root.baselineOffset + inkMetrics.tightBoundingRect.y
+	readonly property real inkBottom: root.inkTop + inkMetrics.tightBoundingRect.height
+	readonly property real inkBelow: root.height - root.inkBottom
 
 	font.family: Config.fontFamily
 	font.pixelSize: root.roleSize
@@ -28,5 +31,12 @@ Text {
 
 		font: root.font
 		text: "H"
+	}
+
+	TextMetrics {
+		id: inkMetrics
+
+		font: root.font
+		text: root.text
 	}
 }

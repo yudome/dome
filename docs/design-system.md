@@ -71,7 +71,7 @@ Every glyph is `iconX` in `config/icons.toml`, mirrored as `Config.iconX`, plus 
 | Area | Components | Notes |
 |---|---|---|
 | Icons | `Icon`, `IconBar`, `IconButton`, `Glyph`, `DynamicIcon` | `Icon` is the square slot: `name`, `glyph`, `source` image, or child content. `Glyph` centers glyph ink. `IconButton` owns hover, selected, disabled, reveal, tooltip, focus and keyboard. |
-| Text | `Label`, `BarText` | Roles `title`, `heading`, `body`, `caption`, `value`; `capOffset` centers by cap height. A feature may set a size token on a `Label`; raw `Text` with its own font is for data visuals only. `BarText` is bar-only. |
+| Text | `Label`, `BarText` | Roles `title`, `heading`, `body`, `caption`, `value`; `capOffset` centers by cap height. A feature may set a size token on a `Label`; raw `Text` with its own font is for data visuals only. `BarText` is bar-only. `Label` and `Glyph` expose `inkTop`, `inkBottom` and `inkBelow`; `InkLine` mirrors an ink edge of either into a zero-size sibling line that anchors can target (keep it in a plain container, not a positioner). |
 | Buttons | `Button`, `Chip` | Kinds `primary`, `secondary`, `ghost`, `danger`; `busy`; `confirm` arms in danger, a second activation runs. Takes an `AppAction`. |
 | Inputs | `TextField`, `SearchField`, `Switch`, `PillSwitch`, `Select`, `ColorField`, `FocusRing`, `InlineEdit` | `PillSwitch` is the segmented control; `Select` is a dropdown over `MenuList`; `InlineEdit` is the text backend. |
 | Slider | `Slider`, `SliderTrack`, `GlyphScale`, `StepBar` | `Slider` owns value, stops, steps, drag, wheel, keys; renderers are visual only and get `value`, `normalized`, `dragging`, `hovered`, `orientation`, `stops`. |

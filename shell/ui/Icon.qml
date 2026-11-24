@@ -20,11 +20,16 @@ Item {
 	readonly property bool custom: slot.children.length > 0 || root.source !== ""
 	readonly property int status: image.item ? image.item.status : Image.Null
 	readonly property real dpr: Screen.devicePixelRatio > 0 ? Screen.devicePixelRatio : 1
+	readonly property real inkTop: glyphItem.inkTop
+	readonly property real inkBottom: glyphItem.inkBottom
+	readonly property real inkBelow: glyphItem.inkBelow
 
 	implicitWidth: root.size
 	implicitHeight: root.size
 
 	Glyph {
+		id: glyphItem
+
 		anchors.fill: parent
 		visible: !root.custom
 		size: root.size

@@ -28,6 +28,7 @@ DynamicIcon 1.0 DynamicIcon.qml
 singleton Handoff 1.0 Handoff.qml
 singleton Input 1.0 Input.qml
 Glyph 1.0 Glyph.qml
+InkLine 1.0 InkLine.qml
 Drawer 1.0 Drawer.qml
 Separator 1.0 Separator.qml
 Label 1.0 Label.qml

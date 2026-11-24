@@ -10,6 +10,9 @@ Item {
 	property bool onBaseline: false
 
 	readonly property real inkWidth: ink.tightBoundingRect.width
+	readonly property real inkTop: label.y + label.baselineOffset + ink.tightBoundingRect.y
+	readonly property real inkBottom: root.inkTop + ink.tightBoundingRect.height
+	readonly property real inkBelow: root.height - root.inkBottom
 
 	implicitWidth: root.size
 	implicitHeight: root.size
