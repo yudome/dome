@@ -116,12 +116,6 @@ const BatteryOut = struct {
 	watts: f64,
 };
 
-const PanelOut = struct {
-	field: []const u8,
-	query: []const u8,
-	rows: []ProcessOut,
-};
-
 const AwakeMode = enum { off, auto, on };
 
 const AwakeOut = struct {
@@ -141,7 +135,6 @@ const Out = struct {
 	processes: []ProcessOut,
 	byCpu: []ProcessOut,
 	byMem: []ProcessOut,
-	panel: PanelOut,
 };
 
 
@@ -285,11 +278,6 @@ pub const System = struct {
 	cpu_threads: i64 = 0,
 	cpu_mhz: f64 = 0,
 	cpu_cache: f64 = 0,
-	panel_field: []u8 = &.{},
-	panel_query: []u8 = &.{},
-	ignore: [][]u8 = &.{},
-	panel_cpu: []i32 = &.{},
-	panel_mem: []i32 = &.{},
 	palette: Palette = .{},
 	awake_mode: AwakeMode = .auto,
 	awake_held: bool = false,
@@ -336,80 +324,10 @@ pub const System = struct {
 	pub fn start(self: *System) !void {
 		self.palette = Palette.load(self.io, self.allocator);
 		self.loadCpuInfo();
-		self.loadPanel();
 		self.sampleProcesses();
 
 		const thread = try std.Thread.spawn(.{}, loop, .{self});
 		thread.detach();
-	}
-
-	fn loadPanel(self: *System) void {
-		setStr(self.allocator, &self.panel_field, "pcpu") catch {};
-
-		const cfg = config.Config.load(self.io, self.allocator) catch return;
-		defer cfg.deinit();
-
-		self.ignore = cfg.strings("psIgnore", self.allocator) catch &.{};
-	}
-
-	pub fn setPanel(self: *System, field: []const u8, query: []const u8) void {
-		self.mutex.lockUncancelable(self.io);
-
-		if (field.len > 0) setStr(self.allocator, &self.panel_field, field) catch {};
-		setStr(self.allocator, &self.panel_query, query) catch {};
-
-		self.mutex.unlock(self.io);
-
-		self.hub.publish();
-	}
-
-	fn ignored(self: *System, name: []const u8) bool {
-		for (self.ignore) |entry| {
-			if (std.mem.eql(u8, entry, name)) return true;
-		}
-
-		return false;
-	}
-
-	fn wanted(self: *System, row: ProcessOut) bool {
-		if (self.ignored(row.name)) return false;
-		if (self.panel_query.len == 0) return true;
-
-		return containsIgnoreCase(row.name, self.panel_query) or containsIgnoreCase(row.cmd, self.panel_query);
-	}
-
-	fn panelRows(self: *System, arena: Allocator, rss: bool, rows: []const ProcessOut) ![]ProcessOut {
-		var kept: std.ArrayListUnmanaged(ProcessOut) = .empty;
-
-		for (rows) |row| {
-			if (!self.wanted(row)) continue;
-
-			try kept.append(arena, row);
-		}
-
-		if (self.panel_query.len > 0) return kept.items;
-
-		var pids: std.ArrayListUnmanaged(i32) = .empty;
-		for (kept.items) |row| try pids.append(arena, row.pid);
-
-		const previous = if (rss) &self.panel_mem else &self.panel_cpu;
-		const held = try holdOrder(arena, previous.*, pids.items);
-
-		self.allocator.free(previous.*);
-		previous.* = self.allocator.dupe(i32, held) catch &.{};
-
-		var ordered: std.ArrayListUnmanaged(ProcessOut) = .empty;
-
-		for (held) |pid| {
-			for (kept.items) |row| {
-				if (row.pid != pid) continue;
-
-				try ordered.append(arena, row);
-				break;
-			}
-		}
-
-		return ordered.items;
 	}
 
 	const CpuInfo = struct { model: []const u8 = "", cores: i64 = 0, threads: i64 = 0, mhz: f64 = 0, cache: f64 = 0 };
@@ -986,11 +904,6 @@ pub const System = struct {
 			.processes = processes.items,
 			.byCpu = processes.items,
 			.byMem = by_mem.items,
-			.panel = .{
-				.field = self.panel_field,
-				.query = self.panel_query,
-				.rows = try self.panelRows(arena, std.mem.eql(u8, self.panel_field, "rss"), if (std.mem.eql(u8, self.panel_field, "rss")) by_mem.items else processes.items),
-			},
 		};
 
 		try writer.print("{f}", .{std.json.fmt(out, .{})});
@@ -999,42 +912,6 @@ pub const System = struct {
 
 fn awakeWanted(mode: AwakeMode, working: bool) bool {
 	return mode == .on or (mode == .auto and working);
-}
-
-fn containsIgnoreCase(text: []const u8, needle: []const u8) bool {
-	if (needle.len == 0) return true;
-	if (needle.len > text.len) return false;
-
-	var at: usize = 0;
-
-	while (at + needle.len <= text.len) : (at += 1) {
-		if (std.ascii.eqlIgnoreCase(text[at .. at + needle.len], needle)) return true;
-	}
-
-	return false;
-}
-
-fn holdOrder(arena: Allocator, previous: []const i32, incoming: []const i32) ![]i32 {
-	var out: std.ArrayListUnmanaged(i32) = .empty;
-	const used = try arena.alloc(bool, incoming.len);
-
-	@memset(used, false);
-
-	for (previous) |pid| {
-		for (incoming, 0..) |value, index| {
-			if (value != pid or used[index]) continue;
-
-			used[index] = true;
-			try out.append(arena, pid);
-			break;
-		}
-	}
-
-	for (incoming, 0..) |value, index| {
-		if (!used[index]) try out.append(arena, value);
-	}
-
-	return out.items;
 }
 
 fn kbText(arena: Allocator, kb: i64) ![]const u8 {
@@ -1206,64 +1083,4 @@ test "keep awake wants a hold on when set, or an agent working in auto" {
 	try std.testing.expect(awakeWanted(.auto, true));
 	try std.testing.expect(!awakeWanted(.auto, false));
 	try std.testing.expect(!awakeWanted(.off, true));
-}
-
-test "the panel keeps the row order it had" {
-	var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-	defer arena.deinit();
-
-	const allocator = arena.allocator();
-
-	const held = try holdOrder(allocator, &.{ 5, 3, 9 }, &.{ 9, 4, 3, 5 });
-	try std.testing.expectEqualSlices(i32, &.{ 5, 3, 9, 4 }, held);
-
-	const fresh = try holdOrder(allocator, &.{}, &.{ 2, 1 });
-	try std.testing.expectEqualSlices(i32, &.{ 2, 1 }, fresh);
-
-	const gone = try holdOrder(allocator, &.{ 7, 5 }, &.{ 5 });
-	try std.testing.expectEqualSlices(i32, &.{5}, gone);
-}
-
-test "the panel drops the ignored names and matches the query" {
-	var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-	defer arena.deinit();
-
-	const allocator = arena.allocator();
-
-	var ignore: [][]u8 = try allocator.alloc([]u8, 1);
-	ignore[0] = try allocator.dupe(u8, "ps");
-
-	var system: System = .{
-		.allocator = allocator,
-		.io = std.Io.Threaded.global_single_threaded.io(),
-		.hub = undefined,
-		.scratch = std.heap.ArenaAllocator.init(allocator),
-		.ignore = ignore,
-		.panel_field = try allocator.dupe(u8, "pcpu"),
-		.panel_query = try allocator.dupe(u8, ""),
-	};
-
-	try std.testing.expect(system.ignored("ps"));
-	try std.testing.expect(!system.ignored("psx"));
-
-	const rows = [_]ProcessOut{
-		.{ .pid = 1, .name = "ps", .cmd = "ps", .value = 0, .valueText = "" },
-		.{ .pid = 2, .name = "Hyprland", .cmd = "Hyprland", .value = 0, .valueText = "" },
-		.{ .pid = 3, .name = "alacritty", .cmd = "alacritty", .value = 0, .valueText = "" },
-	};
-
-	const kept = try system.panelRows(allocator, false, &rows);
-	try std.testing.expectEqual(@as(usize, 2), kept.len);
-	try std.testing.expectEqual(@as(i32, 2), kept[0].pid);
-	try std.testing.expectEqual(@as(i32, 3), kept[1].pid);
-
-	try setStr(allocator, &system.panel_query, "YPRL");
-
-	const filtered = try system.panelRows(allocator, false, &rows);
-	try std.testing.expectEqual(@as(usize, 1), filtered.len);
-	try std.testing.expectEqualStrings("Hyprland", filtered[0].name);
-
-	try std.testing.expect(containsIgnoreCase("Hyprland", "yprl"));
-	try std.testing.expect(!containsIgnoreCase("Hyprland", "zzz"));
-	try std.testing.expect(!containsIgnoreCase("ps", "psx"));
 }

@@ -369,10 +369,6 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 		const governor = json.textAt(system_cmd, "governor");
 		if (governor.len > 0) context.system.setGovernor(governor);
 
-		if (json.field(system_cmd, "panel")) |panel| {
-			context.system.setPanel(json.textAt(panel, "field"), json.textAt(panel, "query"));
-		}
-
 		return;
 	}
 
