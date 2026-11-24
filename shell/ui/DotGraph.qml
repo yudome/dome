@@ -9,7 +9,7 @@ Item {
 	property color ink: Config.foreground
 
 	readonly property real pitch: root.height / 4
-	readonly property real dot: root.pitch * 0.6
+	readonly property real dot: Math.max(1, Math.round(root.pitch * 0.6))
 
 	Repeater {
 		model: root.levels
@@ -30,12 +30,11 @@ Item {
 				delegate: Rectangle {
 					required property int index
 
-					x: (root.pitch - root.dot) / 2
-					y: (root.flip ? 3 - index : index) * root.pitch + (root.pitch - root.dot) / 2
+					x: Math.round((root.pitch - root.dot) / 2)
+					y: Math.round((root.flip ? 3 - index : index) * root.pitch + (root.pitch - root.dot) / 2)
 					width: root.dot
 					height: root.dot
-					radius: root.dot / 2
-					antialiasing: true
+					antialiasing: false
 					color: root.ink
 				}
 			}
