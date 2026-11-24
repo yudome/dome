@@ -127,7 +127,8 @@ AppWindow {
 
 						IconButton {
 							anchors.verticalCenter: parent.verticalCenter
-							visible: row.hovered || win.menuVm === row.modelData.name
+							reveal: true
+							shown: row.hovered || win.menuVm === row.modelData.name
 							name: "settings"
 							label: "Hardware"
 							onClicked: win.openHardware(row.modelData.name)
@@ -137,7 +138,8 @@ AppWindow {
 							id: powerButton
 
 							anchors.verticalCenter: parent.verticalCenter
-							visible: row.hovered || win.menuVm === row.modelData.name
+							reveal: true
+							shown: row.hovered || win.menuVm === row.modelData.name
 							selected: win.powerOpen && win.menuVm === row.modelData.name
 							name: "powerOff"
 							label: "Power"
