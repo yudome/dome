@@ -76,7 +76,7 @@ PanelWindow {
 	}
 
 	function closePopups(except) {
-		Object.keys(bar.widgets).forEach(function (id) {
+		Object.keys(bar.widgets || {}).forEach(function (id) {
 			const item = bar.widgets[id];
 
 			if (item && item !== except && item.popupPersistent !== true && typeof item.closePopup === "function")
@@ -85,7 +85,7 @@ PanelWindow {
 	}
 
 	function anyPopupOpen() {
-		return Object.keys(bar.widgets).some(function (id) {
+		return Object.keys(bar.widgets || {}).some(function (id) {
 			const item = bar.widgets[id];
 
 			return item && typeof item.isPopupOpen === "function" && item.isPopupOpen();
@@ -139,7 +139,7 @@ PanelWindow {
 		: bar.margins.top)
 
 	function widgetAt(x, y) {
-		const ids = Object.keys(bar.widgets);
+		const ids = Object.keys(bar.widgets || {});
 
 		for (let i = 0; i < ids.length; i++) {
 			const item = bar.widgets[ids[i]];
