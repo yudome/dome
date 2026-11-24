@@ -4,5 +4,5 @@
   "widget": "MemoryStat",
   "panel": "MemoryMonitor",
   "glyph": "memory",
-  "description": "Memory use and top processes"
+  "description": "Memory use"
 }

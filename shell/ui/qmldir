@@ -5,7 +5,6 @@ HyprShadow 1.0 HyprShadow.qml
 Tooltip 1.0 Tooltip.qml
 BarStat 1.0 BarStat.qml
 BarText 1.0 BarText.qml
-ProcessList 1.0 ProcessList.qml
 Selector 1.0 Selector.qml
 Scrollbar 1.0 Scrollbar.qml
 StepList 1.0 StepList.qml

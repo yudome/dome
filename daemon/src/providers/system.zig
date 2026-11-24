@@ -1153,7 +1153,7 @@ test "one synchronous sample seeds the cpu and the rss lists" {
 	try std.testing.expect(system.mem_top[0].rss_kb > 0);
 }
 
-test "memory sizes read the way the panel prints them" {
+test "memory sizes read the way the tooltip prints them" {
 	var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
 	defer arena.deinit();
 

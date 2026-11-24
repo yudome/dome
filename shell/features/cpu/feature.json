@@ -4,5 +4,5 @@
   "widget": "CpuStat",
   "panel": "CpuMonitor",
   "glyph": "cpu",
-  "description": "Processor load and top processes"
+  "description": "Processor load"
 }

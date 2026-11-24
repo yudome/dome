@@ -236,12 +236,10 @@ QtObject {
 	readonly property var topProcessTitle: settings.topProcessTitle !== undefined ? settings.topProcessTitle : "Top processes"
 	readonly property var procRowHeight: settings.procRowHeight !== undefined ? settings.procRowHeight : 22
 	readonly property var procsGap: settings.procsGap !== undefined ? settings.procsGap : 2
-	readonly property var psIgnore: settings.psIgnore !== undefined ? settings.psIgnore : ["ps", "ps <defunct>"]
 	readonly property var procSearchHint: settings.procSearchHint !== undefined ? settings.procSearchHint : "f to type"
 	readonly property var procSearchPadding: settings.procSearchPadding !== undefined ? settings.procSearchPadding : 4
 	readonly property var procSearchMinWidth: settings.procSearchMinWidth !== undefined ? settings.procSearchMinWidth : 140
 	readonly property var procKillSignal: settings.procKillSignal !== undefined ? settings.procKillSignal : "-9"
-	readonly property var procNoMatch: settings.procNoMatch !== undefined ? settings.procNoMatch : "Nothing matches"
 	readonly property var procHintKey: settings.procHintKey !== undefined ? settings.procHintKey : "f"
 	readonly property var procKillKey: settings.procKillKey !== undefined ? settings.procKillKey : "q"
 

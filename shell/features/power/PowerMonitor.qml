@@ -45,8 +45,6 @@ ProcessPanel {
 	showTotal: true
 	totalOverride: govStep.dragging ? String(govStep.shownValue) : root.governor
 	totalInk: root.accentInk
-	showProcessList: false
-	listInk: root.accentInk
 	contentWidth: Config.powerTooltipWidth
 
 	keyAction: function (event) {
