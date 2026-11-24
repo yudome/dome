@@ -99,6 +99,7 @@ AppWindow {
 					status: disk.mapStatus
 					icon: "disk"
 					emptyText: disk.mapEmpty
+					hint: disk.mapHint
 					onRetry: disk.scan()
 
 					Bubbles {
@@ -120,6 +121,7 @@ AppWindow {
 				visible: disk.tab === "packages"
 				status: !disk.packagesLoaded ? "loading" : disk.packageRows.length === 0 ? "error" : "ready"
 				errorText: "No packages"
+				retryText: "Load packages"
 				onRetry: disk.loadPackages()
 
 				RowList {
@@ -135,6 +137,7 @@ AppWindow {
 				visible: disk.tab === "caches"
 				status: !disk.cachesLoaded ? "loading" : disk.cacheRows.length === 0 ? "error" : "ready"
 				errorText: "No caches"
+				retryText: "Load caches"
 				onRetry: disk.loadCaches()
 
 				RowList {

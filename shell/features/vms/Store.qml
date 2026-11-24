@@ -28,7 +28,7 @@ QtObject {
 		else if (store.running)
 			list.push({ label: "Wake", icon: "sun", action: "wake" });
 		list.push({ label: "Stop", icon: "powerOff", action: "stop", enabled: store.running });
-		list.push({ label: "Destroy", icon: "close", action: "destroy", danger: true, confirm: true });
+		list.push({ label: "Destroy", confirmLabel: Config.vmDestroyConfirm, hint: Config.vmDestroyHint, icon: "close", action: "destroy", danger: true, confirm: true });
 		return list;
 	}
 	readonly property var hardware: [

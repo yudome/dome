@@ -10,6 +10,9 @@ Item {
 	property string emptyText: ""
 	property string errorText: "Unavailable"
 	property bool retryable: true
+	property string retryText: ""
+	property string hint: ""
+	property string hintShortcut: ""
 
 	default property alias content: ready.data
 
@@ -39,13 +42,23 @@ Item {
 			anchors.horizontalCenter: parent.horizontalCenter
 			icon: root.status === "error" ? "warning" : root.icon
 			text: root.status === "error" ? root.errorText : root.emptyText
+			hint: root.hint
+			hintShortcut: root.hintShortcut
 		}
 
 		IconButton {
 			anchors.horizontalCenter: parent.horizontalCenter
-			visible: root.status === "error" && root.retryable
+			visible: root.status === "error" && root.retryable && root.retryText === ""
 			name: "refresh"
 			label: "Retry"
+			onClicked: root.retry()
+		}
+
+		Button {
+			anchors.horizontalCenter: parent.horizontalCenter
+			visible: root.status === "error" && root.retryable && root.retryText !== ""
+			icon: "refresh"
+			text: root.retryText
 			onClicked: root.retry()
 		}
 	}

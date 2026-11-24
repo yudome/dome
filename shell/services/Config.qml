@@ -99,6 +99,7 @@ QtObject {
 	readonly property var scrollbarMinThumb: settings.scrollbarMinThumb !== undefined ? settings.scrollbarMinThumb : 12
 	readonly property var scrollbarFadeMs: settings.scrollbarFadeMs !== undefined ? settings.scrollbarFadeMs : 200
 	readonly property var scrollbarIdleMs: settings.scrollbarIdleMs !== undefined ? settings.scrollbarIdleMs : 900
+	readonly property var hints: settings.hints !== undefined ? settings.hints : true
 	readonly property var gapsIn: settings.gapsIn !== undefined ? settings.gapsIn : 4
 	readonly property var gapsOut: settings.gapsOut !== undefined ? settings.gapsOut : 8
 
@@ -212,6 +213,7 @@ QtObject {
 	readonly property var iconReboot: settings.iconReboot !== undefined ? settings.iconReboot : "\uead2"
 	readonly property var iconAgent: settings.iconAgent !== undefined ? settings.iconAgent : "\udb81\udea9"
 	readonly property var iconWorkspaces: settings.iconWorkspaces !== undefined ? settings.iconWorkspaces : "\udb81\udd70"
+	readonly property var iconReturn: settings.iconReturn !== undefined ? settings.iconReturn : "\udb80\udf11"
 	readonly property var iconVm: settings.iconVm !== undefined ? settings.iconVm : "\udb80\udf79"
 	readonly property var iconRemove: settings.iconRemove !== undefined ? settings.iconRemove : "\uf068"
 	readonly property var iconWarning: settings.iconWarning !== undefined ? settings.iconWarning : "\uf071"
@@ -236,6 +238,7 @@ QtObject {
 	readonly property var procRowHeight: settings.procRowHeight !== undefined ? settings.procRowHeight : 22
 	readonly property var procsGap: settings.procsGap !== undefined ? settings.procsGap : 2
 	readonly property var psIgnore: settings.psIgnore !== undefined ? settings.psIgnore : ["ps", "ps <defunct>"]
+	readonly property var procSearchHint: settings.procSearchHint !== undefined ? settings.procSearchHint : "f to type"
 	readonly property var procSearchPadding: settings.procSearchPadding !== undefined ? settings.procSearchPadding : 4
 	readonly property var procSearchMinWidth: settings.procSearchMinWidth !== undefined ? settings.procSearchMinWidth : 140
 	readonly property var procKillSignal: settings.procKillSignal !== undefined ? settings.procKillSignal : "-9"
@@ -300,6 +303,7 @@ QtObject {
 	readonly property var launcherIconSlot: settings.launcherIconSlot !== undefined ? settings.launcherIconSlot : 24
 	readonly property var launcherTextGap: settings.launcherTextGap !== undefined ? settings.launcherTextGap : 10
 	readonly property var launcherPrompt: settings.launcherPrompt !== undefined ? settings.launcherPrompt : "\uea6d"
+	readonly property var launcherCopyHint: settings.launcherCopyHint !== undefined ? settings.launcherCopyHint : "click to copy to clipboard"
 	readonly property var launcherMaxRows: settings.launcherMaxRows !== undefined ? settings.launcherMaxRows : 12
 	readonly property var launcherIconPin: settings.launcherIconPin !== undefined ? settings.launcherIconPin : "\ueba0"
 	readonly property var launcherClipTimeFormat: settings.launcherClipTimeFormat !== undefined ? settings.launcherClipTimeFormat : "h:mm AP"
@@ -351,6 +355,12 @@ QtObject {
 	readonly property var diskIconSortAsc: settings.diskIconSortAsc !== undefined ? settings.diskIconSortAsc : "\uf0d8"
 	readonly property var diskAccent: settings.diskAccent !== undefined ? settings.diskAccent : cpuCore
 	readonly property var diskOther: settings.diskOther !== undefined ? settings.diskOther : yellow
+	readonly property var diskScanHint: settings.diskScanHint !== undefined ? settings.diskScanHint : "Scan to build the map"
+	readonly property var diskDeleteHint: settings.diskDeleteHint !== undefined ? settings.diskDeleteHint : "Are you sure you want to delete %1?"
+	readonly property var vmDestroyConfirm: settings.vmDestroyConfirm !== undefined ? settings.vmDestroyConfirm : "Confirm destroy"
+	readonly property var vmDestroyHint: settings.vmDestroyHint !== undefined ? settings.vmDestroyHint : "destroy deletes the disk"
+	readonly property var settingsDaemonCommand: settings.settingsDaemonCommand !== undefined ? settings.settingsDaemonCommand : "yudae restart"
+	readonly property var settingsDaemonHint: settings.settingsDaemonHint !== undefined ? settings.settingsDaemonHint : "then retry"
 	readonly property var diskBubbleMs: settings.diskBubbleMs !== undefined ? settings.diskBubbleMs : 420
 
 	// settings app
@@ -564,6 +574,8 @@ QtObject {
 	readonly property var contribCell: settings.contribCell !== undefined ? settings.contribCell : 10
 	readonly property var contribGap: settings.contribGap !== undefined ? settings.contribGap : 3
 	readonly property var contribTooltipWidth: settings.contribTooltipWidth !== undefined ? settings.contribTooltipWidth : 244
+	readonly property var contribRefreshHint: settings.contribRefreshHint !== undefined ? settings.contribRefreshHint : "r to refresh"
+	readonly property var contribFetchHint: settings.contribFetchHint !== undefined ? settings.contribFetchHint : "r to fetch"
 	readonly property var contribAvatar: settings.contribAvatar !== undefined ? settings.contribAvatar : 24
 
 	// display panel
@@ -609,7 +621,8 @@ QtObject {
 	readonly property var networkBarStep: settings.networkBarStep !== undefined ? settings.networkBarStep : 3
 	readonly property var networkBarsOff: settings.networkBarsOff !== undefined ? settings.networkBarsOff : "#2f2f2f"
 	readonly property var networkSpeedCancelKey: settings.networkSpeedCancelKey !== undefined ? settings.networkSpeedCancelKey : "k"
-	readonly property var networkSpeedNone: settings.networkSpeedNone !== undefined ? settings.networkSpeedNone : "Speed test"
+	readonly property var networkSpeedNone: settings.networkSpeedNone !== undefined ? settings.networkSpeedNone : "Run a speed test"
+	readonly property var networkSpeedAgain: settings.networkSpeedAgain !== undefined ? settings.networkSpeedAgain : "Enter to try again"
 	readonly property var networkSpeedUnit: settings.networkSpeedUnit !== undefined ? settings.networkSpeedUnit : "Mbps"
 	readonly property var networkSpeedTestingDown: settings.networkSpeedTestingDown !== undefined ? settings.networkSpeedTestingDown : "Testing download speed\u2026"
 	readonly property var networkSpeedTestingUp: settings.networkSpeedTestingUp !== undefined ? settings.networkSpeedTestingUp : "Testing upload speed\u2026"
@@ -679,6 +692,7 @@ QtObject {
 		package: root.diskIconPackage,
 		cache: root.diskIconCache,
 		menu: root.iconMenu,
+		enter: root.iconReturn,
 		more: root.iconMore,
 		remove: root.iconRemove,
 		vm: root.iconVm,

@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import qs
 import qs.ui
 import qs.appkit
 
@@ -88,7 +89,16 @@ Item {
 			}
 		}
 
+		Hint {
+			shown: cleanButton.armed
+			maxWidth: parent.width
+			inkMuted: AppPalette.danger
+			text: Config.diskDeleteHint.replace("%1", root.store.selectedRows.length === 1 ? "this item" : "these " + root.store.selectedRows.length + " items")
+		}
+
 		Button {
+			id: cleanButton
+
 			width: parent.width
 			action: root.store.cleanAction
 		}

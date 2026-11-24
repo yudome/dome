@@ -1009,6 +1009,8 @@ PanelWindow {
 
 				width: parent.width
 				boxHeight: root.spotlight ? Config.launcherSpotlightInputHeight : Config.launcherInputHeight
+				hintKey: root.spotlight ? "" : Config.procHintKey
+				hintText: Config.procSearchHint
 				padding: 0
 				gap: root.spotlight ? 0 : Config.launcherTextGap
 				glyphSlot: root.spotlight ? 0 : root.iconSlot
@@ -1307,13 +1309,44 @@ PanelWindow {
 									ink: Config.muted
 									text: row.modelData.detail
 								}
+
+								Hint {
+									shown: root.mode === "emoji"
+									size: Math.round(root.fontSize * 0.72)
+									text: Config.launcherCopyHint
+								}
+							}
+
+							Hint {
+								id: rowAlt
+
+								readonly property int slot: row.index - list.firstVisible + 1
+
+								anchors.right: parent.right
+								anchors.rightMargin: Config.launcherPadding * 2
+								anchors.verticalCenter: parent.verticalCenter
+								shown: !row.active && slot >= 1 && slot <= 9 && slot <= root.rows
+								size: Math.round(root.fontSize * 0.8)
+								ink: Config.muted
+								shortcut: "Alt" + slot
+							}
+
+							Hint {
+								id: rowSelect
+
+								anchors.right: parent.right
+								anchors.rightMargin: Config.launcherPadding * 2
+								anchors.verticalCenter: parent.verticalCenter
+								shown: row.active
+								size: Math.round(root.iconSize * 0.75)
+								glyph: "enter"
 							}
 
 							Label {
 								id: rowUsage
 
-								anchors.right: parent.right
-								anchors.rightMargin: Config.launcherPadding * 2
+								anchors.right: rowSelect.visible ? rowSelect.left : rowAlt.visible ? rowAlt.left : parent.right
+								anchors.rightMargin: rowSelect.visible || rowAlt.visible ? Config.launcherTextGap : Config.launcherPadding * 2
 								anchors.verticalCenter: parent.verticalCenter
 								width: visible ? implicitWidth : 0
 								visible: row.modelData.kind === "proc" || row.modelData.kind === "vm"

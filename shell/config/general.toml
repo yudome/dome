@@ -1,6 +1,8 @@
 # Settings
 [settings]
 settingsApply = "instant"  # instant | manual
+settingsDaemonCommand = "yudae restart"  # hidden
+settingsDaemonHint = "then retry"  # hidden
 settingsPages = [
 	{ name = "General", glyph = "settings", file = "general" },
 	{ name = "Appearance", glyph = "appearance", file = "appearance" },
@@ -32,5 +34,6 @@ scrollbarFadeMs = 200
 scrollbarIdleMs = 900
 gapsIn = 4  # 0..24
 gapsOut = 8  # 0..32
+hints = true  # key hints next to search fields, launcher rows and buttons
 
 # Saving

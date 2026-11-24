@@ -20,7 +20,7 @@ The kit enforces `docs/design-system.md`; it adds nothing on top of it.
 - Mono first. `mono = true` swaps every hue for mono ink. Color is opt-in per token (`x` / `xMono`).
 - Glyph-driven. One thing, one glyph, everywhere, from `config/icons.toml`.
 - Dense. One `fontFamily`, `fontSize` body, `valueSample` for numeric slots so values never jitter.
-- Discovered by use. No "press X", key lists, hints, counters or placeholder instructions anywhere in the kit or the gallery.
+- Hints only through `Hint` (key + short label, text from `Config`, all hidden by `hints = false`). No counters.
 - Text never overlaps: bounded width, anchored to neighbours, elided.
 - No "·" separators; spacing separates.
 - Scrollbars on the container's right border.
@@ -206,7 +206,7 @@ Shared async states:
 - No aliases or compatibility wrappers left behind.
 - No universal render engine. Use components, `Loader` or `Component`.
 - No moving data visuals into appkit: `Bubbles`, `Figures`, `DayDial`, `PowerFlow`, `SpeedGauge`, `SignalBars`, `CellGrid`, `DotGraph`, `GlyphScale` stay local or in `ui`.
-- No hints, key lists, counters or "·" in any component or the gallery.
+- No counters or "·" in any component or the gallery; hints only through `Hint`.
 
 ## Enforcement
 
@@ -221,7 +221,7 @@ Shared async states:
   - radius or duration literals outside `Config.qml`
   - `ui`, `appkit` or `panelkit` importing a feature or `Yudae`
   - "·" in QML strings
-- Add `KitGallery`: one surface showing every component, state and size class, with no hint text.
+- Add `KitGallery`: one surface showing every component, state and size class, with hints only through `Hint`.
 - Use the gallery for screenshots and as the reference for future agents.
 - Update `docs/design-system.md` (layers, tokens, component table), `docs/architecture.md` with the layer rules, and `docs/agent-tooling.md` if app entry points move.
 
@@ -255,7 +255,7 @@ Check:
 - `BarPreview` simulation
 - `WidgetGlyph` and `WidgetIcon` duplication
 - hardcoded sizes, glyphs, durations, colors and `Text` styles
-- hint text, counters or "·" on screen
+- counters or "·" on screen, hints outside `Hint`
 - scroll, resize, hover, focus and pending states
 
 For each one: keep, move to feature, promote to kit, or delete. Do not migrate until this table exists.
@@ -317,7 +317,7 @@ The largest duplication is not visual: `DisplayPage`, `LayoutEditor` and `Sectio
 - Scrollbars come from `AppScroll` only, sit on the right border and show no content smoothing.
 - Icons and text share one alignment contract; every glyph comes from the icon list through `Glyph`.
 - `mono = true` and `mono = false` both render correctly in the gallery.
-- No hint text, counters or "·" on any app surface.
+- No counters or "·" on any app surface; every hint is a `Hint`.
 - No raw `Scrollbar`, `GlyphBar`, `GlyphRow`, `BarIcon`, `RevealIcon`, `AppIcon` or `ArrowPill` remains after migration.
 - `xmake lint` and `xmake test` pass.
 - Screenshots at 480, 720, 960 and 1280 match the kit gallery.
@@ -332,6 +332,7 @@ The largest duplication is not visual: `DisplayPage`, `LayoutEditor` and `Sectio
 - Settled: `panelkit` stays separate; it owns `ProcessPanel` as well as the frame.
 - Settled: the duration rule covers animation `duration`; `Timer` intervals are logic, not motion.
 - Settled: per-widget chrome colors, radii and popup paddings are merged into the shared tokens (`surfaceRaised`, `surfaceHover`, `rule`, `dim`, `appControlRadius`, `panelPadding`). Widgets keep data colors only.
+- Settled: hints are back, drawn only through `ui/Hint.qml` and switched off together with `hints = false`; `ui-check` rejects hint text outside it.
 - Settled: the launcher grid, wallpaper strips, power menu and lock stage are feature visuals on kit colors, not kit chrome.
 
 ## AGENTS.md rule

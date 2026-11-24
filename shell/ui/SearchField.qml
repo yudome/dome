@@ -7,6 +7,8 @@ Rectangle {
 	property alias text: input.text
 	property string glyph: Config.launcherPrompt
 	property string placeholder: ""
+	property string hintKey: ""
+	property string hintText: ""
 	property alias candidate: input.candidate
 	property int echoMode: TextInput.Normal
 	property bool typing: false
@@ -27,8 +29,9 @@ Rectangle {
 	readonly property real slot: root.slotWidth
 	readonly property real slotWidth: root.glyphSlot > 0 ? root.glyphSlot : (root.glyph === "" ? 0 : root.glyphSize)
 	readonly property real lineHeight: Math.round(root.size * 1.6)
+	readonly property bool hinting: !root.typing && root.hintKey !== "" && input.text === ""
 
-	implicitWidth: 2 * root.padding + root.slot + root.gap + Config.procSearchMinWidth
+	implicitWidth: 2 * root.padding + root.slot + (root.hinting ? (hint.visible ? root.gap + hint.implicitWidth : 0) : root.gap + Config.procSearchMinWidth)
 	implicitHeight: root.boxHeight > 0 ? root.boxHeight : root.lineHeight + 2 * root.padding
 	color: root.boxColor
 	radius: root.corner
@@ -64,6 +67,18 @@ Rectangle {
 		glyph: root.glyph
 	}
 
+	Hint {
+		id: hint
+
+		anchors.left: icon.right
+		anchors.leftMargin: root.gap
+		anchors.verticalCenter: parent.verticalCenter
+		shown: root.hinting
+		line: root.hintText
+		size: root.size
+		inkMuted: Config.muted
+	}
+
 	InlineEdit {
 		id: input
 
@@ -75,6 +90,7 @@ Rectangle {
 		anchors.verticalCenterOffset: root.textOffset
 
 		height: implicitHeight
+		visible: !root.hinting
 		editing: root.typing
 		echoMode: root.echoMode
 		font.family: Config.fontFamily
@@ -92,7 +108,7 @@ Rectangle {
 		anchors.verticalCenter: parent.verticalCenter
 		anchors.verticalCenterOffset: root.textOffset
 
-		visible: input.text === "" && root.placeholder !== ""
+		visible: !root.hinting && input.text === "" && root.placeholder !== ""
 		font.family: Config.fontFamily
 		font.pixelSize: root.size
 		color: Config.muted

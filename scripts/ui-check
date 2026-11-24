@@ -13,6 +13,7 @@ SCROLL_OWNERS = {"ui", "appkit"}
 RETIRED = ("GlyphBar", "GlyphRow", "BarIcon", "RevealIcon", "AppIcon", "ArrowPill")
 DATA_VISUALS = {"AgentFace.qml", "Bubbles.qml", "Stage.qml", "Session.qml"}
 BODY_SIZE = re.compile(r"^font\.pixelSize:\s*(Settings\.fontSize|Config\.fontSize)\s*$")
+HINT_TEXT = re.compile(r'"[^"]*\b(to type|to try|to refresh|to fetch|to copy|to build|press|click|tap|hit enter)\b[^"]*"|"(Alt|Ctrl|Super|Shift)\s*"\s*\+', re.I)
 GLYPH_TEXT = re.compile(r"^text:\s*Config\.(icon\w+|glyph\(|\w+Icon\w*\b)")
 
 
@@ -45,9 +46,23 @@ def config_names():
 TOKENS = config_names()
 
 
+def block_lines(lines, name):
+    inside = set()
+    for index, line in enumerate(lines):
+        match = re.match(r"^(\t*)(?:\w+: )?" + name + r" \{$", line)
+        if not match:
+            continue
+        end = index + 1
+        while end < len(lines) and lines[end] != match.group(1) + "}":
+            end += 1
+        inside.update(range(index, end + 1))
+    return inside
+
+
 def check(path, failures):
     text = path.read_text()
     lines = text.split("\n")
+    hints = block_lines(lines, "Hint")
     where = layer(path)
     rel = path.relative_to(ROOT)
 
@@ -70,6 +85,8 @@ def check(path, failures):
         for name in re.findall(r"\bConfig\.(\w+)", code):
             if name not in TOKENS:
                 fail(number, f"Config.{name} does not exist")
+        if path != CONFIG and path.name != "Hint.qml" and number - 1 not in hints and HINT_TEXT.search(code):
+            fail(number, "hint text outside Hint; draw hints through ui/Hint.qml")
         if "·" in line:
             fail(number, "dot separator; separate with spacing")
         if where in KITS and re.search(r"\bYudae\b", code):

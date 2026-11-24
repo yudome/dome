@@ -147,10 +147,20 @@ PanelPage {
 			colorFor: (value) => Github.levelInk[value ? value.level : 0] || Config.contribEmpty
 		}
 
-		Label {
+		Row {
 			width: column.width
-			role: "caption"
-			text: Github.loading ? "Refreshing" : (Github.fetched > 0 ? "Updated " + Qt.formatDateTime(new Date(Github.fetched), "MMM d h:mm AP") : "")
+			spacing: Config.spacing
+
+			Label {
+				visible: text !== ""
+				role: "caption"
+				text: Github.loading ? "Refreshing" : (Github.fetched > 0 ? "Updated " + Qt.formatDateTime(new Date(Github.fetched), "MMM d h:mm AP") : "")
+			}
+
+			Hint {
+				shown: !Github.loading
+				line: Github.fetched > 0 ? Config.contribRefreshHint : Config.contribFetchHint
+			}
 		}
 	}
 }

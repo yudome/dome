@@ -8,7 +8,7 @@ NEVER commit or run any git write command until the user explicitly says commit 
 When the user asks to commit, commit in small coherent blocks, never one big commit: stage whatever files each change touches
 When the user asks to commit, commit messages are one line only, no description and no footer, matching the style of the existing commits
 NEVER install ANYTHING without telling the user first — packages, skills, MCP servers, plugins, everything. Say what is missing and why it is needed, then let the user choose exactly: (1) give root and install it now, (2) do not install, try another way, (3) do not install, I will do it myself. No install happens unless the user picks option 1.
-No on-screen instructions or shortcut hints in widgets: never render "press X", key lists, hints, or counters. The UI is discovered by using it.
+Shortcut hints and short instructions are drawn only through `shell/ui/Hint.qml` (a key or key glyph plus a short muted label), their text comes from `Config`, and `hints = false` hides them all; never draw a hint as a bare `Text`/`Label`. No counters on screen.
 If a VM task needs an action the daemon does not expose, do not write a throwaway script for it. Ask the user whether to add it to yudaemond; if yes, implement, test and document the verb, then use it.
 Every surface shows the same icon for the same thing: the VM app, its machines and the launcher entry use one glyph.
 Icons live once, in the icon list (`iconX` in `shell/services/Config.qml` and `shell/config/icons.toml`, plus the `icons` map). Before using an icon, look it up in that list and reuse it everywhere, switches and rows included. Add one only when the list has none, and never invent a second glyph for something that already has one.

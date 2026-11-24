@@ -1,10 +1,10 @@
 # Design system
 
-TLDR: monochrome, dense, glyph-driven. Every value is a token in `shell/services/Config.qml`, editable through `shell/config/*.toml`. Every visual is composed from `shell/ui`, `shell/appkit` and `shell/panelkit`. No literals, no hand-built chrome, no hints on screen. `xmake lint` enforces it.
+TLDR: monochrome, dense, glyph-driven. Every value is a token in `shell/services/Config.qml`, editable through `shell/config/*.toml`. Every visual is composed from `shell/ui`, `shell/appkit` and `shell/panelkit`. No literals, no hand-built chrome, hints only through `Hint`. `xmake lint` enforces it.
 
 ## Principles
 
-- Discovered by use: no "press X", key lists, hints or counters.
+- Hints only through `Hint` (key + short label, text from `Config`, all hidden by `hints = false`); no counters.
 - Mono first: `mono = true` swaps every hue for the mono ink; color is opt-in per token (`cpuBase` / `cpuBaseMono`). Apps have no accent hue: selection is ink on `surfaceRaised`.
 - One thing, one glyph, everywhere.
 - Text never overlaps: bounded width, anchored to neighbours, elided.
@@ -75,10 +75,10 @@ Every glyph is `iconX` in `config/icons.toml`, mirrored as `Config.iconX`, plus 
 | Buttons | `Button`, `Chip` | Kinds `primary`, `secondary`, `ghost`, `danger`; `busy`; `confirm` arms in danger, a second activation runs. Takes an `AppAction`. |
 | Inputs | `TextField`, `SearchField`, `Switch`, `PillSwitch`, `Select`, `ColorField`, `FocusRing`, `InlineEdit` | `PillSwitch` is the segmented control; `Select` is a dropdown over `MenuList`; `InlineEdit` is the text backend. |
 | Slider | `Slider`, `SliderTrack`, `GlyphScale`, `StepBar` | `Slider` owns value, stops, steps, drag, wheel, keys; renderers are visual only and get `value`, `normalized`, `dragging`, `hovered`, `orientation`, `stops`. |
-| Rows | `ListRow`, `FormRow`, `Selector`, `StepList`, `ProcessList`, `IconRow`, `NotificationRow` | `ListRow`: leading, content, trailing slots. `FormRow`: label, note, pending dot, control slot. |
+| Rows | `ListRow`, `FormRow`, `Selector`, `StepList`, `IconRow`, `NotificationRow` | `ListRow`: leading, content, trailing slots. `FormRow`: label, note, pending dot, control slot. |
 | Surfaces | `Card`, `Tooltip`, `Separator`, `Highlight`, `Drawer`, `HyprBorder`, `HyprShadow` | `Tooltip` is every popup. |
 | Navigation | `NavItem`, `Tabs`, `Breadcrumb` | `Breadcrumb` separates with the `right` glyph. |
-| Feedback | `Badge`, `ProgressBar`, `Braille`, `EmptyState` | Empty and error states are a glyph plus a short noun line. |
+| Feedback | `Badge`, `ProgressBar`, `Braille`, `EmptyState`, `Hint` | Empty and error states are a glyph plus a short noun line, with an optional `Hint` under it. `Hint` is the only way to draw a shortcut or instruction; `ui-check` rejects hint text anywhere else. |
 | Overlays | `MenuRow`, `MenuList`, `ContextMenu` | Menu entries with `confirm: true` arm first. |
 | Scroll | `Scrollbar` | Low level: right border, no track, fades in on scroll or hover, draggable. Features use `AppScroll`. |
 | Data visuals | `CellGrid`, `DotGraph`, `SignalBars`, `SpeedGauge`, `PowerFlow`, `DayDial`, `Figures` | Stay in `ui` or their feature, never in a kit. |
@@ -102,7 +102,7 @@ Every glyph is `iconX` in `config/icons.toml`, mirrored as `Config.iconX`, plus 
 
 ### `shell/panelkit`
 
-`PanelPage` (padding, content width, `closeRequested`), `PanelHeader` (title, value, trailing slot), `PanelBand` (section title on a raised surface, bleeds to the panel edges), `PanelRow`, `PanelFooter`, `ProcessPanel` (header, detail, viz, process list; data in, `query` and `kill` out).
+`PanelPage` (padding, content width, `closeRequested`), `PanelHeader` (title, value, trailing slot), `PanelBand` (section title on a raised surface, bleeds to the panel edges), `PanelRow`, `PanelFooter`, `ProcessPanel` (header, detail, viz).
 
 ## Sizes
 

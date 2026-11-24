@@ -55,7 +55,7 @@ Rectangle {
 				required property int index
 
 				width: column.width
-				text: modelData.label !== undefined ? modelData.label : String(modelData)
+				text: root.armed === index && modelData.confirmLabel ? modelData.confirmLabel : modelData.label !== undefined ? modelData.label : String(modelData)
 				icon: modelData.icon || ""
 				danger: modelData.danger === true
 				enabled: modelData.enabled !== false
@@ -63,6 +63,13 @@ Rectangle {
 				armed: root.armed === index
 				onClicked: root.activate(index, modelData)
 			}
+		}
+
+		Hint {
+			x: Config.appControlRadius
+			shown: root.armed >= 0 && root.armed < root.entries.length && (root.entries[root.armed].hint || "") !== ""
+			inkMuted: Config.red
+			text: root.armed >= 0 && root.armed < root.entries.length ? root.entries[root.armed].hint || "" : ""
 		}
 	}
 }

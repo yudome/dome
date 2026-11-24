@@ -56,10 +56,8 @@ ProcessPanel {
 
 	title: Config.networkTitle
 	detailColor: root.downInk
-	listInk: root.downInk
 	totalInk: root.downInk
 	showTotal: false
-	showProcessList: false
 	keyAction: function(event) {
 		if (root.wifiTarget !== "") {
 			if (Input.cancel(event)) {
@@ -486,6 +484,12 @@ ProcessPanel {
 			focus: true
 			text: root.buttonText
 			onClicked: root.primaryAction()
+		},
+
+		Hint {
+			anchors.horizontalCenter: parent.horizontalCenter
+			shown: root.done
+			line: Config.networkSpeedAgain
 		},
 
 	]

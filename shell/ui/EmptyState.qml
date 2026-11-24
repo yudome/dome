@@ -8,6 +8,8 @@ Column {
 	property string source: ""
 	property string text: ""
 	property color ink: Config.muted
+	property string hint: ""
+	property string hintShortcut: ""
 
 	spacing: Config.gapsIn * 2
 
@@ -28,5 +30,13 @@ Column {
 		horizontalAlignment: Text.AlignHCenter
 		ink: root.ink
 		text: root.text
+	}
+
+	Hint {
+		anchors.horizontalCenter: parent.horizontalCenter
+		shown: root.hint !== "" || root.hintShortcut !== ""
+		shortcut: root.hintShortcut
+		text: root.hint
+		maxWidth: root.parent ? root.parent.width : 0
 	}
 }

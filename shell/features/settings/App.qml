@@ -90,6 +90,9 @@ AppWindow {
 			status: settingsStore.status
 			icon: "search"
 			emptyText: "No matches"
+			errorText: "Settings needs the current yudaemond"
+			hintShortcut: settingsStore.status === "error" ? Config.settingsDaemonCommand : ""
+			hint: settingsStore.status === "error" ? Config.settingsDaemonHint : ""
 			onRetry: settingsStore.load()
 
 			AppPage {

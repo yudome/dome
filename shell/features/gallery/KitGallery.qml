@@ -479,6 +479,30 @@ AppPage {
 
 		FormRow {
 			width: parent.width
+			label: "Hint"
+			note: "Key and label, key glyph"
+
+			IconBar {
+				anchors.right: parent.right
+				anchors.verticalCenter: parent.verticalCenter
+				spacing: Metrics.gap
+
+				Hint {
+					line: Config.procSearchHint
+				}
+
+				Hint {
+					shortcut: "Alt1"
+				}
+
+				Hint {
+					glyph: "enter"
+				}
+			}
+		}
+
+		FormRow {
+			width: parent.width
 			label: "Braille"
 
 			Braille {
@@ -500,7 +524,7 @@ AppPage {
 				width: Metrics.controlWidth * 0.75
 				height: implicitHeight
 				current: "wake"
-				entries: [{ label: "Wake", icon: "sun", value: "wake" }, { label: "Stop", icon: "powerOff", enabled: false }, { label: "Destroy", icon: "close", danger: true, confirm: true }]
+				entries: [{ label: "Wake", icon: "sun", value: "wake" }, { label: "Stop", icon: "powerOff", enabled: false }, { label: "Destroy", confirmLabel: Config.vmDestroyConfirm, hint: Config.vmDestroyHint, icon: "close", danger: true, confirm: true }]
 			}
 		}
 	}

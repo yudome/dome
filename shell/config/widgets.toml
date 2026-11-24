@@ -17,6 +17,7 @@ procRowHeight = 22
 procsGap = 2
 psIgnore = ["ps", "ps <defunct>"]
 procSearchPadding = 4
+procSearchHint = "f to type"  # hidden
 procSearchMinWidth = 140
 procKillSignal = "-9"  # hidden
 procNoMatch = "Nothing matches"  # hidden
@@ -94,7 +95,8 @@ networkBarGap = 2
 networkBarStep = 3
 networkBarsOff = "#2f2f2f"
 networkSpeedCancelKey = "k"  # hidden
-networkSpeedNone = "Speed test"  # hidden
+networkSpeedNone = "Run a speed test"  # hidden
+networkSpeedAgain = "Enter to try again"  # hidden
 networkSpeedUnit = "Mbps"  # hidden
 networkSpeedTestingDown = "Testing download speed\u2026"  # hidden
 networkSpeedTestingUp = "Testing upload speed\u2026"  # hidden
@@ -220,6 +222,8 @@ contribWeeks = 19  # 4..52
 contribCell = 10
 contribGap = 3
 contribTooltipWidth = 244
+contribRefreshHint = "r to refresh"  # hidden
+contribFetchHint = "r to fetch"  # hidden
 contribAvatar = 24
 
 # Agent
@@ -255,3 +259,10 @@ agentFinishedToast = false  # toast when an agent session finishes
 # Disk
 [disk]
 diskBubbleMs = 420
+diskScanHint = "Scan to build the map"  # hidden
+diskDeleteHint = "Are you sure you want to delete %1?"  # hidden
+
+# Virtual machines
+[vms]
+vmDestroyConfirm = "Confirm destroy"  # hidden
+vmDestroyHint = "destroy deletes the disk"  # hidden

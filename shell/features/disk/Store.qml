@@ -25,6 +25,7 @@ QtObject {
 	readonly property string usage: store.formatSize(store.disk.used || 0) + " used  " + store.formatSize(store.disk.free || 0) + " free"
 	readonly property string mapStatus: !Yudae.connected ? "error" : store.scanning && store.entries.length === 0 ? "loading" : store.entries.length === 0 ? "empty" : "ready"
 	readonly property string mapEmpty: store.view ? "Empty folder" : "No map"
+	readonly property string mapHint: store.view ? "" : Config.diskScanHint
 	readonly property var crumbs: {
 		const parts = store.path.split("/").filter(function (p) { return p !== ""; });
 		const out = [{ label: "/", value: "/" }];
