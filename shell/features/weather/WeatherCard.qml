@@ -180,22 +180,6 @@ PanelPage {
 	}
 
 	TextMetrics {
-		id: heroTempInk
-
-		font.family: Config.fontFamily
-		font.pixelSize: Config.weatherHeroTempSize
-		text: root.tempValue
-	}
-
-	TextMetrics {
-		id: heroUnitInk
-
-		font.family: Config.fontFamily
-		font.pixelSize: Config.weatherHeroUnitSize
-		text: String(root.tempUnit).replace("°", "")
-	}
-
-	TextMetrics {
 		id: heroLabelMetrics
 
 		font.family: Config.fontFamily
@@ -253,6 +237,13 @@ PanelPage {
 				target: feelsValue
 			}
 
+			InkLine {
+				id: tempTop
+
+				target: tempNumber
+				edge: "top"
+			}
+
 			Icon {
 				id: heroGlyph
 
@@ -282,9 +273,8 @@ PanelPage {
 				id: tempUnitText
 
 				anchors.left: tempNumber.right
-				anchors.top: tempNumber.top
-				anchors.topMargin: (heroTempInk.tightBoundingRect.y - heroTempInk.boundingRect.y)
-					- (heroUnitInk.tightBoundingRect.y - heroUnitInk.boundingRect.y)
+				anchors.top: tempTop.bottom
+				anchors.topMargin: -tempUnitText.inkTop
 				height: heroUnitMetrics.height
 				font.pixelSize: Config.weatherHeroUnitSize
 				ink: Config.foreground
