@@ -99,10 +99,12 @@ Item {
 		borderWidth: root.popupBorderWidth
 	}
 
+	// The bar line is measured at the base icon size, so a widget that draws a
+	// bigger glyph does not make the bar taller than its neighbours.
 	TextMetrics {
 		id: iconsMetrics
 		font.family: Config.fontFamily
-		font.pixelSize: root.iconSize
+		font.pixelSize: Config.iconSize
 		text: Config.iconCpu + Config.iconMemory + Config.iconVolumeLow + Config.iconVolumeMid + Config.iconVolumeHigh + Config.iconBatteryFull + Config.iconBatteryHigh + Config.iconBatteryMid + Config.iconBatteryLow + Config.iconBatteryAlert + Config.iconBatteryCharge + Config.iconPowerPlug
 	}
 
