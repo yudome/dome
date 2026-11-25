@@ -45,7 +45,7 @@ settingsPages = [
 ]
 ```
 
-Adding a setting means adding a line to that category's file. A section is a `[section]` table; the comment line above it is the panel title. A key needs no registration: its type comes from its value, and its label is the key with the section prefix dropped (`barCells` in `[bar]` is "Cells"). A trailing comment adds the rest: `# 4..30` gives the slider range, `# icon | text` makes a choice, `hidden` keeps a key out of the app, any other sentence is the row's note. All font glyphs live in `icons.toml`; `settings.schema` collects every glyph key there and leaves glyphs out of the other pages.
+Adding a setting means adding a line to that category's file. A section is a `[section]` table; the comment line above it is the panel title. A key needs no registration: its type comes from its value, and its label is the key with the section prefix dropped (`barStatSpacing` in `[bar]` is "Stat Spacing"). A trailing comment adds the rest: `# 4..30` gives the slider range, `# icon | text` makes a choice, `hidden` keeps a key out of the app, any other sentence is the row's note. All font glyphs live in `icons.toml`; `settings.schema` collects every glyph key there and leaves glyphs out of the other pages.
 
 The files under `shell/config/` stay the only store. Edits are one line each, keeping indent, trailing comment and file order; the result is parsed before the atomic write, so a bad edit never lands.
 

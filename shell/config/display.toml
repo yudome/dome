@@ -1,7 +1,5 @@
 # Sliders and scale
 [display]
-displayBase = "#7aa2f7"
-displayBaseMono = "#ffffff"  # same as foreground
 stepBarHeight = 6
 stepBarMs = 120
 stepBarGap = 2

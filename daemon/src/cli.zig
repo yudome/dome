@@ -1007,8 +1007,8 @@ test "settings and bar verbs build their calls" {
 	const io = std.testing.io;
 
 	try std.testing.expectEqualStrings(
-		"{\"call\":{\"target\":\"settings\",\"method\":\"set\",\"args\":{\"key\":\"barCells\",\"value\":12}}}",
-		try settingsMessage(io, a, &.{ "yudae", "settings", "set", "barCells", "12" }),
+		"{\"call\":{\"target\":\"settings\",\"method\":\"set\",\"args\":{\"key\":\"barStatSpacing\",\"value\":16}}}",
+		try settingsMessage(io, a, &.{ "yudae", "settings", "set", "barStatSpacing", "16" }),
 	);
 	try std.testing.expectEqualStrings(
 		"{\"call\":{\"target\":\"settings\",\"method\":\"set\",\"args\":{\"key\":\"popupPos\",\"value\":\"top-left\"}}}",
@@ -1018,14 +1018,14 @@ test "settings and bar verbs build their calls" {
 		"{\"call\":{\"target\":\"settings\",\"method\":\"app\",\"args\":{\"pane\":\"\"}}}",
 		try settingsMessage(io, a, &.{ "yudae", "settings", "app" }),
 	);
-	try std.testing.expectError(error.Usage, settingsMessage(io, a, &.{ "yudae", "settings", "set", "barCells" }));
+	try std.testing.expectError(error.Usage, settingsMessage(io, a, &.{ "yudae", "settings", "set", "barStatSpacing" }));
 	try std.testing.expectEqualStrings(
 		"{\"call\":{\"target\":\"settings\",\"method\":\"schema\",\"args\":{}}}",
 		try settingsMessage(io, a, &.{ "yudae", "settings", "schema" }),
 	);
 	try std.testing.expectEqualStrings(
-		"{\"call\":{\"target\":\"settings\",\"method\":\"get\",\"args\":{\"key\":\"barCells\"}}}",
-		try settingsMessage(io, a, &.{ "yudae", "settings", "get", "barCells" }),
+		"{\"call\":{\"target\":\"settings\",\"method\":\"get\",\"args\":{\"key\":\"barStatSpacing\"}}}",
+		try settingsMessage(io, a, &.{ "yudae", "settings", "get", "barStatSpacing" }),
 	);
 	try std.testing.expectError(error.Usage, settingsMessage(io, a, &.{ "yudae", "bar", "nope" }));
 }

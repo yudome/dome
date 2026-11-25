@@ -1,6 +1,5 @@
 # Notifications
 [notify]
-notifyBase = "#ffffff"  # same as foreground
 notifyScale = 1.25  # 0.75..2
 notifyWidth = 350  # Math.round(280 * notifyScale)
 notifyPadding = 15  # Math.round(12 * notifyScale)

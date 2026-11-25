@@ -107,9 +107,9 @@ QtObject {
 	readonly property var trayIconGap: settings.trayIconGap !== undefined ? settings.trayIconGap : 10
 	readonly property var trayGroupSize: settings.trayGroupSize !== undefined ? settings.trayGroupSize : 15
 	readonly property var trayChevronBoost: settings.trayChevronBoost !== undefined ? settings.trayChevronBoost : 1
-	readonly property var trayMenuWidth: settings.trayMenuWidth !== undefined ? settings.trayMenuWidth : 120
+	readonly property var trayMenuWidth: settings.trayMenuWidth !== undefined ? settings.trayMenuWidth : 168
 	readonly property var trayMenuPadding: settings.trayMenuPadding !== undefined ? settings.trayMenuPadding : 6
-	readonly property var trayMenuRowHeight: settings.trayMenuRowHeight !== undefined ? settings.trayMenuRowHeight : 18
+	readonly property var trayMenuRowHeight: settings.trayMenuRowHeight !== undefined ? settings.trayMenuRowHeight : 26
 	readonly property var trayMenuSeparator: settings.trayMenuSeparator !== undefined ? settings.trayMenuSeparator : 1
 
 	// the bar itself
@@ -258,7 +258,6 @@ QtObject {
 	readonly property var mixerChannelGap: settings.mixerChannelGap !== undefined ? settings.mixerChannelGap : 4
 	readonly property var mixerFaderThickness: settings.mixerFaderThickness !== undefined ? settings.mixerFaderThickness : 4
 	readonly property var mixerIconSize: settings.mixerIconSize !== undefined ? settings.mixerIconSize : 22
-	readonly property var mixerDeviceIconSize: settings.mixerDeviceIconSize !== undefined ? settings.mixerDeviceIconSize : 26
 	readonly property var mixerListGap: settings.mixerListGap !== undefined ? settings.mixerListGap : 8
 	readonly property var mixerMaxVolume: settings.mixerMaxVolume !== undefined ? settings.mixerMaxVolume : 1
 	readonly property var mixerStepCount: settings.mixerStepCount !== undefined ? settings.mixerStepCount : 10
@@ -277,7 +276,6 @@ QtObject {
 	readonly property var mediaButtonGap: settings.mediaButtonGap !== undefined ? settings.mediaButtonGap : 18
 	readonly property var mediaLineGap: settings.mediaLineGap !== undefined ? settings.mediaLineGap : 2
 	readonly property var mediaEmpty: settings.mediaEmpty !== undefined ? settings.mediaEmpty : "Nothing playing"
-	readonly property var volumeBase: settings.volumeBase !== undefined ? settings.volumeBase : "#ffffff"
 
 	// launcher box
 	readonly property var launcherWidth: settings.launcherWidth !== undefined ? settings.launcherWidth : 270
@@ -332,8 +330,6 @@ QtObject {
 	readonly property var themeNameSize: settings.themeNameSize !== undefined ? settings.themeNameSize : 24
 	readonly property var themeEmpty: settings.themeEmpty !== undefined ? settings.themeEmpty : "No themes installed"
 	readonly property var wallpaperPickerPadding: settings.wallpaperPickerPadding !== undefined ? settings.wallpaperPickerPadding : 16
-	readonly property var wallpaperTileGap: settings.wallpaperTileGap !== undefined ? settings.wallpaperTileGap : 8
-	readonly property var wallpaperTileDim: settings.wallpaperTileDim !== undefined ? settings.wallpaperTileDim : 0.6
 	readonly property var wallpaperRingWidth: settings.wallpaperRingWidth !== undefined ? settings.wallpaperRingWidth : 2
 	readonly property var wallpaperMarkSize: settings.wallpaperMarkSize !== undefined ? settings.wallpaperMarkSize : 11
 	readonly property var wallpaperFadeMs: settings.wallpaperFadeMs !== undefined ? settings.wallpaperFadeMs : 160
@@ -341,16 +337,12 @@ QtObject {
 	readonly property var wallpaperScrimMs: settings.wallpaperScrimMs !== undefined ? settings.wallpaperScrimMs : 180
 
 	// disk map
-	readonly property var diskDir: settings.diskDir !== undefined ? settings.diskDir : memoryBase
-	readonly property var diskFile: settings.diskFile !== undefined ? settings.diskFile : cpuBase
 	readonly property var diskIconDir: settings.diskIconDir !== undefined ? settings.diskIconDir : "\uf07b"
 	readonly property var diskIconFile: settings.diskIconFile !== undefined ? settings.diskIconFile : "\uf15b"
 	readonly property var diskIconPackage: settings.diskIconPackage !== undefined ? settings.diskIconPackage : "\uf487"
 	readonly property var diskIconCache: settings.diskIconCache !== undefined ? settings.diskIconCache : "\uf1b8"
 	readonly property var diskIconSortDesc: settings.diskIconSortDesc !== undefined ? settings.diskIconSortDesc : "\uf0d7"
 	readonly property var diskIconSortAsc: settings.diskIconSortAsc !== undefined ? settings.diskIconSortAsc : "\uf0d8"
-	readonly property var diskAccent: settings.diskAccent !== undefined ? settings.diskAccent : cpuCore
-	readonly property var diskOther: settings.diskOther !== undefined ? settings.diskOther : yellow
 	readonly property var diskScanHint: settings.diskScanHint !== undefined ? settings.diskScanHint : "Scan to build the map"
 	readonly property var diskDeleteHint: settings.diskDeleteHint !== undefined ? settings.diskDeleteHint : "Are you sure you want to delete %1?"
 	readonly property var vmDestroyConfirm: settings.vmDestroyConfirm !== undefined ? settings.vmDestroyConfirm : "Confirm destroy"
@@ -409,7 +401,6 @@ QtObject {
 	readonly property var toggleHover: settings.toggleHover !== undefined ? settings.toggleHover : "#3f3f3f"
 	readonly property var toggleLabelInk: settings.toggleLabelInk !== undefined ? settings.toggleLabelInk : "#101010"
 	readonly property var toggleFaded: settings.toggleFaded !== undefined ? settings.toggleFaded : "#8f8f8f"
-	readonly property var toggleLabelLift: settings.toggleLabelLift !== undefined ? settings.toggleLabelLift : 0
 	readonly property var toggleMs: settings.toggleMs !== undefined ? settings.toggleMs : 160
 
 	// lock screen
@@ -489,7 +480,6 @@ QtObject {
 	readonly property var weatherIcon: settings.weatherIcon !== undefined ? settings.weatherIcon : "\udb83\udf2f"
 	readonly property var weatherLoadingIcon: settings.weatherLoadingIcon !== undefined ? settings.weatherLoadingIcon : "\udb86\udcf6"
 	readonly property var weatherBase: settings.weatherBase !== undefined ? settings.weatherBase : "#7cc4f0"
-	readonly property var weatherBaseMono: settings.weatherBaseMono !== undefined ? settings.weatherBaseMono : "#ffffff"
 	readonly property var weatherTempUnit: settings.weatherTempUnit !== undefined ? settings.weatherTempUnit : "fahrenheit"
 	readonly property var weatherDays: settings.weatherDays !== undefined ? settings.weatherDays : 7
 	readonly property var weatherCardWidth: settings.weatherCardWidth !== undefined ? settings.weatherCardWidth : 470
@@ -542,7 +532,6 @@ QtObject {
 	]
 
 	// notification toasts
-	readonly property var notifyBase: settings.notifyBase !== undefined ? settings.notifyBase : "#ffffff"
 	readonly property var notifyScale: settings.notifyScale !== undefined ? settings.notifyScale : 1.25
 	readonly property var notifyWidth: settings.notifyWidth !== undefined ? settings.notifyWidth : 350
 	readonly property var notifyPadding: settings.notifyPadding !== undefined ? settings.notifyPadding : 15
@@ -574,8 +563,6 @@ QtObject {
 	readonly property var contribAvatar: settings.contribAvatar !== undefined ? settings.contribAvatar : 24
 
 	// display panel
-	readonly property var displayBase: settings.displayBase !== undefined ? settings.displayBase : "#7aa2f7"
-	readonly property var displayBaseMono: settings.displayBaseMono !== undefined ? settings.displayBaseMono : "#ffffff"
 	readonly property var stepBarHeight: settings.stepBarHeight !== undefined ? settings.stepBarHeight : 6
 	readonly property var stepBarMs: settings.stepBarMs !== undefined ? settings.stepBarMs : 120
 	readonly property var stepBarGap: settings.stepBarGap !== undefined ? settings.stepBarGap : 2
@@ -593,11 +580,7 @@ QtObject {
 	readonly property var displayRefreshTitle: settings.displayRefreshTitle !== undefined ? settings.displayRefreshTitle : "Refresh"
 	readonly property var displayScaleTitle: settings.displayScaleTitle !== undefined ? settings.displayScaleTitle : "Scale"
 	readonly property var displayNothing: settings.displayNothing !== undefined ? settings.displayNothing : "No display found"
-	readonly property var displayIconRefresh: settings.displayIconRefresh !== undefined ? settings.displayIconRefresh : "\uf021"
-
 	// network and speed test
-	readonly property var networkBase: settings.networkBase !== undefined ? settings.networkBase : "#61afef"
-	readonly property var networkBaseMono: settings.networkBaseMono !== undefined ? settings.networkBaseMono : "#ffffff"
 	readonly property var networkDown: settings.networkDown !== undefined ? settings.networkDown : "#7bd88f"
 	readonly property var networkDownMono: settings.networkDownMono !== undefined ? settings.networkDownMono : "#ffffff"
 	readonly property var networkUp: settings.networkUp !== undefined ? settings.networkUp : "#e06c9f"
@@ -607,7 +590,6 @@ QtObject {
 	readonly property var networkGraphHeight: settings.networkGraphHeight !== undefined ? settings.networkGraphHeight : 40
 	readonly property var networkGraphGap: settings.networkGraphGap !== undefined ? settings.networkGraphGap : 2
 	readonly property var networkTooltipWidth: settings.networkTooltipWidth !== undefined ? settings.networkTooltipWidth : 260
-	readonly property var networkRowHeight: settings.networkRowHeight !== undefined ? settings.networkRowHeight : 18
 	readonly property var networkDropdownRows: settings.networkDropdownRows !== undefined ? settings.networkDropdownRows : 6
 	readonly property var networkRowGap: settings.networkRowGap !== undefined ? settings.networkRowGap : 3
 	readonly property var networkBarCount: settings.networkBarCount !== undefined ? settings.networkBarCount : 4
@@ -633,8 +615,6 @@ QtObject {
 	readonly property var speedNeedleMs: settings.speedNeedleMs !== undefined ? settings.speedNeedleMs : 450
 	readonly property var speedNeedleLen: settings.speedNeedleLen !== undefined ? settings.speedNeedleLen : 22
 	readonly property var speedNeedleWidth: settings.speedNeedleWidth !== undefined ? settings.speedNeedleWidth : 2
-	readonly property var speedButtonPadX: settings.speedButtonPadX !== undefined ? settings.speedButtonPadX : 10
-	readonly property var speedButtonPadY: settings.speedButtonPadY !== undefined ? settings.speedButtonPadY : 4
 	readonly property var networkTitle: settings.networkTitle !== undefined ? settings.networkTitle : "Network"
 	readonly property var networkWiredNothing: settings.networkWiredNothing !== undefined ? settings.networkWiredNothing : "No connection"
 	readonly property var networkPasswordHint: settings.networkPasswordHint !== undefined ? settings.networkPasswordHint : "Password"
@@ -652,9 +632,7 @@ QtObject {
 	readonly property var agentBlinkCloseMs: settings.agentBlinkCloseMs !== undefined ? settings.agentBlinkCloseMs : 70
 	readonly property var agentOpenMs: settings.agentOpenMs !== undefined ? settings.agentOpenMs : 240
 	readonly property var agentSpinMs: settings.agentSpinMs !== undefined ? settings.agentSpinMs : 2100
-	readonly property var agentBreatheMs: settings.agentBreatheMs !== undefined ? settings.agentBreatheMs : 3800
 	readonly property var agentPanelWidth: settings.agentPanelWidth !== undefined ? settings.agentPanelWidth : 300
-	readonly property var agentPanelHeight: settings.agentPanelHeight !== undefined ? settings.agentPanelHeight : 360
 	readonly property var agentRingSize: settings.agentRingSize !== undefined ? settings.agentRingSize : 32
 	readonly property var agentRingWidth: settings.agentRingWidth !== undefined ? settings.agentRingWidth : 3
 	readonly property var agentRingGap: settings.agentRingGap !== undefined ? settings.agentRingGap : 12

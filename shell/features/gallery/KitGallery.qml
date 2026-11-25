@@ -15,7 +15,7 @@ AppPage {
 	property string tab: "map"
 	property real level: 0.4
 	property var stop: 120
-	property string swatch: Config.displayBase
+	property string swatch: Config.foreground
 
 	function reveal(name) {
 		const item = sections.find(function (s) { return s.title === name; });

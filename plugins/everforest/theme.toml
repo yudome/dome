@@ -42,9 +42,6 @@ memoryDangerMono = "#d3c6aa"
 
 [mixer]
 
-[media]
-volumeBase = "#d3c6aa"
-
 [launcher]
 
 [power]
@@ -55,7 +52,6 @@ powerDanger = "#e67e80"
 
 [weather]
 weatherBase = "#83c092"
-weatherBaseMono = "#d3c6aa"
 
 [calendar]
 calendarBase = "#d3c6aa"
@@ -67,21 +63,12 @@ calendarDialCream = "#e6dcc0"
 calendarDialNoon = "#d3c6aa"
 calendarDialDay = "#83c092"
 
-[notify]
-notifyBase = "#d3c6aa"
-
 [contrib]
 contribBase = "#a7c080"
 contribBaseMono = "#d3c6aa"
 contribEmpty = "#343f44"
 
-[display]
-displayBase = "#7fbbb3"
-displayBaseMono = "#d3c6aa"
-
 [network]
-networkBase = "#7fbbb3"
-networkBaseMono = "#d3c6aa"
 networkDown = "#a7c080"
 networkDownMono = "#d3c6aa"
 networkUp = "#d699b6"
