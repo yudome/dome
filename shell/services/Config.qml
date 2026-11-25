@@ -289,6 +289,7 @@ QtObject {
 	readonly property var launcherIconSize: settings.launcherIconSize !== undefined ? settings.launcherIconSize : 20
 	readonly property var launcherIconSlot: settings.launcherIconSlot !== undefined ? settings.launcherIconSlot : 24
 	readonly property var launcherTextGap: settings.launcherTextGap !== undefined ? settings.launcherTextGap : 10
+	readonly property var launcherHintShade: settings.launcherHintShade !== undefined ? settings.launcherHintShade : 1.5
 	readonly property var launcherPrompt: settings.launcherPrompt !== undefined ? settings.launcherPrompt : "\uea6d"
 	readonly property var launcherCopyHint: settings.launcherCopyHint !== undefined ? settings.launcherCopyHint : "click to copy to clipboard"
 	readonly property var launcherMaxRows: settings.launcherMaxRows !== undefined ? settings.launcherMaxRows : 12

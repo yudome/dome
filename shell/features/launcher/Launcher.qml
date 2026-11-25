@@ -1238,19 +1238,12 @@ PanelWindow {
 							readonly property bool pinned: row.modelData.pinned === true
 							readonly property bool wide: row.modelData.kind === "kaomoji"
 
-							InkLine {
-								id: nameCap
-
-								target: rowName
-								edge: "cap"
-							}
-
 							Item {
 								id: rowIcon
 
 								anchors.left: parent.left
 								anchors.leftMargin: Config.launcherPadding
-								anchors.verticalCenter: nameCap.verticalCenter
+								anchors.verticalCenter: parent.verticalCenter
 								width: row.wide ? root.kaomojiSlot : root.iconSlot
 								height: root.iconSlot
 
@@ -1308,7 +1301,7 @@ PanelWindow {
 									width: parent.width
 									elide: Text.ElideRight
 									font.pixelSize: root.fontSize
-									ink: row.active ? Config.foreground : Config.foreground
+									ink: Config.foreground
 									text: row.modelData.name
 								}
 
@@ -1319,7 +1312,7 @@ PanelWindow {
 									visible: row.modelData.kind === "file"
 									elide: Text.ElideMiddle
 									font.pixelSize: Math.round(root.fontSize * 0.72)
-									ink: Config.muted
+									ink: row.active ? Config.foreground : Qt.darker(Config.muted, Config.launcherHintShade)
 									text: row.modelData.detail
 								}
 

@@ -9,6 +9,7 @@ launcherFontSize = 16
 launcherIconSize = 20
 launcherIconSlot = 24
 launcherTextGap = 10
+launcherHintShade = 1.5
 launcherMaxRows = 12  # 4..20
 launcherCopyHint = "click to copy to clipboard"  # hidden
 launcherClipTimeFormat = "h:mm AP"
