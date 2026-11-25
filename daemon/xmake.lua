@@ -122,6 +122,9 @@ local function daemon_target(name, source, with_c, link_yudae, deps)
 				os.rm(link)
 				os.ln(path.join(bindir, name), link)
 				print("installed " .. path.join(bindir, name) .. " and linked " .. link)
+				if os.execv(link, { "restart" }, { try = true }) ~= 0 then
+					print("yudae restart failed; run it by hand")
+				end
 			end
 		end)
 end

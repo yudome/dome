@@ -53,7 +53,7 @@ xmake orchestrates, it does not replace the real builders.
 | task | does |
 | --- | --- |
 | `xmake` | daemon, launcher index, `Yudae.Native` QML module, `yudae-pump` |
-| `xmake install` | daemon into `~/.local/bin`, the `yudae` link, and the native pieces; `xmake install fsd` and `xmake install greeter` ask for root first |
+| `xmake install` | daemon into `~/.local/bin`, the `yudae` link, and the native pieces, then `yudae restart`; `xmake install fsd` and `xmake install greeter` ask for root first |
 | `xmake plugin` | rebuild every `plugins/*/Makefile` into `~/.local/state/yudae/build/<id>`; hypr plugins keep `make` |
 | `xmake link` | symlink `config/*`, `hypr/`, the user units and the icons into `$HOME` |
 | `xmake lint` | qmllint on `shell/`, plus the color, kit, slider and face checks |
