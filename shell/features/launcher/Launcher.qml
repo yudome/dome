@@ -1330,36 +1330,42 @@ PanelWindow {
 								}
 							}
 
-							Hint {
-								id: rowAlt
-
-								readonly property int slot: row.index - list.firstVisible + 1
+							Item {
+								id: rowAction
 
 								anchors.right: parent.right
 								anchors.rightMargin: Config.launcherPadding * 2
 								anchors.verticalCenter: parent.verticalCenter
-								shown: !row.active && slot >= 1 && slot <= 9 && slot <= root.rows
-								size: Math.round(root.fontSize * 0.8)
-								ink: Config.muted
-								shortcut: "Alt" + slot
-							}
+								width: Config.hints ? Math.max(rowAlt.implicitWidth, rowSelect.implicitWidth) : 0
+								height: Math.max(rowAlt.implicitHeight, rowSelect.implicitHeight)
 
-							Hint {
-								id: rowSelect
+								Hint {
+									id: rowAlt
 
-								anchors.right: parent.right
-								anchors.rightMargin: Config.launcherPadding * 2
-								anchors.verticalCenter: parent.verticalCenter
-								shown: row.active
-								size: Math.round(root.iconSize * 0.75)
-								glyph: "enter"
+									readonly property int slot: row.index - list.firstVisible + 1
+
+									anchors.centerIn: parent
+									shown: !row.active && slot >= 1 && slot <= 9 && slot <= root.rows
+									size: Math.round(root.fontSize * 0.8)
+									ink: Config.muted
+									shortcut: "Alt" + Math.min(slot, 9)
+								}
+
+								Hint {
+									id: rowSelect
+
+									anchors.centerIn: parent
+									shown: row.active
+									size: Math.round(root.iconSize * 0.75)
+									glyph: "enter"
+								}
 							}
 
 							Label {
 								id: rowUsage
 
-								anchors.right: rowSelect.visible ? rowSelect.left : rowAlt.visible ? rowAlt.left : parent.right
-								anchors.rightMargin: rowSelect.visible || rowAlt.visible ? Config.launcherTextGap : Config.launcherPadding * 2
+								anchors.right: rowAction.left
+								anchors.rightMargin: Config.launcherTextGap
 								anchors.verticalCenter: parent.verticalCenter
 								width: visible ? implicitWidth : 0
 								visible: row.modelData.kind === "proc" || row.modelData.kind === "vm"
