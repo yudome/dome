@@ -8,6 +8,7 @@ Item {
 	property string icon: ""
 	property string source: ""
 	property bool submenu: false
+	property bool flush: false
 	property real indent: 0
 	property bool danger: false
 	property bool selected: false
@@ -33,7 +34,7 @@ Item {
 
 	Rectangle {
 		anchors.fill: parent
-		radius: Config.appControlRadius
+		radius: root.flush ? 0 : Config.appControlRadius
 		color: root.armed ? Config.red : Config.surfaceHover
 		opacity: root.armed || (hit.containsMouse || root.selected) && root.enabled ? 1 : 0
 	}

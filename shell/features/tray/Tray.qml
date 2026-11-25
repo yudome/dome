@@ -165,15 +165,21 @@ Row {
 
 		anchorWindow: root.bar
 		anchorItem: root.menuAnchor
-		contentPadding: Config.trayMenuPadding
+		contentPadding: 0
 		wantsKeyboard: true
 
-		MenuLevel {
-			entries: root.menuEntries
-			trayKey: root.menuKey
-			bar: root.bar
+		MenuList {
+			overlay: true
+			framed: false
 			live: menuPopup.shown
-			dismiss: function () { menuPopup.close(); }
+			anchorWindow: root.bar
+			menuWidth: Config.trayMenuWidth
+			entries: root.menuEntries
+
+			onPicked: function (entry) {
+				Yudae.cmd("tray", { key: root.menuKey, menu: entry.id });
+				menuPopup.close();
+			}
 		}
 	}
 }

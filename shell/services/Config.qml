@@ -107,8 +107,6 @@ QtObject {
 	readonly property var trayGroupSize: settings.trayGroupSize !== undefined ? settings.trayGroupSize : 15
 	readonly property var trayChevronBoost: settings.trayChevronBoost !== undefined ? settings.trayChevronBoost : 1
 	readonly property var trayMenuWidth: settings.trayMenuWidth !== undefined ? settings.trayMenuWidth : 168
-	readonly property var trayMenuPadding: settings.trayMenuPadding !== undefined ? settings.trayMenuPadding : 6
-	readonly property var trayMenuRowHeight: settings.trayMenuRowHeight !== undefined ? settings.trayMenuRowHeight : 26
 	readonly property var trayMenuSeparator: settings.trayMenuSeparator !== undefined ? settings.trayMenuSeparator : 1
 
 	// the bar itself

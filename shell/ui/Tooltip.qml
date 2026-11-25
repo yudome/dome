@@ -31,6 +31,7 @@ PanelWindow {
 
 	property real anchorX: 0
 	property bool shown: false
+	property bool beside: false
 
 	readonly property bool shut: !root.shown && card.opacity === 0
 
@@ -38,6 +39,9 @@ PanelWindow {
 	readonly property bool atBottom: root.anchorWindow !== null && root.anchorWindow.atBottom === true
 	readonly property real outerMargin: root.anchorWindow !== null ? root.anchorWindow.outerMargin : Config.gapsOut
 	readonly property real wantedX: root.outerMargin + root.anchorX + (root.anchorItem ? root.anchorItem.width : 0) / 2 - root.cardWidth / 2
+	readonly property var besidePoint: root.beside && root.anchorItem ? root.anchorItem.mapToItem(null, 0, 0) : null
+	readonly property real besideX: root.besidePoint ? root.besidePoint.x + root.anchorItem.width + Config.gapsIn + border.inset : 0
+	readonly property bool besideLeft: root.besidePoint !== null && root.besideX + root.cardWidth > root.screenWidth - root.outerMargin
 	readonly property real limitX: (root.anchorWindow ? root.anchorWindow.width : 0) + root.outerMargin - root.cardWidth - Config.tooltipGapRight
 	readonly property real hang: Config.tooltipHang
 	readonly property real screenWidth: root.screen ? root.screen.width : root.cardWidth
@@ -64,12 +68,16 @@ PanelWindow {
 		? Calc.clamp(Config.popupY, 0, root.restY)
 		: root.posBottom ? root.restY - Config.gapsOut
 			: Config.gapsOut
-	readonly property real cardX: root.side === "right"
+	readonly property real cardX: root.beside
+		? (root.besidePoint === null ? 0 : root.besideLeft ? Math.round(root.besidePoint.x - root.cardWidth - Config.gapsIn) : Math.round(root.besideX))
+		: root.side === "right"
 		? Math.round((root.screenWidth - root.cardWidth - root.outerMargin - Config.tooltipGapRight) * root.scale) / root.scale
 		: Math.round((root.centerScreen || root.side === "center" ? (root.screenWidth - root.cardWidth) / 2
 			: root.side === "float" ? root.floatX
 				: Calc.clamp(root.wantedX + Config.tooltipOffsetX, root.outerMargin + Config.tooltipGap, root.limitX)) * root.scale) / root.scale
-	readonly property real cardY: root.centerScreen
+	readonly property real cardY: root.beside
+		? (root.besidePoint === null ? 0 : Calc.clamp(Math.round(root.besidePoint.y - border.inset), root.outerMargin, Math.max(root.outerMargin, root.screenHeight - root.cardHeight - root.outerMargin)))
+		: root.centerScreen
 		? Math.round((root.screenHeight - root.cardHeight) / 2)
 		: root.fullscreen
 			? Math.round(root.floatY)
