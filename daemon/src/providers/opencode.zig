@@ -165,6 +165,10 @@ pub const Opencode = struct {
 	pub fn dismiss(self: *Opencode, id: []const u8) void {
 		self.mutex.lockUncancelable(self.io);
 		self.dropDoneLocked(id);
+
+		if (self.sessions.get(id)) |session|
+			setStr(self.allocator, &session.failure, "") catch {};
+
 		self.mutex.unlock(self.io);
 		self.hub.publish();
 	}
@@ -1053,6 +1057,28 @@ test "a session that finishes twice is listed once and dismissed once" {
 
 	try std.testing.expectEqual(@as(usize, 1), self.done.items.len);
 	try std.testing.expectEqualStrings("ses_b", self.done.items[0].id);
+}
+
+test "dismissing a failed session clears its error" {
+	var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+	defer arena.deinit();
+
+	const allocator = arena.allocator();
+	const io = std.testing.io;
+
+	var hub: hubmod.Hub = .{ .allocator = allocator, .io = io };
+	var client = http.Client.init(allocator, io);
+	const self = try Opencode.create(allocator, io, &hub, &client);
+
+	self.handleEvent("{\"type\":\"session.created\",\"data\":{\"sessionID\":\"ses_err\",\"title\":\"Broken\"}}");
+	self.handleEvent("{\"type\":\"session.execution.failed\",\"data\":{\"sessionID\":\"ses_err\",\"error\":{\"message\":\"boom\"}}}");
+
+	try std.testing.expectEqualStrings("error", self.faceState());
+
+	self.dismiss("ses_err");
+
+	try std.testing.expectEqualStrings("idle", self.faceState());
+	try std.testing.expectEqualStrings("", self.detail());
 }
 
 const credential_query = "SELECT COALESCE(json_extract(value, '$.key'), json_extract(value, '$.access')) AS token FROM credential WHERE active = 1 AND integration_id IN ('opencode-go', 'opencode') AND json_valid(value) AND COALESCE(json_extract(value, '$.key'), json_extract(value, '$.access')) IS NOT NULL ORDER BY CASE integration_id WHEN 'opencode-go' THEN 0 ELSE 1 END, time_updated DESC LIMIT 1;";

@@ -402,6 +402,9 @@ PanelPage {
 						kind: modelData.working ? "working" : (modelData.question ? "question" : "failed")
 						icon: modelData.icon
 						title: modelData.title
+						dismissable: modelData.failed
+
+						onDismissed: Yudae.dismiss(modelData.id)
 					}
 				}
 
