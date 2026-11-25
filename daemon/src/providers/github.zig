@@ -92,12 +92,10 @@ pub const Github = struct {
 		const cfg = config.Config.load(self.io, self.allocator) catch return;
 		defer cfg.deinit();
 
-		const mono = cfg.boolean("mono", true);
-
 		self.weeks = @intCast(@max(1, cfg.integer("contribWeeks", 19)));
 
 		self.empty_ink = color.parse(cfg.color("contribEmpty") orelse "") orelse self.empty_ink;
-		self.base_ink = color.parse(cfg.color(if (mono) "contribBase" else "contribBaseMono") orelse "") orelse self.base_ink;
+		self.base_ink = color.parse(cfg.color("contribBase") orelse "") orelse self.base_ink;
 	}
 
 	pub fn refresh(self: *Github) void {
