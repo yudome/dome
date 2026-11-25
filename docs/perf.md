@@ -136,7 +136,7 @@ The native viewer does receive 150 `UpdateDMABUF` frames/s on the animation, so 
 
 1. The guest cycles dmabuf scanouts. QEMU exports them with `ScanoutDMABUF2`, fourcc ``A B G R 8 8 8 8``/``X B G R``, modifier `0x0300000000e08014`. The viewer imports with `EGL_LINUX_DMA_BUF_EXT` and draws a `QSGSimpleTextureNode`.
 2. QEMU caches the export by texture id; repeat scanouts become `UpdateDMABUF`.
-3. `/home/gabriel/dotfiles/daemon/zig-out/bin/yudae-pump` keeps an agent VM presenting with no viewer, at 1536x864 scale 1.
+3. `/home/user/dotfiles/daemon/zig-out/bin/yudae-pump` keeps an agent VM presenting with no viewer, at 1536x864 scale 1.
 4. `yudae vm view` stops the pump, sets 2560x1440 scale 1.6667 in the guest and opens `shell/app-vms.qml`; `vm release` restores 1536x864 and restarts the pump. No VM restart.
 5. The native plugin is copied into `~/.local/lib/yudae/qml` by `vm/desktop`, `shell/shell-guest.qml` imports it, and its `registerTypes` calls `QQuickWindow::setDefaultAlphaBuffer(true)`. The guest overlay alpha is fixed: `quirks:skip_non_kms_dmabuf_formats = false` makes Hyprland advertise non-KMS ARGB formats, system Mesa exposes 25 ARGB8888 configs and the launcher shows the wallpaper. Proof: `vm/runs/demo/proof/launcher-alpha-hyprland-quirk.png`.
 
@@ -151,7 +151,7 @@ Superseded by a one-line Hyprland quirk. The guest compositor filtered ARGB out 
 ### Guest parity (P1-P5)
 
 - P1/P2: host DP-2 is 2560x1440, scale 1.6666666, 279.961Hz; guest Virtual-1 is 2560x1440, scale 1.6666666, 279.95999Hz.
-- P3: host and guest both use `/home/gabriel/Documents/Wallpaper/wallhaven-0p2em3_2560x1440.png`; the guest snapshot's `wallpaper.active` reports the same image.
+- P3: host and guest both use `/home/user/Documents/Wallpaper/wallhaven-0p2em3_2560x1440.png`; the guest snapshot's `wallpaper.active` reports the same image.
 - P4: 676 host font families against 642 guest; the missing ones are CachyOS extras (Arabic/Syriac PCF), no guest-only families. The shell font `GoogleSansCode Nerd Font` resolves in both. Icon themes are the same 8; host has one extra `cachyos.svg` icon, not a theme. `breeze_cursors` is present in both.
 - P5: fixed by the Hyprland non-KMS quirk; see the proof above.
 
