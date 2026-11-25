@@ -57,7 +57,7 @@ QtObject {
 			d: () => target.stepMonths(1),
 			a: () => target.stepYears(-1),
 			f: () => target.stepYears(1),
-			w: () => target.weekStart = target.weekStart === 1 ? 0 : 1,
+			w: () => target.weekStart = target.weekStart === 6 ? 1 : target.weekStart === 1 ? 0 : 6,
 			r: () => target.reset()
 		});
 	}

@@ -435,7 +435,7 @@ QtObject {
 	readonly property var calendarCellWidth: settings.calendarCellWidth !== undefined ? settings.calendarCellWidth : 60
 	readonly property var calendarCellHeight: settings.calendarCellHeight !== undefined ? settings.calendarCellHeight : 34
 	readonly property var calendarRows: settings.calendarRows !== undefined ? settings.calendarRows : 6
-	readonly property var calendarWeekStart: settings.calendarWeekStart !== undefined ? settings.calendarWeekStart : 1
+	readonly property var calendarWeekStart: settings.calendarWeekStart !== undefined ? settings.calendarWeekStart : 6
 	readonly property var calendarCursorBorder: settings.calendarCursorBorder !== undefined ? settings.calendarCursorBorder : 1
 	readonly property var calendarBase: settings.calendarBase !== undefined ? settings.calendarBase : "#ffffff"
 	readonly property var calendarIconDay: settings.calendarIconDay !== undefined ? settings.calendarIconDay : "\uf017"
