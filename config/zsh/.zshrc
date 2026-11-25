@@ -113,4 +113,4 @@ source $ZSH/oh-my-zsh.sh
 export BROWSER="helium-browser"
 
 # opencode
-export PATH=/home/gabriel/.opencode/bin:$PATH
+export PATH=$HOME/.opencode/bin:$PATH
