@@ -9,11 +9,9 @@ ProcessPanel {
 
 	property var mem: root.source ? root.source.memory : null
 
-	readonly property color accentInk: Config.mono ? Config.memoryBaseMono : Config.memoryBase
-	readonly property color cachedInk: Config.mono ? Config.memoryCachedMono : Config.memoryCached
-	readonly property color buffersInk: Config.mono ? Config.memoryBuffersMono : Config.memoryBuffers
-	readonly property color warnInk: Config.mono ? Config.memoryWarnMono : Config.memoryWarn
-	readonly property color dangerInk: Config.mono ? Config.memoryDangerMono : Config.memoryDanger
+	readonly property color accentInk: Config.foreground
+	readonly property color cachedInk: Config.foreground
+	readonly property color buffersInk: Config.foreground
 	readonly property var recent: Yudae.system.byMem ? Yudae.system.byMem.slice(0, Config.memoryTopCount) : []
 
 	title: "Memory"

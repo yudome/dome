@@ -7,7 +7,7 @@ Item {
 
 	property var history: []
 	property var cores: []
-	property color ink: Config.cpuBase
+	property color ink: Config.foreground
 
 	readonly property int dot: Math.max(1, Math.round(Config.cpuDotPitch * 0.6))
 	readonly property real pitch: Config.cpuDotPitch

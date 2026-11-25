@@ -127,7 +127,7 @@ AppPage {
 					width: parent.width
 					role: sample.modelData
 					horizontalAlignment: Text.AlignRight
-					text: sample.modelData === "value" ? "1234.56" : "Mono glyph type"
+					text: sample.modelData === "value" ? "1234.56" : "Glyph type"
 				}
 			}
 		}

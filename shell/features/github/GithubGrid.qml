@@ -11,7 +11,7 @@ PanelPage {
 
 	readonly property var cells: Github.grid
 	readonly property int weeks: Config.contribWeeks
-	readonly property color accentInk: Config.mono ? Config.contribBaseMono : Config.contribBase
+	readonly property color accentInk: Config.foreground
 
 	contentWidth: Config.contribTooltipWidth
 

@@ -140,26 +140,8 @@ const Out = struct {
 
 
 const Palette = struct {
-	mono: bool = true,
-	red: color.Rgb = .{ 0xe0, 0x52, 0x52 },
-	cpu_base: color.Rgb = .{ 0xa7, 0x8b, 0xfa },
-	cpu_base_mono: color.Rgb = .{ 0xff, 0xff, 0xff },
-	cpu_peak: color.Rgb = .{ 0xe0, 0x52, 0x52 },
-	cpu_peak_mono: color.Rgb = .{ 0x9a, 0x9a, 0x9a },
+	foreground: color.Rgb = .{ 0xff, 0xff, 0xff },
 	cpu_idle: color.Rgb = .{ 0x2f, 0x2f, 0x2f },
-	memory_base: color.Rgb = .{ 0x7b, 0xd8, 0x8f },
-	memory_base_mono: color.Rgb = .{ 0xff, 0xff, 0xff },
-	memory_warn: color.Rgb = .{ 0xd8, 0xb0, 0x4a },
-	memory_warn_mono: color.Rgb = .{ 0xcf, 0xcf, 0xcf },
-	memory_danger: color.Rgb = .{ 0xe0, 0x52, 0x52 },
-	memory_danger_mono: color.Rgb = .{ 0x6f, 0x6f, 0x6f },
-	memory_warn_at: f64 = 60,
-	memory_danger_at: f64 = 85,
-	power_base: color.Rgb = .{ 0x7b, 0xd8, 0x8f },
-	power_warn: color.Rgb = .{ 0xd8, 0xb0, 0x4a },
-	power_danger: color.Rgb = .{ 0xe0, 0x52, 0x52 },
-	power_warn_at: f64 = 30,
-	power_danger_at: f64 = 15,
 
 	fn load(io: Io, allocator: Allocator) Palette {
 		var palette: Palette = .{};
@@ -167,56 +149,10 @@ const Palette = struct {
 		const cfg = config.Config.load(io, allocator) catch return palette;
 		defer cfg.deinit();
 
-		palette.mono = cfg.boolean("mono", palette.mono);
-		palette.red = pick(cfg, "red", palette.red);
-		palette.cpu_base = pick(cfg, "cpuBase", palette.cpu_base);
-		palette.cpu_base_mono = pick(cfg, "cpuBaseMono", palette.cpu_base_mono);
-		palette.cpu_peak = pick(cfg, "cpuPeak", palette.cpu_peak);
-		palette.cpu_peak_mono = pick(cfg, "cpuPeakMono", palette.cpu_peak_mono);
+		palette.foreground = pick(cfg, "foreground", palette.foreground);
 		palette.cpu_idle = pick(cfg, "cpuIdle", palette.cpu_idle);
-		palette.memory_base = pick(cfg, "memoryBase", palette.memory_base);
-		palette.memory_base_mono = pick(cfg, "memoryBaseMono", palette.memory_base_mono);
-		palette.memory_warn = pick(cfg, "memoryWarn", palette.memory_warn);
-		palette.memory_warn_mono = pick(cfg, "memoryWarnMono", palette.memory_warn_mono);
-		palette.memory_danger = pick(cfg, "memoryDanger", palette.memory_danger);
-		palette.memory_danger_mono = pick(cfg, "memoryDangerMono", palette.memory_danger_mono);
-		palette.memory_warn_at = cfg.number("memoryWarnAt", palette.memory_warn_at);
-		palette.memory_danger_at = cfg.number("memoryDangerAt", palette.memory_danger_at);
-		palette.power_base = pick(cfg, "powerBase", palette.power_base);
-		palette.power_warn = pick(cfg, "powerWarn", palette.power_warn);
-		palette.power_danger = pick(cfg, "powerDanger", palette.power_danger);
-		palette.power_warn_at = cfg.number("powerWarnAt", palette.power_warn_at);
-		palette.power_danger_at = cfg.number("powerDangerAt", palette.power_danger_at);
 
 		return palette;
-	}
-
-	fn cpuAccent(self: Palette) color.Rgb {
-		return if (self.mono) self.cpu_base_mono else self.cpu_base;
-	}
-
-	fn cpuPeakColor(self: Palette) color.Rgb {
-		return if (self.mono) self.cpu_peak_mono else self.cpu_peak;
-	}
-
-	fn memoryAccent(self: Palette) color.Rgb {
-		return if (self.mono) self.memory_base_mono else self.memory_base;
-	}
-
-	fn memoryWarnColor(self: Palette) color.Rgb {
-		return if (self.mono) self.memory_warn_mono else self.memory_warn;
-	}
-
-	fn memoryDangerColor(self: Palette) color.Rgb {
-		return if (self.mono) self.memory_danger_mono else self.memory_danger;
-	}
-
-	fn cpuInk(self: Palette, pct: f64) color.Rgb {
-		return color.mix(self.cpuAccent(), self.cpuPeakColor(), pct / 100);
-	}
-
-	fn memoryInk(self: Palette, pct: f64) color.Rgb {
-		return color.danger(self.memoryAccent(), self.memoryWarnColor(), self.memoryDangerColor(), self.memory_warn_at, self.memory_danger_at, pct);
 	}
 };
 
@@ -795,7 +731,7 @@ pub const System = struct {
 		for (self.cores[0..self.core_count]) |core| try cores.append(arena, @round(core * 10) / 10);
 
 		var core_ink: std.ArrayListUnmanaged([]const u8) = .empty;
-		for (cores.items) |core| try core_ink.append(arena, try inkText(arena, color.mix(self.palette.cpu_idle, self.palette.cpuAccent(), core / 100)));
+		for (cores.items) |core| try core_ink.append(arena, try inkText(arena, color.mix(self.palette.cpu_idle, self.palette.foreground, core / 100)));
 
 		var graph: std.ArrayListUnmanaged(f64) = .empty;
 		const graph_start = if (self.cpu_graph_count < graph_len) 0 else self.cpu_graph_at;
@@ -814,21 +750,19 @@ pub const System = struct {
 				.cmd = entry.name(),
 				.value = load,
 				.valueText = try std.fmt.allocPrint(arena, "{d:.1}%", .{entry.cpu}),
-				.color = try inkText(arena, self.palette.cpuInk(load)),
+				.color = try inkText(arena, self.palette.foreground),
 			});
 		}
 
 		var by_mem: std.ArrayListUnmanaged(ProcessOut) = .empty;
 		for (self.mem_top[0..self.mem_count]) |*entry| {
-			const share = if (self.mem_pool > 0) std.math.clamp(100 * @as(f64, @floatFromInt(entry.rss_kb)) / @as(f64, @floatFromInt(self.mem_pool)), 0, 100) else 0;
-
 			try by_mem.append(arena, .{
 				.pid = entry.pid,
 				.name = entry.name(),
 				.cmd = entry.name(),
 				.value = @floatFromInt(entry.rss_kb),
 				.valueText = try kbText(arena, entry.rss_kb),
-				.color = try inkText(arena, self.palette.memoryInk(share)),
+				.color = try inkText(arena, self.palette.foreground),
 			});
 		}
 
@@ -847,8 +781,8 @@ pub const System = struct {
 				.user = @round(self.cpu_user * 100) / 100,
 				.system = @round(self.cpu_system * 100) / 100,
 				.idle = @round(self.cpu_idle * 100) / 100,
-				.color = try inkText(arena, color.mix(self.palette.cpu_base, self.palette.red, cpu_pct / 100)),
-				.ink = try inkText(arena, self.palette.cpuInk(cpu_pct)),
+				.color = try inkText(arena, self.palette.foreground),
+				.ink = try inkText(arena, self.palette.foreground),
 				.coreInk = core_ink.items,
 				.cores = cores.items,
 				.graph = graph.items,
@@ -860,8 +794,8 @@ pub const System = struct {
 				.cache = self.cpu_cache,
 			},
 			.memory = .{
-				.color = try inkText(arena, color.danger(self.palette.memory_base, self.palette.memory_warn, self.palette.memory_danger, self.palette.memory_warn_at, self.palette.memory_danger_at, memory_pct)),
-				.ink = try inkText(arena, self.palette.memoryInk(memory_pct)),
+				.color = try inkText(arena, self.palette.foreground),
+				.ink = try inkText(arena, self.palette.foreground),
 				.total = self.mem_total,
 				.used = self.mem_used,
 				.available = self.mem_available,
@@ -889,7 +823,7 @@ pub const System = struct {
 				.freeText = try kbText(arena, pool_free),
 			},
 			.battery = .{
-				.color = try inkText(arena, color.danger(self.palette.power_base, self.palette.power_warn, self.palette.power_danger, self.palette.power_warn_at, self.palette.power_danger_at, self.battery_pct)),
+				.color = try inkText(arena, self.palette.foreground),
 				.present = self.battery_present,
 				.pct = self.battery_pct,
 				.charging = self.battery_charging,

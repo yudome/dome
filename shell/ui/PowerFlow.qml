@@ -10,7 +10,7 @@ Canvas {
 	property int rows: 8
 	property color ink: Config.dim
 	property color edgeInk: Config.dim
-	property color hotInk: Config.powerBase
+	property color hotInk: Config.foreground
 
 	property real phase: 0
 

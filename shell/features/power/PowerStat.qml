@@ -6,7 +6,7 @@ import qs.services
 BarStat {
 	id: root
 
-	readonly property var demo: ({ present: true, pct: 72, charging: false, state: "Discharging", watts: 14.5, color: Config.powerBase })
+	readonly property var demo: ({ present: true, pct: 72, charging: false, state: "Discharging", watts: 14.5 })
 	readonly property var battery: (Yudae.system.battery && Yudae.system.battery.present) ? Yudae.system.battery : (Config.powerDemo ? root.demo : null)
 	readonly property var governors: Yudae.system.governors || []
 	property string governor: Yudae.system.governor || ""

@@ -35,7 +35,7 @@ QtObject {
 	readonly property var hyprBorder: Yudae.screenBorder || ({})
 	readonly property var hyprShadow: Yudae.screenShadow || ({})
 
-	// base surface, ink and the mono ink that replaces the hue when mono is on
+	// base surface and ink
 	readonly property var surface: settings.surface !== undefined ? settings.surface : "#101010"
 	readonly property var surfaceTranslucent: settings.surfaceTranslucent !== undefined ? settings.surfaceTranslucent : "#ff101010"
 	readonly property var foreground: settings.foreground !== undefined ? settings.foreground : "#ffffff"
@@ -43,7 +43,6 @@ QtObject {
 	readonly property var red: settings.red !== undefined ? settings.red : "#e05252"
 	readonly property var yellow: settings.yellow !== undefined ? settings.yellow : "#e0b24f"
 	readonly property var muted: settings.muted !== undefined ? settings.muted : "#ffffff"
-	readonly property var mono: settings.mono !== undefined ? settings.mono : true
 	readonly property var surfaceRaised: settings.surfaceRaised !== undefined ? settings.surfaceRaised : "#1f1f1f"
 	readonly property var surfaceHover: settings.surfaceHover !== undefined ? settings.surfaceHover : "#2f2f2f"
 	readonly property var rule: settings.rule !== undefined ? settings.rule : "#2b2b2b"
@@ -212,9 +211,6 @@ QtObject {
 
 	// cpu and process list
 	readonly property var cpuBase: settings.cpuBase !== undefined ? settings.cpuBase : "#a78bfa"
-	readonly property var cpuBaseMono: settings.cpuBaseMono !== undefined ? settings.cpuBaseMono : "#ffffff"
-	readonly property var cpuPeak: settings.cpuPeak !== undefined ? settings.cpuPeak : "#e05252"
-	readonly property var cpuPeakMono: settings.cpuPeakMono !== undefined ? settings.cpuPeakMono : "#ffffff"
 	readonly property var cpuCore: settings.cpuCore !== undefined ? settings.cpuCore : "#7aa2f7"
 	readonly property var cpuIdle: settings.cpuIdle !== undefined ? settings.cpuIdle : "#2f2f2f"
 	readonly property var cpuTooltipWidth: settings.cpuTooltipWidth !== undefined ? settings.cpuTooltipWidth : 240
@@ -235,21 +231,10 @@ QtObject {
 
 	// memory bars and tooltip
 	readonly property var memoryBase: settings.memoryBase !== undefined ? settings.memoryBase : "#7bd88f"
-	readonly property var memoryBaseMono: settings.memoryBaseMono !== undefined ? settings.memoryBaseMono : "#ffffff"
-	readonly property var memoryCached: settings.memoryCached !== undefined ? settings.memoryCached : "#44774f"
-	readonly property var memoryCachedMono: settings.memoryCachedMono !== undefined ? settings.memoryCachedMono : "#ffffff"
-	readonly property var memoryBuffers: settings.memoryBuffers !== undefined ? settings.memoryBuffers : "#2f5136"
-	readonly property var memoryBuffersMono: settings.memoryBuffersMono !== undefined ? settings.memoryBuffersMono : "#ffffff"
 	readonly property var memoryFree: settings.memoryFree !== undefined ? settings.memoryFree : "#3f3f3f"
 	readonly property var memorySwap: settings.memorySwap !== undefined ? settings.memorySwap : "#ffffff"
-	readonly property var memoryWarn: settings.memoryWarn !== undefined ? settings.memoryWarn : "#d8b04a"
-	readonly property var memoryWarnMono: settings.memoryWarnMono !== undefined ? settings.memoryWarnMono : "#ffffff"
-	readonly property var memoryDanger: settings.memoryDanger !== undefined ? settings.memoryDanger : "#e05252"
-	readonly property var memoryDangerMono: settings.memoryDangerMono !== undefined ? settings.memoryDangerMono : "#ffffff"
 	readonly property var memorySeparator: settings.memorySeparator !== undefined ? settings.memorySeparator : 3
 	readonly property var memoryVizHeight: settings.memoryVizHeight !== undefined ? settings.memoryVizHeight : 12
-	readonly property var memoryWarnAt: settings.memoryWarnAt !== undefined ? settings.memoryWarnAt : 60
-	readonly property var memoryDangerAt: settings.memoryDangerAt !== undefined ? settings.memoryDangerAt : 85
 	readonly property var memoryTooltipWidth: settings.memoryTooltipWidth !== undefined ? settings.memoryTooltipWidth : 240
 	readonly property var memoryTopCount: settings.memoryTopCount !== undefined ? settings.memoryTopCount : 5
 
@@ -375,12 +360,6 @@ QtObject {
 	readonly property var powerIconSize: settings.powerIconSize !== undefined ? settings.powerIconSize : 48
 	readonly property var powerHighlightSize: settings.powerHighlightSize !== undefined ? settings.powerHighlightSize : 80
 	readonly property var powerLabelSize: settings.powerLabelSize !== undefined ? settings.powerLabelSize : 12
-	readonly property var powerBase: settings.powerBase !== undefined ? settings.powerBase : "#7bd88f"
-	readonly property var powerBaseMono: settings.powerBaseMono !== undefined ? settings.powerBaseMono : "#ffffff"
-	readonly property var powerWarn: settings.powerWarn !== undefined ? settings.powerWarn : "#d8b04a"
-	readonly property var powerDanger: settings.powerDanger !== undefined ? settings.powerDanger : "#e05252"
-	readonly property var powerWarnAt: settings.powerWarnAt !== undefined ? settings.powerWarnAt : 30
-	readonly property var powerDangerAt: settings.powerDangerAt !== undefined ? settings.powerDangerAt : 15
 	readonly property var powerTooltipWidth: settings.powerTooltipWidth !== undefined ? settings.powerTooltipWidth : 240
 	readonly property var powerDemo: settings.powerDemo !== undefined ? settings.powerDemo : false
 	readonly property var powerFlowHeight: settings.powerFlowHeight !== undefined ? settings.powerFlowHeight : 40
@@ -552,7 +531,6 @@ QtObject {
 
 	// contribution graph
 	readonly property var contribBase: settings.contribBase !== undefined ? settings.contribBase : "#7bd88f"
-	readonly property var contribBaseMono: settings.contribBaseMono !== undefined ? settings.contribBaseMono : "#ffffff"
 	readonly property var contribEmpty: settings.contribEmpty !== undefined ? settings.contribEmpty : "#1f1f1f"
 	readonly property var contribWeeks: settings.contribWeeks !== undefined ? settings.contribWeeks : 19
 	readonly property var contribCell: settings.contribCell !== undefined ? settings.contribCell : 10
@@ -581,10 +559,6 @@ QtObject {
 	readonly property var displayScaleTitle: settings.displayScaleTitle !== undefined ? settings.displayScaleTitle : "Scale"
 	readonly property var displayNothing: settings.displayNothing !== undefined ? settings.displayNothing : "No display found"
 	// network and speed test
-	readonly property var networkDown: settings.networkDown !== undefined ? settings.networkDown : "#7bd88f"
-	readonly property var networkDownMono: settings.networkDownMono !== undefined ? settings.networkDownMono : "#ffffff"
-	readonly property var networkUp: settings.networkUp !== undefined ? settings.networkUp : "#e06c9f"
-	readonly property var networkUpMono: settings.networkUpMono !== undefined ? settings.networkUpMono : "#ffffff"
 	readonly property var networkIdle: settings.networkIdle !== undefined ? settings.networkIdle : "#2f2f2f"
 	readonly property var networkHistory: settings.networkHistory !== undefined ? settings.networkHistory : 60
 	readonly property var networkGraphHeight: settings.networkGraphHeight !== undefined ? settings.networkGraphHeight : 40

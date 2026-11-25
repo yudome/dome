@@ -11,7 +11,7 @@ ProcessPanel {
 	readonly property var history: root.sys.graph || []
 	readonly property var cores: root.source && root.source.cores ? root.source.cores : []
 	readonly property var recent: Yudae.system.processes ? Yudae.system.processes.slice(0, Config.cpuTopCount) : []
-	readonly property color accentInk: Config.mono ? Config.cpuBaseMono : Config.cpuBase
+	readonly property color accentInk: Config.foreground
 	readonly property var overview: [
 		{ label: "system", text: (root.sys.system || 0).toFixed(2) + "%" },
 		{ label: "user", text: (root.sys.user || 0).toFixed(2) + "%" },

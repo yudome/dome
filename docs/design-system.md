@@ -5,7 +5,7 @@ TLDR: monochrome, dense, glyph-driven. Every value is a token in `shell/services
 ## Principles
 
 - Hints only through `Hint` (key + short label, text from `Config`, all hidden by `hints = false`); no counters.
-- Mono first: `mono = true` swaps every hue for the mono ink; color is opt-in per token (`cpuBase` / `cpuBaseMono`). Apps have no accent hue: selection is ink on `surfaceRaised`.
+- Monochrome by default: ink is `foreground`. Color stays with the GitHub grid, the calendar dial and the disk bubbles.
 - One thing, one glyph, everywhere.
 - Text never overlaps: bounded width, anchored to neighbours, elided.
 - No "·" separators; spacing separates.
@@ -42,7 +42,6 @@ Files: one TOML per category in `shell/config/`: `appearance`, `display`, `gener
 | `dim` | `#3f3f3f` | `inkDim` | tracks, idle scrollbar, disabled |
 | `red` / `yellow` | `#e05252` / `#e0b24f` | `danger` / `warning` | destructive, pending |
 | `surfaceTranslucent` | `#ff101010` | | bar background, alpha first |
-| `mono` | `true` | | use `*Mono` variants instead of hues |
 
 Chrome colors exist once: every search box, card and calendar box is `surfaceRaised`, every hover and highlight `surfaceHover`, every separator `rule`, every track `dim`. Feature colors are data only (`cpuBase`, `memoryFree`, `contribEmpty`, ...) and stay in their feature; the kits never read them. Every theme in `plugins/*/theme.toml` sets `surfaceRaised`, `surfaceHover` and `rule`, so apps follow the theme. `xmake lint` runs the `shell-checks` test, which rejects color literals in QML and any `Config.x` that does not exist.
 
@@ -110,7 +109,7 @@ Every glyph is `iconX` in `config/icons.toml`, mirrored as `Config.iconX`, plus 
 
 ## Gallery
 
-`quickshell -p shell/app-gallery.qml` opens `features/gallery`: every component and state, a mono switch and a size class switch. Use it for screenshots and as the reference when adding a component.
+`quickshell -p shell/app-gallery.qml` opens `features/gallery`: every component and state, and a size class switch. Use it for screenshots and as the reference when adding a component.
 
 ## Adding a component
 

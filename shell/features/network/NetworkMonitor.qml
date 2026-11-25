@@ -42,8 +42,8 @@ ProcessPanel {
 		{ value: false, label: Config.iconWifiOff },
 		{ value: true, label: Config.iconWifi4 }
 	]
-	readonly property color downInk: Config.mono ? Config.networkDownMono : Config.networkDown
-	readonly property color upInk: Config.mono ? Config.networkUpMono : Config.networkUp
+	readonly property color downInk: Config.foreground
+	readonly property color upInk: Config.foreground
 	readonly property bool testing: (root.speed.stage || "") !== ""
 	readonly property bool done: !root.testing && (root.speed.down || 0) > 0
 	readonly property real hero: root.testing ? (root.speed.live || 0) : (root.speed.down || 0)

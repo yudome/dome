@@ -1,5 +1,4 @@
 [colors]
-mono = true
 surface = "#282828"
 surfaceTranslucent = "#ff282828"
 foreground = "#ebdbb2"
@@ -21,34 +20,16 @@ borderFallbackColor = "#83a598"
 [cpu]
 cpuBase = "#d3869b"
 cpuCore = "#83a598"
-cpuBaseMono = "#ebdbb2"
-cpuPeak = "#fb4934"
-cpuPeakMono = "#ebdbb2"
 cpuIdle = "#3c3836"
 
 [memory]
 memoryBase = "#b8bb26"
-memoryBaseMono = "#ebdbb2"
-memoryCached = "#83a598"
-memoryCachedMono = "#ebdbb2"
-memoryBuffers = "#504945"
-memoryBuffersMono = "#ebdbb2"
 memoryFree = "#3c3836"
 memorySwap = "#83a598"
-memoryWarn = "#fabd2f"
-memoryWarnMono = "#ebdbb2"
-memoryDanger = "#fb4934"
-memoryDangerMono = "#ebdbb2"
 
 [mixer]
 
 [launcher]
-
-[power]
-powerBase = "#b8bb26"
-powerBaseMono = "#ebdbb2"
-powerWarn = "#fabd2f"
-powerDanger = "#fb4934"
 
 [weather]
 weatherBase = "#8ec07c"
@@ -65,13 +46,8 @@ calendarDialDay = "#8ec07c"
 
 [contrib]
 contribBase = "#b8bb26"
-contribBaseMono = "#ebdbb2"
 contribEmpty = "#32302f"
 
 [network]
-networkDown = "#b8bb26"
-networkDownMono = "#ebdbb2"
-networkUp = "#d3869b"
-networkUpMono = "#ebdbb2"
 networkIdle = "#3c3836"
 networkBarsOff = "#3c3836"

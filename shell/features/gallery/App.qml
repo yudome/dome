@@ -8,7 +8,6 @@ import qs.appkit
 AppWindow {
 	id: win
 
-	property bool mono: true
 	property string forced: "auto"
 	property string section: "Icons"
 
@@ -26,12 +25,6 @@ AppWindow {
 
 	appTitle: "Kit gallery"
 	preset: "large"
-
-	Binding {
-		target: Config
-		property: "overlay"
-		value: ({ mono: win.mono })
-	}
 
 	AppAction {
 		id: primaryAction
@@ -100,13 +93,6 @@ AppWindow {
 				model: [{ label: "Auto", value: "auto" }, { label: "S", value: "compact" }, { label: "M", value: "regular" }, { label: "L", value: "wide" }]
 				selected: ["auto", "compact", "regular", "wide"].indexOf(win.forced)
 				onPick: function (value) { win.forced = value; }
-			}
-
-			Switch {
-				anchors.verticalCenter: parent.verticalCenter
-				label: "Mono"
-				checked: win.mono
-				onToggled: function (checked) { win.mono = checked; }
 			}
 		}
 

@@ -12,7 +12,7 @@ ProcessPanel {
 	property var battery: root.source ? root.source.battery : null
 	property var awake: root.source ? root.source.awake : null
 
-	readonly property color accentInk: Config.mono ? Config.powerBaseMono : Config.powerBase
+	readonly property color accentInk: Config.foreground
 	readonly property int governorIndex: Math.max(0, root.governors.indexOf(root.governor))
 	readonly property var awakeModes: [
 		{ value: "off", label: Config.iconAwakeOff, title: Config.powerAwakeOff },
@@ -64,7 +64,7 @@ ProcessPanel {
 			flow: root.source ? root.source.flow : 0
 			watts: root.battery ? root.battery.watts || 0 : 0
 			fill: root.battery ? root.battery.pct / 100 : 1
-			hotInk: !Config.mono && root.battery && root.battery.color ? root.battery.color : root.accentInk
+			hotInk: root.accentInk
 		},
 
 		Slider {
