@@ -12,7 +12,7 @@
     },
     {
       "do": "exec",
-      "cmd": "sudo pacman -S --noconfirm --needed greetd cage quickshell >/dev/null && echo gabriel:vmpass | sudo chpasswd && sudo ~/dotfiles/shell/scripts/greeter-install gabriel && sudo loginctl enable-linger gabriel && sudo systemctl disable --now yudae-desktop && rm -rf /run/user/1000/hypr/* && sudo systemctl start greetd",
+      "cmd": "sudo pacman -S --noconfirm --needed greetd cage quickshell >/dev/null && echo gabriel:vmpass | sudo chpasswd && rm -rf /tmp/dotfiles && mkdir -p /tmp/dotfiles && tar -C ~/dotfiles --exclude=.git --exclude=.zig-cache --exclude=.zig-cache-headless --exclude=zig-out --exclude=cache --exclude=runs -cf - . | tar -C /tmp/dotfiles -xf - && sudo xmake -C /tmp/dotfiles install greeter && sudo loginctl enable-linger gabriel && sudo systemctl disable --now yudae-desktop && rm -rf /run/user/1000/hypr/* && sudo systemctl start greetd",
       "code": 0
     },
     {

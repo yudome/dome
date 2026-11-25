@@ -379,8 +379,7 @@ pub fn virtualMachines(io: Io, args: []const []const u8) !void {
 	if (std.mem.eql(u8, args[2], "doctor")) {
 		const allocator = std.heap.smp_allocator;
 		const repo = proc.repo(io, allocator);
-		const script = try std.fs.path.join(allocator, &.{ repo, "vm", "doctor" });
-		const result = (if (json_out) exec.run(io, allocator, &.{ "sh", script, "--json" }) else exec.run(io, allocator, &.{ "sh", script })) catch std.process.exit(1);
+		const result = (if (json_out) exec.runDir(io, allocator, &.{ "xmake", "doctor", "--json" }, repo, null) else exec.runDir(io, allocator, &.{ "xmake", "doctor" }, repo, null)) catch std.process.exit(1);
 		defer result.deinit(allocator);
 		printResult(io, std.mem.trimEnd(u8, result.out, "\n"));
 		if (result.code != 0) std.process.exit(result.code);

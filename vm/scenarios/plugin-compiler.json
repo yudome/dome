@@ -6,8 +6,8 @@
     { "do": "wait", "until": "exec:pgrep -x quickshell", "timeout": 60000 },
     { "do": "exec", "cmd": "d=/home/gabriel/.local/share/yudae/plugins/nocc; mkdir -p $d; printf 'id = \"nocc\"\\nkind = \"app\"\\nversion = \"1\"\\nbuild = \"no-such-compiler-xyz -o $OUT/x\"\\nprovides = [\"x\"]\\n' > $d/plugin.toml", "code": 0 },
     { "do": "exec", "cmd": "mkdir -p /home/gabriel/.local/state/yudae && printf 'load = [\"nocc\"]\\n' > /home/gabriel/.local/state/yudae/plugins.toml", "code": 0 },
-    { "do": "exec", "cmd": "/home/gabriel/dotfiles/scripts/yudae plugin reload", "code": 0 },
-    { "do": "wait", "until": "exec:/home/gabriel/dotfiles/scripts/yudae plugin list --json | grep -q 'not found'", "timeout": 30000 },
+    { "do": "exec", "cmd": "/home/gabriel/dotfiles/daemon/zig-out/bin/yudaemond plugin reload", "code": 0 },
+    { "do": "wait", "until": "exec:/home/gabriel/dotfiles/daemon/zig-out/bin/yudaemond plugin list --json | grep -q 'not found'", "timeout": 30000 },
     { "do": "exec", "cmd": "pgrep -x quickshell && pgrep -x Hyprland", "code": 0 },
     { "do": "screenshot" }
   ],

@@ -4,4 +4,4 @@ After=yudaemond.service
 
 [Service]
 Type=oneshot
-ExecStart=%h/dotfiles/scripts/yudae plugin reload
+ExecStart=%h/.local/bin/yudae plugin reload

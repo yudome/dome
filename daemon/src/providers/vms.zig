@@ -482,8 +482,7 @@ pub const Vms = struct {
 
 	fn doctorVm(self: *Vms, allocator: Allocator) ![]u8 {
 		const repo = proc.repo(self.io, self.allocator);
-		const script = try std.fs.path.join(self.allocator, &.{ repo, "vm", "doctor" });
-		const result = exec.run(self.io, self.allocator, &.{ "sh", script, "--json" }) catch return error.DoctorFailed;
+		const result = exec.runDir(self.io, self.allocator, &.{ "xmake", "doctor", "--json" }, repo, null) catch return error.DoctorFailed;
 		defer result.deinit(self.allocator);
 		return allocator.dupe(u8, result.out);
 	}
@@ -1386,24 +1385,40 @@ pub const Vms = struct {
 	}
 
 	fn guestScreenshot(self: *Vms, vm: *Vm, path: []const u8, allocator: Allocator) !void {
-		const command =
+		const environment =
 			"export XDG_RUNTIME_DIR=/run/user/1000; " ++
 			"export WAYLAND_DISPLAY=$(basename $(ls /run/user/1000/wayland-* 2>/dev/null | grep -v '\\.lock$' | head -1)); " ++
-			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr | head -1); " ++
-			"grim -s $(python3 -c 'import json,subprocess;m=json.loads(subprocess.check_output([\"hyprctl\",\"monitors\",\"-j\"]))[0];print(m[\"width\"]/round(m[\"width\"]/m[\"scale\"]))') /tmp/yudae-shot.png >/dev/null 2>&1; base64 -w0 /tmp/yudae-shot.png";
+			"export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr | head -1); ";
 
 		var attempts: usize = 0;
 		var text: []const u8 = "";
 
 		while (attempts < 40) : (attempts += 1) {
-			const result = self.guestExec(vm.cid, &.{ "sh", "-lc", command }, allocator) catch null;
-
-			if (result) |value| {
+			const monitors = self.guestExec(vm.cid, &.{ "sh", "-lc", environment ++ "hyprctl monitors -j" }, allocator) catch null;
+			var factor: ?f64 = null;
+			if (monitors) |value| {
 				if (value.code == 0) {
-					const trimmed = std.mem.trim(u8, value.out, " \r\n");
-					if (trimmed.len > 0) {
-						text = trimmed;
-						break;
+					if (json.parse(allocator, value.out)) |parsed| {
+						const first = json.list(parsed.value);
+						if (first.len > 0) {
+							const screen_width = json.numberAt(first[0], "width");
+							const scale = json.numberAt(first[0], "scale");
+							if (scale > 0) factor = screen_width / @round(screen_width / scale);
+						}
+					} else |_| {}
+				}
+			}
+
+			if (factor) |value| {
+				const command = try std.fmt.allocPrint(allocator, "{s}grim -s {d} /tmp/yudae-shot.png >/dev/null 2>&1; base64 -w0 /tmp/yudae-shot.png", .{ environment, value });
+				const result = self.guestExec(vm.cid, &.{ "sh", "-lc", command }, allocator) catch null;
+				if (result) |shot| {
+					if (shot.code == 0) {
+						const trimmed = std.mem.trim(u8, shot.out, " \r\n");
+						if (trimmed.len > 0) {
+							text = trimmed;
+							break;
+						}
 					}
 				}
 			}

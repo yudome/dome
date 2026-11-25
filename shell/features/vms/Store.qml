@@ -83,6 +83,6 @@ QtObject {
 
 	function releaseOnClose() {
 		if (store.live.length > 0)
-			Quickshell.execDetached([Quickshell.shellDir + "/../scripts/yudae", "vm", "release", store.live]);
+			Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/yudae", "vm", "release", store.live]);
 	}
 }
