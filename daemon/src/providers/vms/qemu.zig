@@ -10,6 +10,7 @@ pub const Config = struct {
 	disk: []const u8,
 	dotfiles: []const u8,
 	wallpaper_dir: []const u8 = "",
+	state: bool = false,
 	cores: u32,
 	mem_mb: u32,
 	cid: u32,
@@ -64,6 +65,10 @@ pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
 	if (config.wallpaper_dir.len > 0) {
 		try addPair(allocator, &list, "-chardev", try std.fmt.allocPrint(allocator, "socket,id=wall0,path={s}", .{wall}));
 		try addPair(allocator, &list, "-device", "vhost-user-fs-pci,chardev=wall0,tag=wallpaper");
+	}
+	if (config.state) {
+		try addPair(allocator, &list, "-chardev", try std.fmt.allocPrint(allocator, "socket,id=state0,path={s}/state.sock", .{config.dir}));
+		try addPair(allocator, &list, "-device", "vhost-user-fs-pci,chardev=state0,tag=yudae-state");
 	}
 	try addPair(allocator, &list, "-vga", "none");
 	try addPair(allocator, &list, "-device", "virtio-rng-pci");

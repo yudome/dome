@@ -87,6 +87,7 @@ pub const Config = struct {
 	mem_mb: u32,
 	qemu: []const u8,
 	wallpaper: bool = false,
+	state: bool = false,
 	audio: Audio = .none,
 	audio_index: u8 = 0,
 };
@@ -126,6 +127,10 @@ pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
 	if (config.wallpaper) {
 		try addPair(allocator, &list, "-chardev", try std.fmt.allocPrint(allocator, "socket,id=wall0,path={s}/wallpaper.sock", .{config.dir}));
 		try addPair(allocator, &list, "-device", "vhost-user-fs-pci,chardev=wall0,tag=wallpaper");
+	}
+	if (config.state) {
+		try addPair(allocator, &list, "-chardev", try std.fmt.allocPrint(allocator, "socket,id=state0,path={s}/state.sock", .{config.dir}));
+		try addPair(allocator, &list, "-device", "vhost-user-fs-pci,chardev=state0,tag=yudae-state");
 	}
 	try addPair(allocator, &list, "-chardev", try std.fmt.allocPrint(allocator, "socket,id=nvgpu,path={s}", .{nvgpu}));
 	try addPair(allocator, &list, "-device", "vhost-user-test-device-pci,chardev=nvgpu,virtio-id=45,num_vqs=3,vq_size=256,config_size=4036,class=0x380");

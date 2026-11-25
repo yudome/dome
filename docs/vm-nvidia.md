@@ -72,8 +72,9 @@ over the display, so SUPER binds reach the guest. Ctrl+Alt+G locks the pointer
 (`zwp_locked_pointer_v1` + relative motion as `EV_REL` under `EV_GRAB`) and
 toggles it back; losing window focus also unlocks.
 
-Wallpaper: the host wallpaper directory is shared as virtiofs tag `wallpaper`, and
-`vm/desktop` mounts it and runs `awww` once Hyprland is up. NVIDIA guests run
+Wallpaper: the host wallpaper directory is shared as virtiofs tag `wallpaper` and the
+host daemon's wallpaper state as read-only tag `yudae-state`; `vm/desktop` mounts both
+and the guest yudaemond follows the host's still image and ink. NVIDIA guests run
 `2560x1440@240` at scale `1.6667` (the Conduit mode list has no `1536x864`).
 
 The external `conduit-viewer` is only a manual fallback; it is not started by

@@ -47,6 +47,7 @@ const Vm = struct {
 	pid: i32 = 0,
 	vfs_pid: i32 = 0,
 	wall_pid: i32 = 0,
+	state_pid: i32 = 0,
 	pump_pid: i32 = 0,
 	backend_pid: i32 = 0,
 	nvfs_pid: i32 = 0,
@@ -55,6 +56,7 @@ const Vm = struct {
 	qemu_child: ?std.process.Child = null,
 	vfs_child: ?std.process.Child = null,
 	wall_child: ?std.process.Child = null,
+	state_child: ?std.process.Child = null,
 	pump_child: ?std.process.Child = null,
 	backend_child: ?std.process.Child = null,
 	nvfs_child: ?std.process.Child = null,
@@ -704,6 +706,7 @@ pub const Vms = struct {
 		const wall_dir = self.wallpaperDir(repo);
 		defer if (wall_dir.len > 0) self.allocator.free(wall_dir);
 		const share_wall = try self.startWall(vm, wall_dir);
+		const share_state = self.startState(vm);
 
 		var mode: nvidia.Audio = if (audio.alsaAvailable(self.io, self.allocator) and audio.qemuHas(self.io, self.allocator, paths.qemu, "alsa") and audio.ensureSink(self.io, self.allocator)) .alsa else if (audio.qemuHas(self.io, self.allocator, paths.qemu, "pa") and audio.ensureSink(self.io, self.allocator)) .pa else .none;
 		const audio_index: u8 = @intCast(vm.cid % 8);
@@ -712,6 +715,7 @@ pub const Vms = struct {
 		};
 		const argv = try nvidia.args(self.allocator, .{
 			.wallpaper = share_wall,
+			.state = share_state,
 			.audio = mode,
 			.audio_index = audio_index,
 			.name = vm.name,
@@ -738,6 +742,7 @@ pub const Vms = struct {
 			value.attach(self.io, vm.nvfs_pid);
 			value.attach(self.io, vm.backend_pid);
 			if (vm.wall_pid > 0) value.attach(self.io, vm.wall_pid);
+			if (vm.state_pid > 0) value.attach(self.io, vm.state_pid);
 			vm.cgroup = value;
 		}
 		const pidfile = try std.fs.path.join(self.allocator, &.{ vm.dir, "qemu.pid" });
@@ -775,7 +780,39 @@ pub const Vms = struct {
 		vm.wall_child = child;
 		if (try waitFile(self.io, wall_socket, 5000)) return true;
 		self.stopWall(vm);
+		self.stopState(vm);
 		return false;
+	}
+
+	/// Shares the host's wallpaper state read-only, so the guest daemon shows the same still
+	/// image and ink without decoding video or measuring.
+	fn startState(self: *Vms, vm: *Vm) bool {
+		const dir = std.fmt.allocPrint(self.allocator, "{s}/yudae-state", .{proc.runtimeDir(self.io, self.allocator)}) catch return false;
+		defer self.allocator.free(dir);
+		std.Io.Dir.cwd().createDirPath(self.io, dir) catch return false;
+		const socket = std.fs.path.join(self.allocator, &.{ vm.dir, "state.sock" }) catch return false;
+		defer self.allocator.free(socket);
+		std.Io.Dir.cwd().deleteFile(self.io, socket) catch {};
+		const socket_arg = std.fmt.allocPrint(self.allocator, "--socket-path={s}", .{socket}) catch return false;
+		defer self.allocator.free(socket_arg);
+		const dir_arg = std.fmt.allocPrint(self.allocator, "--shared-dir={s}", .{dir}) catch return false;
+		defer self.allocator.free(dir_arg);
+		const argv = [_][]const u8{ "/usr/lib/virtiofsd", socket_arg, dir_arg, "--readonly", "--cache=never" };
+		const child = exec.spawn(self.io, .{ .argv = &argv, .stdin = .ignore, .stdout = .ignore, .stderr = .ignore }) catch return false;
+		vm.state_pid = child.id orelse 0;
+		vm.state_child = child;
+		if (waitFile(self.io, socket, 5000) catch false) return true;
+		self.stopState(vm);
+		return false;
+	}
+
+	fn stopState(self: *Vms, vm: *Vm) void {
+		if (vm.state_pid > 0) kill(vm.state_pid);
+		if (vm.state_child) |*child| {
+			_ = child.wait(self.io) catch {};
+			vm.state_child = null;
+		}
+		vm.state_pid = 0;
 	}
 
 	fn startBridge(self: *Vms, vm: *Vm, index: u8) !void {
@@ -845,6 +882,7 @@ pub const Vms = struct {
 		const wall_dir = self.wallpaperDir(repo);
 		defer if (wall_dir.len > 0) self.allocator.free(wall_dir);
 		const share_wall = try self.startWall(vm, wall_dir);
+		const share_state = self.startState(vm);
 
 		var mode: qemu.Audio = if (audio.alsaAvailable(self.io, self.allocator) and audio.qemuHas(self.io, self.allocator, qemu.binary(), "alsa") and audio.ensureSink(self.io, self.allocator)) .alsa else if (audio.qemuHas(self.io, self.allocator, qemu.binary(), "pa") and audio.ensureSink(self.io, self.allocator)) .pa else .none;
 		const audio_index: u8 = @intCast(vm.cid % 8);
@@ -859,6 +897,7 @@ pub const Vms = struct {
 			.disk = vm.disk,
 			.dotfiles = repo,
 			.wallpaper_dir = if (share_wall) wall_dir else "",
+			.state = share_state,
 			.cores = vm.cores,
 			.mem_mb = vm.mem_mb,
 			.cid = vm.cid,
@@ -887,6 +926,7 @@ pub const Vms = struct {
 			value.attach(self.io, vm.pid);
 			value.attach(self.io, vm.vfs_pid);
 			if (vm.wall_pid > 0) value.attach(self.io, vm.wall_pid);
+			if (vm.state_pid > 0) value.attach(self.io, vm.state_pid);
 			vm.cgroup = value;
 		}
 
@@ -1074,6 +1114,7 @@ pub const Vms = struct {
 		if (vm.pid > 0) kill(vm.pid);
 		if (vm.vfs_pid > 0) kill(vm.vfs_pid);
 		self.stopWall(vm);
+		self.stopState(vm);
 		self.stopPump(vm);
 
 		if (vm.qemu_child) |*child| {
