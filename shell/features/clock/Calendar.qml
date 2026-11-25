@@ -78,143 +78,149 @@ PanelPage {
 		width: root.gridWidth
 		spacing: Config.calendarGap
 
-		Item {
-			id: box
-
-			width: card.width
-			height: Math.max(title.height, arrows.height)
-
-			HoverHandler {
-				id: boxHover
-			}
-
-			Row {
-				id: title
-
-				x: root.titleX
-				anchors.verticalCenter: parent.verticalCenter
-				spacing: Config.calendarTitleGap
-
-				Label {
-					id: month
-
-					font.pixelSize: Config.calendarMonthSize
-					ink: Config.calendarBase
-					text: root.monthText
-				}
-
-				Label {
-					id: yearLabel
-
-					font.pixelSize: Config.calendarMonthSize
-					ink: Config.calendarBase
-					text: root.yearText
-				}
-			}
-
-			Row {
-				id: arrows
-
-				anchors.right: parent.right
-				anchors.verticalCenter: parent.verticalCenter
-				spacing: Config.calendarArrowGap
-
-				IconButton {
-					anchors.verticalCenter: parent.verticalCenter
-					box: Config.calendarArrowSize + Config.gapsIn * 2
-					size: Config.calendarArrowSize
-					reveal: true
-					shown: root.arrowsShown
-					hitMargin: Config.calendarArrowSize / 2
-					inkIdle: Config.calendarBase
-					glyph: Config.iconPrev
-					onClicked: root.stepMonths(-1)
-				}
-
-				IconButton {
-					anchors.verticalCenter: parent.verticalCenter
-					box: Config.calendarArrowSize + Config.gapsIn * 2
-					size: Config.calendarArrowSize
-					reveal: true
-					shown: root.arrowsShown
-					hitMargin: Config.calendarArrowSize / 2
-					inkIdle: Config.calendarBase
-					glyph: Config.iconNext
-					onClicked: root.stepMonths(1)
-				}
-			}
-		}
-
 		Column {
-			id: calendar
-
 			width: card.width
 			spacing: 6
 
-			Row {
-				id: weekdays
-
-				Repeater {
-					model: root.weekdays
-
-					delegate: Label {
-						required property string modelData
-
-						width: Config.calendarCellWidth
-						height: Config.calendarCellHeight
-						horizontalAlignment: Text.AlignHCenter
-						verticalAlignment: Text.AlignVCenter
-						font.pixelSize: Config.calendarWeekdaySize
-						ink: Config.foreground
-						text: modelData
-					}
-				}
-			}
-
 			Item {
-				id: days
+				id: box
 
-				width: calendar.width
-				height: Config.calendarCellHeight * Config.calendarRows
+				width: card.width
+				height: Math.max(title.height, arrows.height)
 
-				Repeater {
-					model: Config.calendarRows * 7
+				HoverHandler {
+					id: boxHover
+				}
 
-					delegate: Item {
-						id: cell
+				Row {
+					id: title
 
-						required property int index
+					x: root.titleX
+					anchors.verticalCenter: parent.verticalCenter
+					spacing: Config.calendarTitleGap
 
-						readonly property var day: root.grid[Math.floor(cell.index / 7)][cell.index % 7]
+					Label {
+						id: month
 
-						x: (cell.index % 7) * Config.calendarCellWidth
-						y: Math.floor(cell.index / 7) * Config.calendarCellHeight
-						width: Config.calendarCellWidth
-						height: Config.calendarCellHeight
+						font.pixelSize: Config.calendarMonthSize
+						ink: Config.calendarBase
+						text: root.monthText
+					}
 
-						Rectangle {
-							anchors.fill: parent
-							visible: cell.day.today
-							color: Config.surfaceRaised
+					Label {
+						id: yearLabel
+
+						font.pixelSize: Config.calendarMonthSize
+						ink: Config.calendarBase
+						text: root.yearText
+					}
+				}
+
+				Row {
+					id: arrows
+
+					anchors.right: parent.right
+					anchors.verticalCenter: parent.verticalCenter
+					spacing: Config.calendarArrowGap
+
+					IconButton {
+						anchors.verticalCenter: parent.verticalCenter
+						box: Config.calendarArrowSize + Config.gapsIn * 2
+						size: Config.calendarArrowSize
+						reveal: true
+						shown: root.arrowsShown
+						hitMargin: Config.calendarArrowSize / 2
+						inkIdle: Config.calendarBase
+						glyph: Config.iconPrev
+						onClicked: root.stepMonths(-1)
+					}
+
+					IconButton {
+						anchors.verticalCenter: parent.verticalCenter
+						box: Config.calendarArrowSize + Config.gapsIn * 2
+						size: Config.calendarArrowSize
+						reveal: true
+						shown: root.arrowsShown
+						hitMargin: Config.calendarArrowSize / 2
+						inkIdle: Config.calendarBase
+						glyph: Config.iconNext
+						onClicked: root.stepMonths(1)
+					}
+				}
+			}
+
+			Column {
+				id: calendar
+
+				width: card.width
+				spacing: 6
+
+				Row {
+					id: weekdays
+
+					Repeater {
+						model: root.weekdays
+
+						delegate: Label {
+							required property string modelData
+
+							width: Config.calendarCellWidth
+							height: Config.calendarCellHeight
+							horizontalAlignment: Text.AlignHCenter
+							verticalAlignment: Text.AlignVCenter
+							font.pixelSize: Config.calendarWeekdaySize
+							ink: Config.foreground
+							text: modelData
 						}
+					}
+				}
 
-						Rectangle {
-							anchors.fill: parent
-							visible: cell.day.cursor
-							color: "transparent"
-							border.width: Config.calendarCursorBorder
-							border.color: Config.foreground
-						}
+				Item {
+					id: days
 
-						Label {
-							anchors.centerIn: parent
-							font.pixelSize: Config.calendarDaySize
-							ink: !cell.day.outside || cell.day.today || cell.day.cursor ? Config.foreground : Config.dim
-							text: cell.day.day
+					width: calendar.width
+					height: Config.calendarCellHeight * Config.calendarRows
+
+					Repeater {
+						model: Config.calendarRows * 7
+
+						delegate: Item {
+							id: cell
+
+							required property int index
+
+							readonly property var day: root.grid[Math.floor(cell.index / 7)][cell.index % 7]
+
+							x: (cell.index % 7) * Config.calendarCellWidth
+							y: Math.floor(cell.index / 7) * Config.calendarCellHeight
+							width: Config.calendarCellWidth
+							height: Config.calendarCellHeight
+
+							Rectangle {
+								anchors.fill: parent
+								visible: cell.day.today
+								color: Config.surfaceRaised
+							}
+
+							Rectangle {
+								anchors.fill: parent
+								visible: cell.day.cursor
+								color: "transparent"
+								border.width: Config.calendarCursorBorder
+								border.color: Config.foreground
+							}
+
+							Label {
+								anchors.centerIn: parent
+								font.pixelSize: Config.calendarDaySize
+								ink: !cell.day.outside || cell.day.today || cell.day.cursor ? Config.foreground : Config.dim
+								text: cell.day.day
+							}
 						}
 					}
 				}
 			}
+
 		}
 
 		Row {

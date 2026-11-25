@@ -452,7 +452,7 @@ QtObject {
 	readonly property var calendarIconLife: settings.calendarIconLife !== undefined ? settings.calendarIconLife : "\uf004"
 	readonly property var calendarMonthSize: settings.calendarMonthSize !== undefined ? settings.calendarMonthSize : 30
 	readonly property var calendarTitleGap: settings.calendarTitleGap !== undefined ? settings.calendarTitleGap : 12
-	readonly property var calendarWeekdaySize: settings.calendarWeekdaySize !== undefined ? settings.calendarWeekdaySize : 14
+	readonly property var calendarWeekdaySize: settings.calendarWeekdaySize !== undefined ? settings.calendarWeekdaySize : 16
 	readonly property var calendarDaySize: settings.calendarDaySize !== undefined ? settings.calendarDaySize : 20
 	readonly property var calendarArrowSize: settings.calendarArrowSize !== undefined ? settings.calendarArrowSize : 18
 	readonly property var calendarArrowGap: settings.calendarArrowGap !== undefined ? settings.calendarArrowGap : 12
