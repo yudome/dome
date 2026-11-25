@@ -872,7 +872,7 @@ pub fn app(io: Io, args: []const []const u8) !void {
 		std.debug.print("yudae: no app {s}\n", .{name});
 		std.process.exit(2);
 	}
-	const import_path = try std.fmt.allocPrint(allocator, "QML_IMPORT_PATH={s}/shell/native/qml", .{repo});
+	const import_path = try std.fmt.allocPrint(allocator, "QML_IMPORT_PATH={s}/.local/lib/yudae/qml:{s}/shell/native/qml", .{ proc.home(io, allocator), repo });
 
 	var argv: std.ArrayList([]const u8) = .empty;
 	try argv.append(allocator, "setsid");

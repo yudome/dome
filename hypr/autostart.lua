@@ -16,7 +16,7 @@ end
 local autostart = {
   -- { "foot", "foot --server" },
   { "alacritty", "alacritty --daemon --socket $XDG_RUNTIME_DIR/alacritty.sock" },
-  { "quickshell", "sh -c 'ulimit -Sn 65536; export MALLOC_ARENA_MAX=2 MALLOC_TRIM_THRESHOLD_=65536 QSG_RENDER_LOOP=threaded; exec quickshell -p " .. repo .. "/shell/" .. shell_entry .. "'" },
+  { "quickshell", "sh -c 'ulimit -Sn 65536; export MALLOC_ARENA_MAX=2 MALLOC_TRIM_THRESHOLD_=65536 QSG_RENDER_LOOP=threaded QML_IMPORT_PATH=\"$HOME/.local/lib/yudae/qml:" .. repo .. "/shell/native/qml\"; exec quickshell -p " .. repo .. "/shell/" .. shell_entry .. "'" },
   { "polkit-gnome-au", "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1" },
 }
 
