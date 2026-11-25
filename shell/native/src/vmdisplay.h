@@ -61,6 +61,7 @@ private:
 	bool insideImage(const QPointF &pos) const;
 	void sendPosition(const QPointF &pos);
 	void sendMouse(const QPointF &pos, Qt::MouseButton button, bool down);
+	void applyCursor();
 
 	struct Private;
 	Private *d = nullptr;

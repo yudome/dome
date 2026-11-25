@@ -161,6 +161,7 @@ struct VmDisplay::Private {
 	int hotX = 0;
 	int hotY = 0;
 	bool cursorVisible = true;
+	qreal cursorScale = 1.0;
 	int mapFd = -1;
 	void *mapBase = nullptr;
 	void *mapData = nullptr;
@@ -219,13 +220,12 @@ VmDisplay::VmDisplay(QQuickItem *parent) : QQuickItem(parent), d(new Private) {
 		d->cursorImage = image;
 		d->hotX = hotX;
 		d->hotY = hotY;
-		if (d->cursorVisible) setCursor(QCursor(QPixmap::fromImage(image), hotX, hotY));
+		applyCursor();
 	});
 	connect(d->display, &QmpDisplay::mouseState, this, [this](int, int, bool visible) {
 		if (visible == d->cursorVisible) return;
 		d->cursorVisible = visible;
-		if (!visible) setCursor(Qt::BlankCursor);
-		else if (!d->cursorImage.isNull()) setCursor(QCursor(QPixmap::fromImage(d->cursorImage), d->hotX, d->hotY));
+		applyCursor();
 	});
 	connect(d->display, &QmpDisplay::failed, this, [this](const QString &message) {
 		m_error = message;
@@ -273,14 +273,35 @@ void VmDisplay::setQmp(const QString &value) {
 	m_qmp = value;
 	emit qmpChanged();
 	stopSource();
+	d->cursorImage = QImage();
+	d->cursorVisible = true;
+	applyCursor();
 	maybeStart();
+}
+
+void VmDisplay::applyCursor() {
+	if (!m_broker.isEmpty()) return;
+	if (m_qmp.isEmpty()) {
+		unsetCursor();
+		return;
+	}
+	if (!d->cursorVisible || d->cursorImage.isNull()) {
+		setCursor(Qt::BlankCursor);
+		return;
+	}
+	const qreal dpr = window() ? window()->devicePixelRatio() : 1.0;
+	const qreal scale = d->cursorScale;
+	const QSize size(qMax(1, qRound(d->cursorImage.width() * scale * dpr)), qMax(1, qRound(d->cursorImage.height() * scale * dpr)));
+	QPixmap pixmap = QPixmap::fromImage(d->cursorImage.scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+	pixmap.setDevicePixelRatio(dpr);
+	setCursor(QCursor(pixmap, qRound(d->hotX * scale), qRound(d->hotY * scale)));
 }
 
 void VmDisplay::setBroker(const QString &value) {
 	if (m_broker == value) return;
 	m_broker = value;
 	emit brokerChanged();
-	if (m_broker.isEmpty()) unsetCursor();
+	if (m_broker.isEmpty()) applyCursor();
 	else setCursor(Qt::BlankCursor);
 	stopSource();
 	maybeStart();
@@ -761,6 +782,10 @@ QSGNode *VmDisplay::updatePaintNode(QSGNode *node, UpdatePaintNodeData *) {
 	}
 	textureNode->setTexture(d->nodeTexture);
 	textureNode->setRect(d->dstRect);
+	if (qAbs(scale - d->cursorScale) > 0.001) {
+		d->cursorScale = scale;
+		QMetaObject::invokeMethod(this, &VmDisplay::applyCursor, Qt::QueuedConnection);
+	}
 	textureNode->setTextureCoordinatesTransform(d->y0top ? QSGSimpleTextureNode::MirrorVertically : QSGSimpleTextureNode::NoTransform);
 	textureNode->markDirty(QSGNode::DirtyMaterial);
 
