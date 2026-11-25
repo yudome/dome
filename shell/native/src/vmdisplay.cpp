@@ -756,11 +756,11 @@ QSGNode *VmDisplay::updatePaintNode(QSGNode *node, UpdatePaintNodeData *) {
 	const qreal scale = qMin(area.width() / qreal(d->textureW), area.height() / qreal(d->textureH));
 	const QSizeF fitted(qreal(d->textureW) * scale, qreal(d->textureH) * scale);
 	d->dstRect = QRectF((area.width() - fitted.width()) / 2, (area.height() - fitted.height()) / 2, fitted.width(), fitted.height());
-	textureNode->setRect(d->dstRect);
 	if (!d->nodeTexture) {
 		d->nodeTexture = QNativeInterface::QSGOpenGLTexture::fromNative(d->texture, window(), QSize(d->textureW, d->textureH), QQuickWindow::TextureHasAlphaChannel);
 	}
 	textureNode->setTexture(d->nodeTexture);
+	textureNode->setRect(d->dstRect);
 	textureNode->setTextureCoordinatesTransform(d->y0top ? QSGSimpleTextureNode::MirrorVertically : QSGSimpleTextureNode::NoTransform);
 	textureNode->markDirty(QSGNode::DirtyMaterial);
 
