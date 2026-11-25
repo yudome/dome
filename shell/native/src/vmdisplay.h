@@ -60,7 +60,6 @@ private:
 	void updateInhibitor();
 	bool insideImage(const QPointF &pos) const;
 	void sendPosition(const QPointF &pos);
-	void flushPosition();
 	void sendMouse(const QPointF &pos, Qt::MouseButton button, bool down);
 
 	struct Private;
@@ -72,7 +71,4 @@ private:
 	int m_guestWidth = 0;
 	int m_guestHeight = 0;
 	QString m_error;
-	QTimer *m_mouseTimer = nullptr;
-	QPointF m_pendingPos;
-	bool m_hasPending = false;
 };

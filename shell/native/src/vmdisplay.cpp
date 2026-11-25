@@ -9,6 +9,7 @@
 #include <QMouseEvent>
 #include <QOpenGLContext>
 #include <QDebug>
+#include <QDateTime>
 #include <QTimer>
 #include <QOpenGLFunctions>
 #include <QQuickWindow>
@@ -160,6 +161,7 @@ struct VmDisplay::Private {
 	QRectF dstRect;
 	int hotX = 0;
 	int hotY = 0;
+	bool cursorVisible = true;
 	int mapFd = -1;
 	void *mapBase = nullptr;
 	void *mapData = nullptr;
@@ -196,14 +198,11 @@ VmDisplay::VmDisplay(QQuickItem *parent) : QQuickItem(parent), d(new Private) {
 	setAcceptHoverEvents(true);
 	d->display = new QmpDisplay(this);
 	d->broker = new BrokerDisplay(this);
-	m_mouseTimer = new QTimer(this);
-	m_mouseTimer->setInterval(8);
-	connect(m_mouseTimer, &QTimer::timeout, this, &VmDisplay::flushPosition);
-	m_mouseTimer->start();
-	connect(d->display, &QmpDisplay::frameReady, this, [this]() { update(); });
+	connect(d->display, &QmpDisplay::frameReady, this, [this]() { static int dbgN = 0; static qint64 dbgT = 0; dbgN++; if (QDateTime::currentMSecsSinceEpoch() - dbgT > 1000) { qWarning() << "DBG frames/s" << dbgN; dbgN = 0; dbgT = QDateTime::currentMSecsSinceEpoch(); } update(); });
 	connect(d->display, &QmpDisplay::mapReady, this, [this]() { update(); });
 	connect(d->display, &QmpDisplay::pixmapReady, this, [this]() { update(); });
 	connect(d->display, &QmpDisplay::updated, this, [this](int x, int y, int w, int h) {
+		static int dbgN = 0; static qint64 dbgT = 0; dbgN++; if (QDateTime::currentMSecsSinceEpoch() - dbgT > 1000) { qWarning() << "DBG updates/s" << dbgN << w << h; dbgN = 0; dbgT = QDateTime::currentMSecsSinceEpoch(); }
 		if (d->mapMode) {
 			if (!d->updatePending) {
 				d->updateX = x; d->updateY = y; d->updateW = w; d->updateH = h;
@@ -222,11 +221,14 @@ VmDisplay::VmDisplay(QQuickItem *parent) : QQuickItem(parent), d(new Private) {
 		d->cursorImage = image;
 		d->hotX = hotX;
 		d->hotY = hotY;
-		setCursor(QCursor(QPixmap::fromImage(image), hotX, hotY));
+		if (d->cursorVisible) setCursor(QCursor(QPixmap::fromImage(image), hotX, hotY));
 	});
 	connect(d->display, &QmpDisplay::mouseState, this, [this](int, int, bool visible) {
-		if (!visible) return;
-		if (!d->cursorImage.isNull()) setCursor(QCursor(QPixmap::fromImage(d->cursorImage), d->hotX, d->hotY));
+		static int dbgN = 0; static qint64 dbgT = 0; dbgN++; if (QDateTime::currentMSecsSinceEpoch() - dbgT > 1000) { qWarning() << "DBG mouseSet/s" << dbgN << "vis" << visible; dbgN = 0; dbgT = QDateTime::currentMSecsSinceEpoch(); }
+		if (visible == d->cursorVisible) return;
+		d->cursorVisible = visible;
+		if (!visible) setCursor(Qt::BlankCursor);
+		else if (!d->cursorImage.isNull()) setCursor(QCursor(QPixmap::fromImage(d->cursorImage), d->hotX, d->hotY));
 	});
 	connect(d->display, &QmpDisplay::failed, this, [this](const QString &message) {
 		m_error = message;
@@ -396,23 +398,15 @@ void VmDisplay::wheelEvent(QWheelEvent *event) {
 }
 
 void VmDisplay::sendPosition(const QPointF &pos) {
-	m_pendingPos = pos;
-	m_hasPending = true;
-}
-
-void VmDisplay::flushPosition() {
-	if (!m_hasPending) return;
-	m_hasPending = false;
-
 	if (!m_broker.isEmpty() && d->broker) {
 		if (d->grabbed) return;
 		const qreal dpr = window() ? window()->devicePixelRatio() : 1.0;
 		const int w = qMax(1, qRound(width() * dpr));
 		const int h = qMax(1, qRound(height() * dpr));
 		QRectF dst = d->dstRect.isValid() && !d->dstRect.isEmpty() ? d->dstRect : boundingRect();
-		if (dst.width() <= 0 || dst.height() <= 0 || !dst.contains(m_pendingPos)) return;
-		const qreal fx = (m_pendingPos.x() - dst.x()) / dst.width();
-		const qreal fy = (m_pendingPos.y() - dst.y()) / dst.height();
+		if (dst.width() <= 0 || dst.height() <= 0 || !dst.contains(pos)) return;
+		const qreal fx = (pos.x() - dst.x()) / dst.width();
+		const qreal fy = (pos.y() - dst.y()) / dst.height();
 		const int x = qBound(0, qRound(fx * (w - 1)), w - 1);
 		const int y = qBound(0, qRound(fy * (h - 1)), h - 1);
 		d->broker->sendAbs(x, y);
@@ -424,9 +418,9 @@ void VmDisplay::flushPosition() {
 	if (w <= 0 || h <= 0) return;
 
 	QRectF dst = d->dstRect.isValid() && !d->dstRect.isEmpty() ? d->dstRect : boundingRect();
-	if (!dst.contains(m_pendingPos)) return;
-	const qreal fx = (m_pendingPos.x() - dst.x()) / dst.width();
-	const qreal fy = (m_pendingPos.y() - dst.y()) / dst.height();
+	if (!dst.contains(pos)) return;
+	const qreal fx = (pos.x() - dst.x()) / dst.width();
+	const qreal fy = (pos.y() - dst.y()) / dst.height();
 	int x = qBound(0, qRound(fx * w), w - 1);
 	int y = qBound(0, qRound(fy * h), h - 1);
 	if (x == d->lastX && y == d->lastY) return;
@@ -437,7 +431,6 @@ void VmDisplay::flushPosition() {
 
 void VmDisplay::sendMouse(const QPointF &pos, Qt::MouseButton button, bool down) {
 	sendPosition(pos);
-	flushPosition();
 	if (!m_broker.isEmpty() && d->broker) {
 		int evdev = -1;
 		switch (button) {
