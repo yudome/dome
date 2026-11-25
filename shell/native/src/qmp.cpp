@@ -129,7 +129,17 @@ struct QmpDisplay::Impl {
 	void call(const char *iface, const char *method, GVariant *params) {
 		if (!control) return;
 		g_dbus_connection_call(control, nullptr, "/org/qemu/Display1/Console_0", iface, method, params,
-			nullptr, G_DBUS_CALL_FLAGS_NONE, -1, nullptr, nullptr, nullptr);
+			nullptr, G_DBUS_CALL_FLAGS_NONE, -1, nullptr, [](GObject *source, GAsyncResult *res, gpointer) {
+				GError *err = nullptr;
+				GVariant *reply = g_dbus_connection_call_finish(G_DBUS_CONNECTION(source), res, &err);
+				if (reply) g_variant_unref(reply);
+				if (!err) return;
+				static thread_local QString last;
+				const QString message = QString::fromUtf8(err->message);
+				if (message != last) qWarning() << "qemu display call failed:" << message;
+				last = message;
+				g_error_free(err);
+			}, nullptr);
 	}
 
 	void callSync(const char *iface, const char *method, GVariant *params) {
