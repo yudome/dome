@@ -989,7 +989,7 @@ test "settings.set carries a change into the keys that copy or derive from it" {
 	const body =
 		"foreground = \"#ffffff\"\n" ++
 		"muted = \"#ffffff\"  # same as foreground\n" ++
-		"cpuMono = \"#ffffff\"  # same as muted\n" ++
+		"cpuInk = \"#ffffff\"  # same as muted\n" ++
 		"notifyScale = 1.25\n" ++
 		"notifyWidth = 350  # Math.round(280 * notifyScale)\n" ++
 		"mixerStepCount = 10\n" ++
@@ -999,7 +999,7 @@ test "settings.set carries a change into the keys that copy or derive from it" {
 
 	const ink = try propagate(a, try rewrite(a, body, "foreground", .{ .string = "#eeeeee" }), "foreground", .{ .string = "#eeeeee" }, 0);
 	try std.testing.expect(std.mem.indexOf(u8, ink, "muted = \"#eeeeee\"  # same as foreground") != null);
-	try std.testing.expect(std.mem.indexOf(u8, ink, "cpuMono = \"#eeeeee\"") != null);
+	try std.testing.expect(std.mem.indexOf(u8, ink, "cpuInk = \"#eeeeee\"") != null);
 
 	const scale = try propagate(a, body, "notifyScale", .{ .float = 1.5 }, 0);
 	try std.testing.expect(std.mem.indexOf(u8, scale, "notifyWidth = 420  #") != null);
