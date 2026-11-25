@@ -18,7 +18,8 @@ PanelPage {
 	readonly property string monthText: Yudae.calendarState.month || ""
 	readonly property string yearText: Yudae.calendarState.year || ""
 	readonly property var weekdays: Yudae.calendarState.weekdays || []
-	readonly property real titleX: (Config.calendarCellWidth - weekdayMetrics.width) / 2
+	readonly property real titleInk: (Config.calendarCellWidth - weekdayMetrics.width) / 2 + weekdayMetrics.tightBoundingRect.x
+	readonly property real titleX: root.titleInk - monthMetrics.tightBoundingRect.x
 
 	contentWidth: card.implicitWidth
 
@@ -26,6 +27,14 @@ PanelPage {
 		id: clock
 
 		precision: SystemClock.Seconds
+	}
+
+	TextMetrics {
+		id: monthMetrics
+
+		font.family: Config.fontFamily
+		font.pixelSize: Config.calendarMonthSize
+		text: root.monthText
 	}
 
 	TextMetrics {
@@ -73,34 +82,31 @@ PanelPage {
 			id: box
 
 			width: card.width
-			height: Math.max(title.height, arrows.height)
+			height: Math.max(month.height, arrows.height)
 
 			HoverHandler {
 				id: boxHover
 			}
 
-			Row {
-				id: title
+			Label {
+				id: month
 
 				x: root.titleX
 				anchors.verticalCenter: parent.verticalCenter
-				spacing: Config.calendarTitleGap
+				font.pixelSize: Config.calendarMonthSize
+				ink: Config.calendarBase
+				text: root.monthText
+			}
 
-				Label {
-					id: month
+			Label {
+				id: yearLabel
 
-					font.pixelSize: Config.calendarMonthSize
-					ink: Config.calendarBase
-					text: root.monthText
-				}
-
-				Label {
-					id: yearLabel
-
-					font.pixelSize: Config.calendarMonthSize
-					ink: Config.calendarBase
-					text: root.yearText
-				}
+				anchors.right: arrows.left
+				anchors.rightMargin: Config.calendarTitleGap
+				anchors.verticalCenter: parent.verticalCenter
+				font.pixelSize: Config.calendarMonthSize
+				ink: Config.calendarBase
+				text: root.yearText
 			}
 
 			Row {
