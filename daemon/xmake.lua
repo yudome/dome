@@ -79,7 +79,7 @@ local function log_build(target)
 	local line = string.format('{"at":%d,"ms":%d,"binary":%d,"cache_mb":%d,"out_mb":%d,"global_mb":%d}\n',
 		os.time(), ms, size, cache_mb, size_mb(path.join(dir, "zig-out")), size_mb(path.join(os.getenv("HOME") or "", ".cache", "zig")))
 	os.mkdir(path.join(dir, "bench"))
-	io.writefile(bench_log, (io.readfile(bench_log) or "") .. line)
+	io.writefile(bench_log, (os.isfile(bench_log) and io.readfile(bench_log) or "") .. line)
 	print(string.format("build %dms  binary %dB  cache %dMB", ms, size, cache_mb))
 	if cache_mb > cap then
 		os.rm(cache)
