@@ -5,6 +5,7 @@ const json = @import("../primitives/json.zig");
 const fmt = @import("../primitives/fmt.zig");
 const sleep = @import("../primitives/sleep.zig");
 const exec = @import("../primitives/exec.zig");
+const hypr = @import("../primitives/hypr.zig");
 const qmp = @import("vms/qmp.zig");
 const vsock = @import("vms/vsock.zig");
 const qemu = @import("vms/qemu.zig");
@@ -381,7 +382,7 @@ pub const Vms = struct {
 		self.mutex.unlock(self.io);
 		if (!viewing or fmt.nowMs(self.io) - since < 20000) return;
 
-		const listing = exec.run(self.io, self.allocator, &.{ "hyprctl", "clients", "-j" }) catch return;
+		const listing = hypr.ctl(self.io, self.allocator, &.{ "clients", "-j" }) catch return;
 		defer listing.deinit(self.allocator);
 		if (std.mem.indexOf(u8, listing.out, "com.yudae.vms") != null) return;
 
@@ -1778,11 +1779,10 @@ pub const Vms = struct {
 		const repo = proc.repo(self.io, self.allocator);
 		const class = "com.yudae.vms";
 
-		if (exec.run(self.io, self.allocator, &.{ "hyprctl", "clients", "-j" })) |result| {
+		if (hypr.ctl(self.io, self.allocator, &.{ "clients", "-j" })) |result| {
 			defer result.deinit(self.allocator);
 			if (std.mem.indexOf(u8, result.out, class) != null) {
 				const focus = std.fmt.allocPrint(allocator, "function() for _,w in ipairs(hl.get_windows()) do if w.class == \"{s}\" then hl.dispatch(hl.dsp.focus({{window=w}})) return end end end", .{class}) catch return allocator.dupe(u8, "{}");
-				const hypr = @import("../primitives/hypr.zig");
 				const reply = hypr.request(self.io, allocator, focus) catch null;
 				if (reply) |body| allocator.free(body);
 				return allocator.dupe(u8, "{}");

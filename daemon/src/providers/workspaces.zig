@@ -121,7 +121,7 @@ pub const Workspaces = struct {
 
 		if (hypr.usingLua(self.io, self.allocator)) {
 			const script = std.fmt.bufPrint(&buffer, "hl.dispatch(hl.dsp.focus({{ workspace = {d} }}))", .{id}) catch return;
-			const result = exec.run(self.io, self.allocator, &.{ "hyprctl", "eval", script }) catch return;
+			const result = hypr.ctl(self.io, self.allocator, &.{ "eval", script }) catch return;
 			result.deinit(self.allocator);
 			return;
 		}

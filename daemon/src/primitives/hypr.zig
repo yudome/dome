@@ -1,5 +1,6 @@
 const std = @import("std");
 const proc = @import("proc.zig");
+const exec = @import("exec.zig");
 
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
@@ -152,6 +153,20 @@ pub fn requestSigned(io: Io, allocator: Allocator, signature: []const u8, comman
 	}
 
 	return out.toOwnedSlice(allocator);
+}
+
+pub fn ctl(io: Io, allocator: Allocator, args: []const []const u8) !exec.Result {
+	const signature = try findSignature(io, allocator);
+	defer allocator.free(signature);
+
+	const argv = try allocator.alloc([]const u8, args.len + 3);
+	defer allocator.free(argv);
+	argv[0] = "hyprctl";
+	argv[1] = "--instance";
+	argv[2] = signature;
+	@memcpy(argv[3..], args);
+
+	return exec.run(io, allocator, argv);
 }
 
 pub fn monitorPath(io: Io, allocator: Allocator) ?[]u8 {

@@ -196,7 +196,7 @@ pub const Windows = struct {
 	fn dispatch(self: *Windows, allocator: Allocator, address: []const u8, slot: i64, version: i64) void {
 		if (self.usingLua()) {
 			const script = std.fmt.allocPrint(allocator, "require(\"versions\").visit({d}, {d}); hl.dispatch(hl.dsp.focus({{window = \"address:{s}\"}}))", .{ slot, version, address }) catch return;
-			const result = exec.run(self.io, self.allocator, &.{ "hyprctl", "eval", script }) catch return;
+			const result = hypr.ctl(self.io, self.allocator, &.{ "eval", script }) catch return;
 			result.deinit(self.allocator);
 			return;
 		}

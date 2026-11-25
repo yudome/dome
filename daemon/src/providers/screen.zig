@@ -692,7 +692,7 @@ pub const Screen = struct {
 	}
 
 	fn reload(self: *Screen) void {
-		const result = exec.run(self.io, self.allocator, &.{ "hyprctl", "reload" }) catch return;
+		const result = hypr.ctl(self.io, self.allocator, &.{ "reload" }) catch return;
 		result.deinit(self.allocator);
 	}
 
@@ -735,7 +735,7 @@ pub const Screen = struct {
 		const script = std.fmt.allocPrint(self.allocator, "hl.monitor({{output=\"{s}\", mode=\"{s}\", position=\"auto\", scale=\"{d:.4}\"}})", .{ name, mode, scale }) catch return;
 		defer self.allocator.free(script);
 
-		const result = exec.run(self.io, self.allocator, &.{ "hyprctl", "eval", script }) catch return;
+		const result = hypr.ctl(self.io, self.allocator, &.{ "eval", script }) catch return;
 		result.deinit(self.allocator);
 	}
 
