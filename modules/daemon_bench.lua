@@ -2,7 +2,7 @@ function run(root, dir, out)
 	import("core.base.option")
 	local args = table.wrap(option.get("args") or {})
 	local seconds = tostring(option.get("seconds") or "5")
-	local verb = args[1] == "disk" or args[1] == "files" and args[1] or nil
+	local verb = (args[1] == "disk" or args[1] == "files" or args[1] == "wallpaper") and args[1] or nil
 	os.execv("xmake", { "build", "yudaemond" }, { curdir = root })
 	local full = path.join(out, "yudaemond")
 	local headless = path.join(out, "yudaemond-headless")

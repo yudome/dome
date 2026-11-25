@@ -49,6 +49,50 @@ Host: CachyOS, kernel 7.3.4, Zig 0.17.1, btrfs root. `xmake bench files`.
 
 The home build is `2.94M` entries/s. Reuse rewrites the index from unchanged folder children; the stat scan walks every recorded folder. A cold first build measured separately was 3.0s, and a cold stat scan 48ms.
 
+## Wallpaper, measured 2026-11-25
+
+`yudae bench wallpaper <files>` (offscreen, nothing is drawn) and `yudae bench wallpaper --live <file> [s]` (draws its own background surface; run it in a VM). Budgets:
+
+| gate | budget |
+| --- | --- |
+| idle after a change | 0 commits, 0 decodes, no GL context, no GPU fds |
+| paused video | 0 commits, 0 decodes, audio corked |
+| playing video | commits = video fps, 0 dropped |
+| settle | lands on the still frame within one frame |
+| image decode, 1440p jpg/png/webp | under 100ms |
+
+Host, RTX 3070, ReleaseSafe, 2560x1440 sources (best of 5):
+
+| file | decode |
+| --- | --- |
+| jpg (q2, 1.0MB) | 18.7ms |
+| png (wuffs, RGBA) | 70.9ms |
+| webp (q90) | 45.7ms |
+| avif (libaom still) | 129.6ms |
+| jpg 6016x3384, 25MB | 270ms at 1/2 scale, same as `djpeg` |
+
+| video | VA-API, zero copy | software |
+| --- | --- | --- |
+| 1080p30 h264 | 638 fps decode+upload | 715 fps |
+| 1440p60 h264 | 415 fps | 481 fps |
+| 2160p60 hevc | 451 fps | 199 fps |
+
+Binary: 4.07MB ReleaseSafe stripped with the renderer, against 3.75MB before it; the 3MB budget was already exceeded. wuffs is built with only the PNG modules and the RGBA destination.
+
+Zero-copy frames match the software path pixel for pixel (same mean RGB of the last frame). AV1 falls back to software on this driver. Still pick: 40s 2048x872 AV1 in 2.0s; 4s 2160p60 in 1.9s.
+
+Guest (virtio-gpu, software decode), `--live` on 1080p30: 30.0 commits/s, 30.0 presented/s, 0 dropped, 20.6% CPU, 150MB RSS; paused 0 commits and 0 decodes in 3s at 0.00% CPU; settle landed 0.00ms from the still frame, then 0 commits. Audio probe: 48k frames/s while playing, 0 after cork. Real fullscreen window (F11) paused the video at 0.925s and leaving fullscreen resumed at 0.925s. Resolution sweep on a 60Hz headless guest output, fade per mode:
+
+| mode | decode | apply total | fade frames in 400ms | daemon CPU ticks over 2s |
+| --- | --- | --- | --- | --- |
+| 1920x1080 | 408ms (5K jpg) | 511ms | 24 | 95 |
+| 2560x1440 | 82ms (png) | 165ms | 25 | 20 |
+| 3840x2160 | 458ms (5K jpg) | 925ms | 23 | 77 |
+
+The guest readback through virgl dominates at 2160p (467ms over decode); the host cost per resolution is not measured yet.
+
+Fade: 400ms at the output rate (25 frames on a 60Hz headless output, ink at +120ms with the default ease).
+
 ## VM viewer, measured 2026-11-03
 
 Host: RTX 3070, 615.78.08, Hyprland 0.57.0, QEMU 11.1.3, guest 2560x1440 at scale 1.6667, 279.96Hz. CPU from `/proc/<pid>/stat` deltas, GPU from `nvidia-smi` at 500ms, RSS from `/proc/<pid>/status`. 60s per scenario.
@@ -107,7 +151,7 @@ Superseded by a one-line Hyprland quirk. The guest compositor filtered ARGB out 
 ### Guest parity (P1-P5)
 
 - P1/P2: host DP-2 is 2560x1440, scale 1.6666666, 279.961Hz; guest Virtual-1 is 2560x1440, scale 1.6666666, 279.95999Hz.
-- P3: host and guest both use `/home/gabriel/Documents/Wallpaper/wallhaven-0p2em3_2560x1440.png`; guest `awww query` reports the same image.
+- P3: host and guest both use `/home/gabriel/Documents/Wallpaper/wallhaven-0p2em3_2560x1440.png`; the guest snapshot's `wallpaper.active` reports the same image.
 - P4: 676 host font families against 642 guest; the missing ones are CachyOS extras (Arabic/Syriac PCF), no guest-only families. The shell font `GoogleSansCode Nerd Font` resolves in both. Icon themes are the same 8; host has one extra `cachyos.svg` icon, not a theme. `breeze_cursors` is present in both.
 - P5: fixed by the Hyprland non-KMS quirk; see the proof above.
 

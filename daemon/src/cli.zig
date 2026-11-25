@@ -6,6 +6,7 @@ const benchmod = @import("bench.zig");
 const bench_widgets = @import("bench_widgets.zig");
 const bench_disk = @import("bench_disk.zig");
 const bench_files = @import("bench_files.zig");
+const bench_wallpaper = @import("bench_wallpaper.zig");
 const paritymod = @import("parity.zig");
 const mcpmod = @import("mcp.zig");
 const sleep = @import("primitives/sleep.zig");
@@ -13,6 +14,7 @@ const environ = @import("primitives/environ.zig");
 const exec = @import("primitives/exec.zig");
 const hypr = @import("primitives/hypr.zig");
 const human = @import("human.zig");
+const wayland = @import("primitives/wayland.zig");
 
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
@@ -45,6 +47,27 @@ pub fn fetch(io: Io) ![]u8 {
 	};
 
 	return std.heap.smp_allocator.dupe(u8, message);
+}
+
+pub fn transition(io: Io, args: []const []const u8) !void {
+	if (args.len < 4 or !std.mem.eql(u8, args[2], "check")) {
+		std.debug.print("usage: yudae transition check <transition.frag>\n", .{});
+		std.process.exit(2);
+	}
+
+	const source = proc.readFileLimit(io, std.heap.smp_allocator, args[3], 256 * 1024) catch |err| {
+		std.debug.print("{s}: {s}\n", .{ args[3], @errorName(err) });
+		std.process.exit(1);
+	};
+	const shader = try std.heap.smp_allocator.dupeSentinel(u8, source, 0);
+
+	var err: [4096]u8 = undefined;
+	if (!wayland.checkShader(shader, &err)) {
+		std.debug.print("{s}: {s}\n", .{ args[3], std.mem.sliceTo(&err, 0) });
+		std.process.exit(1);
+	}
+
+	std.debug.print("ok {s}\n", .{args[3]});
 }
 
 pub fn files(io: Io, args: []const []const u8) !void {
@@ -172,6 +195,7 @@ pub fn bench(io: Io, args: []const []const u8) !void {
 	if (args.len > 2 and std.mem.eql(u8, args[2], "widgets")) return bench_widgets.run(io, args);
 	if (args.len > 2 and std.mem.eql(u8, args[2], "disk")) return bench_disk.run(io, args[2..]);
 	if (args.len > 2 and std.mem.eql(u8, args[2], "files")) return bench_files.run(io, args[2..]);
+	if (args.len > 2 and std.mem.eql(u8, args[2], "wallpaper")) return bench_wallpaper.run(io, args[2..]);
 
 	return benchmod.run(io, args);
 }
