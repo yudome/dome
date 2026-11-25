@@ -12,7 +12,7 @@
     },
     {
       "do": "exec",
-      "cmd": "sudo pacman -S --noconfirm --needed greetd cage quickshell >/dev/null && echo gabriel:vmpass | sudo chpasswd && rm -rf /tmp/dotfiles && mkdir -p /tmp/dotfiles && tar -C ~/dotfiles --exclude=.git --exclude=.zig-cache --exclude=.zig-cache-headless --exclude=zig-out --exclude=cache --exclude=runs -cf - . | tar -C /tmp/dotfiles -xf - && sudo xmake -C /tmp/dotfiles install greeter && sudo loginctl enable-linger gabriel && sudo systemctl disable --now yudae-desktop && rm -rf /run/user/1000/hypr/* && sudo systemctl start greetd",
+      "cmd": "sudo pacman -S --noconfirm --needed greetd cage quickshell >/dev/null && echo user:vmpass | sudo chpasswd && rm -rf /tmp/dotfiles && mkdir -p /tmp/dotfiles && tar -C ~/dotfiles --exclude=.git --exclude=.zig-cache --exclude=.zig-cache-headless --exclude=zig-out --exclude=cache --exclude=runs -cf - . | tar -C /tmp/dotfiles -xf - && sudo xmake -C /tmp/dotfiles install greeter && sudo loginctl enable-linger user && sudo systemctl disable --now yudae-desktop && rm -rf /run/user/1000/hypr/* && sudo systemctl start greetd",
       "code": 0
     },
     {
@@ -32,7 +32,7 @@
     {
       "do": "pull",
       "path": "/tmp/shot.png",
-      "to": "/home/gabriel/dotfiles/vm/runs/shots/greeter-lock/01-greeter.png"
+      "to": "/home/user/dotfiles/vm/runs/shots/greeter-lock/01-greeter.png"
     },
     {
       "do": "type",
@@ -45,7 +45,7 @@
     {
       "do": "pull",
       "path": "/tmp/shot.png",
-      "to": "/home/gabriel/dotfiles/vm/runs/shots/greeter-lock/01b-greeter-dots.png"
+      "to": "/home/user/dotfiles/vm/runs/shots/greeter-lock/01b-greeter-dots.png"
     },
     {
       "do": "key",
@@ -153,7 +153,7 @@
     {
       "do": "pull",
       "path": "/tmp/shot.png",
-      "to": "/home/gabriel/dotfiles/vm/runs/shots/greeter-lock/03-switch-popup.png"
+      "to": "/home/user/dotfiles/vm/runs/shots/greeter-lock/03-switch-popup.png"
     },
     {
       "do": "key",
@@ -187,7 +187,7 @@
     {
       "do": "pull",
       "path": "/tmp/shot.png",
-      "to": "/home/gabriel/dotfiles/vm/runs/shots/greeter-lock/02-greeter-wrong.png"
+      "to": "/home/user/dotfiles/vm/runs/shots/greeter-lock/02-greeter-wrong.png"
     },
     {
       "do": "sleep",
@@ -210,12 +210,12 @@
     },
     {
       "do": "exec",
-      "cmd": "loginctl list-sessions --no-legend | grep -q gabriel && ! pgrep -f [g]reeterShell",
+      "cmd": "loginctl list-sessions --no-legend | grep -q user && ! pgrep -f [g]reeterShell",
       "code": 0
     },
     {
       "do": "exec",
-      "cmd": "test -s /home/gabriel/.local/state/session.log && grep -q . /home/gabriel/.local/state/session.log",
+      "cmd": "test -s /home/user/.local/state/session.log && grep -q . /home/user/.local/state/session.log",
       "code": 0
     },
     {
@@ -368,7 +368,7 @@
     {
       "do": "pull",
       "path": "/tmp/shot.png",
-      "to": "/home/gabriel/dotfiles/vm/runs/shots/greeter-lock/09-greeter-after-poweroff.png"
+      "to": "/home/user/dotfiles/vm/runs/shots/greeter-lock/09-greeter-after-poweroff.png"
     },
     {
       "do": "click",

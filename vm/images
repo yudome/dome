@@ -166,15 +166,15 @@ mount --bind /proc /target/proc
 mount --bind /sys /target/sys
 mount --bind /dev /target/dev
 chroot /target /bin/bash -c '
-id -u gabriel >/dev/null 2>&1 || useradd -m -u 1000 -G wheel,video,render,input -s /bin/bash gabriel
+id -u user >/dev/null 2>&1 || useradd -m -u 1000 -G wheel,video,render,input -s /bin/bash user
 mkdir -p /etc/sudoers.d
-printf "gabriel ALL=(ALL) NOPASSWD:ALL\n" > /etc/sudoers.d/gabriel
-chmod 440 /etc/sudoers.d/gabriel
-mkdir -p /home/gabriel/dotfiles /run/user/1000
-chown gabriel:gabriel /run/user/1000
-grep -q "dotfiles /home/gabriel/dotfiles virtiofs" /etc/fstab || echo "dotfiles /home/gabriel/dotfiles virtiofs ro,nofail,defaults 0 0" >> /etc/fstab
-mkdir -p /home/gabriel/.config
-ln -sfn /home/gabriel/dotfiles/hypr /home/gabriel/.config/hypr
+printf "user ALL=(ALL) NOPASSWD:ALL\n" > /etc/sudoers.d/user
+chmod 440 /etc/sudoers.d/user
+mkdir -p /home/user/dotfiles /run/user/1000
+chown user:user /run/user/1000
+grep -q "dotfiles /home/user/dotfiles virtiofs" /etc/fstab || echo "dotfiles /home/user/dotfiles virtiofs ro,nofail,defaults 0 0" >> /etc/fstab
+mkdir -p /home/user/.config
+ln -sfn /home/user/dotfiles/hypr /home/user/.config/hypr
 passwd -d root >/dev/null 2>&1 || true
 touch /var/lib/dotfiles-golden
 
@@ -698,7 +698,7 @@ EOF
 		echo "hostname: yudae-guest"
 		echo "users:"
 		echo "  - default"
-		echo "  - name: gabriel"
+		echo "  - name: user"
 		echo "    uid: 1000"
 		echo "    groups: wheel,video,render,input"
 		echo "    shell: /bin/bash"
@@ -918,18 +918,18 @@ desktop_unit() {
 [Unit]
 Description=Hyprland desktop
 After=yudaemond.service systemd-user-sessions.service
-RequiresMountsFor=/home/gabriel/dotfiles
+RequiresMountsFor=/home/user/dotfiles
 Conflicts=getty@tty1.service
 
 [Service]
-User=gabriel
+User=user
 PAMName=login
 TTYPath=/dev/tty1
 StandardInput=tty
 StandardOutput=journal+console
-Environment=HOME=/home/gabriel
+Environment=HOME=/home/user
 Environment=XDG_RUNTIME_DIR=/run/user/1000
-Environment=XDG_CONFIG_HOME=/home/gabriel/.config
+Environment=XDG_CONFIG_HOME=/home/user/.config
 Environment=XDG_SESSION_TYPE=wayland
 Environment=XDG_CURRENT_DESKTOP=Hyprland
 Environment=XDG_SESSION_DESKTOP=Hyprland
@@ -949,15 +949,15 @@ daemon_unit() {
 Description=yudaemond guest
 After=local-fs.target user-runtime-dir@1000.service
 Requires=user-runtime-dir@1000.service
-RequiresMountsFor=/home/gabriel/dotfiles
+RequiresMountsFor=/home/user/dotfiles
 
 [Service]
-User=gabriel
-Group=gabriel
-Environment=HOME=/home/gabriel
+User=user
+Group=user
+Environment=HOME=/home/user
 Environment=XDG_RUNTIME_DIR=/run/user/1000
 ExecStartPre=+/bin/sh -c "echo yudaemond-start > /dev/ttyS0"
-ExecStart=/home/gabriel/dotfiles/daemon/zig-out/bin/yudaemond run
+ExecStart=/home/user/dotfiles/daemon/zig-out/bin/yudaemond run
 StandardOutput=journal+console
 StandardError=journal+console
 Restart=on-failure
@@ -971,16 +971,16 @@ UNIT
 golden_setup() {
 	cat <<'SETUP'
 #!/bin/bash
-id -u gabriel >/dev/null 2>&1 || useradd -m -u 1000 -G wheel,video,render,input -s /bin/bash gabriel
+id -u user >/dev/null 2>&1 || useradd -m -u 1000 -G wheel,video,render,input -s /bin/bash user
 mkdir -p /etc/sudoers.d
-printf 'gabriel ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/gabriel
-chmod 440 /etc/sudoers.d/gabriel
-mkdir -p /home/gabriel/dotfiles /run/user/1000
-chown gabriel:gabriel /run/user/1000
-grep -q 'dotfiles /home/gabriel/dotfiles virtiofs' /etc/fstab || echo 'dotfiles /home/gabriel/dotfiles virtiofs ro,nofail,defaults 0 0' >> /etc/fstab
+printf 'user ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/user
+chmod 440 /etc/sudoers.d/user
+mkdir -p /home/user/dotfiles /run/user/1000
+chown user:user /run/user/1000
+grep -q 'dotfiles /home/user/dotfiles virtiofs' /etc/fstab || echo 'dotfiles /home/user/dotfiles virtiofs ro,nofail,defaults 0 0' >> /etc/fstab
 grep -q 'nvidia /mnt/nvidia virtiofs' /etc/fstab || echo 'nvidia /mnt/nvidia virtiofs ro,nofail,defaults 0 0' >> /etc/fstab
-mkdir -p /home/gabriel/.config /mnt/nvidia
-ln -sfn /home/gabriel/dotfiles/hypr /home/gabriel/.config/hypr
+mkdir -p /home/user/.config /mnt/nvidia
+ln -sfn /home/user/dotfiles/hypr /home/user/.config/hypr
 ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 cat > /usr/local/bin/yudae-session <<'SESSION'
 #!/bin/bash
