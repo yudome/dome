@@ -24,6 +24,7 @@ dotfiles/
   docs/              reference: how the system is shaped
   .agents/skills/    task guides: how to do X
   xmake.lua + one xmake.lua per dir
+  modules/           shared xmake Lua primitives: checks, tasks, util
   PLANS.md AGENTS.md README.md
 ```
 

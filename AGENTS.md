@@ -67,6 +67,7 @@ shell/             quickshell; run with `quickshell -p shell/shell.qml`, never s
 daemon/            yudaemond (Zig); providers pair with shell/features/<name>
 systemd/ vm/ docs/ .agents/skills/
 xmake.lua          the single entry point: build install plugin link lint test bench vm doctor
+modules/           shared xmake Lua primitives: checks, tasks, util
 ```
 
 `xmake` is the system binary; the area `xmake.lua` files hold targets and tasks, `xmake` builds, `xmake test` checks, `xmake install` installs. `PLANS.md` is the source of truth for the shape and the order of work.
