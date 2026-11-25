@@ -55,7 +55,7 @@ Item {
 			root.bar.activateWidget(root, root.popupKeyboard);
 	}
 
-	readonly property real iconBreadth: root.iconComponent ? root.iconWidth : Math.max(iconMetrics.width, root.iconMinWidth)
+	readonly property real iconBreadth: root.iconComponent ? root.iconWidth : Math.max(iconMetrics.advanceWidth, root.iconMinWidth)
 	readonly property color inkColor: BarInk.pick(root.bar, root.inkId, root.dim ? root.dimColor : Config.foreground)
 	readonly property real inkAbove: -iconsMetrics.tightBoundingRect.y
 	readonly property real inkBelow: iconsMetrics.tightBoundingRect.y + iconsMetrics.tightBoundingRect.height

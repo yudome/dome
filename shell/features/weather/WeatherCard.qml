@@ -160,7 +160,7 @@ PanelPage {
 
 		font.family: Config.fontFamily
 		font.pixelSize: Config.weatherHeroGlyphSize
-		text: root.heroIcon
+		text: Config.weatherLoadingIcon
 	}
 
 	TextMetrics {
