@@ -107,11 +107,13 @@ Row {
 				const url = String(slot.modelData.icon || "");
 				const name = url.replace("image://icon/", "").split("?")[0];
 
-				if (url.indexOf("image://icon/") === 0 && Quickshell.hasThemeIcon(name))
-					return AppIcons.themeUrl(name);
+				if (url.indexOf("image://icon/") === 0)
+					return AppIcons.themed([name.replace(/-symbolic$/, ""), name]);
 
 				return AppIcons.iconOf(slot.modelData.id, [slot.modelData.title]) || url;
 			}
+
+			readonly property bool symbolic: slot.iconSource.indexOf("-symbolic") >= 0
 
 			implicitWidth: Config.trayIconSize
 			implicitHeight: root.lineHeight
@@ -128,7 +130,7 @@ Row {
 			MultiEffect {
 				anchors.fill: icon
 				source: icon
-				colorization: 1
+				colorization: slot.symbolic ? 1 : 0
 				colorizationColor: BarInk.pick(root.bar, "tray", Config.foreground)
 
 				Behavior on colorizationColor {
@@ -171,6 +173,8 @@ Row {
 		MenuLevel {
 			entries: root.menuEntries
 			trayKey: root.menuKey
+			bar: root.bar
+			live: menuPopup.shown
 			dismiss: function () { menuPopup.close(); }
 		}
 	}
