@@ -74,7 +74,7 @@ pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
 	try addPair(allocator, &list, "-device", "virtio-rng-pci");
 	try addPair(allocator, &list, "-device", "virtio-tablet-pci");
 	try addPair(allocator, &list, "-device", "virtio-keyboard-pci");
-	try addPair(allocator, &list, "-netdev", "user,id=net0");
+	try addPair(allocator, &list, "-netdev", try std.fmt.allocPrint(allocator, "stream,id=net0,server=off,addr.type=unix,addr.path={s}/passt.sock", .{config.dir}));
 	try addPair(allocator, &list, "-device", "virtio-net-pci,netdev=net0");
 	try addPair(allocator, &list, "-qmp", try std.fmt.allocPrint(allocator, "unix:{s},server=on,wait=off", .{qmp}));
 	try addPair(allocator, &list, "-qmp", try std.fmt.allocPrint(allocator, "unix:{s},server=on,wait=off", .{display_qmp}));

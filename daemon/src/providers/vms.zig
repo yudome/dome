@@ -707,6 +707,7 @@ pub const Vms = struct {
 		defer if (wall_dir.len > 0) self.allocator.free(wall_dir);
 		const share_wall = try self.startWall(vm, wall_dir);
 		const share_state = self.startState(vm);
+		try self.startNet(vm);
 
 		var mode: nvidia.Audio = if (audio.alsaAvailable(self.io, self.allocator) and audio.qemuHas(self.io, self.allocator, paths.qemu, "alsa") and audio.ensureSink(self.io, self.allocator)) .alsa else if (audio.qemuHas(self.io, self.allocator, paths.qemu, "pa") and audio.ensureSink(self.io, self.allocator)) .pa else .none;
 		const audio_index: u8 = @intCast(vm.cid % 8);
@@ -762,6 +763,24 @@ pub const Vms = struct {
 			const thread = std.Thread.spawn(.{}, agentBoot, .{ self, vm.cid, name }) catch null;
 			if (thread) |value| value.detach() else self.allocator.free(name);
 		}
+	}
+
+	fn startNet(self: *Vms, vm: *Vm) !void {
+		const socket = try std.fs.path.join(self.allocator, &.{ vm.dir, "passt.sock" });
+		defer self.allocator.free(socket);
+		std.Io.Dir.cwd().deleteFile(self.io, socket) catch {};
+		const socket_arg = try std.fmt.allocPrint(self.allocator, "--socket-path={s}", .{socket});
+		defer self.allocator.free(socket_arg);
+		const resolv = proc.readFile(self.io, self.allocator, "/etc/resolv.conf") catch try self.allocator.dupe(u8, "");
+		defer self.allocator.free(resolv);
+		var argv: std.ArrayList([]const u8) = .empty;
+		defer argv.deinit(self.allocator);
+		try argv.appendSlice(self.allocator, &.{ "passt", "--one-off", "--quiet", "--no-map-gw", "--dns-forward", "10.0.2.3", "--dns", "10.0.2.3", socket_arg });
+		if (firstNameserver(resolv)) |host| try argv.appendSlice(self.allocator, &.{ "--dns-host", host });
+		const result = exec.run(self.io, self.allocator, argv.items) catch return error.PasstFailed;
+		defer result.deinit(self.allocator);
+		if (result.code != 0) return error.PasstFailed;
+		if (!try waitFile(self.io, socket, 5000)) return error.PasstSocket;
 	}
 
 	fn startWall(self: *Vms, vm: *Vm, wall_dir: []const u8) !bool {
@@ -883,6 +902,7 @@ pub const Vms = struct {
 		defer if (wall_dir.len > 0) self.allocator.free(wall_dir);
 		const share_wall = try self.startWall(vm, wall_dir);
 		const share_state = self.startState(vm);
+		try self.startNet(vm);
 
 		var mode: qemu.Audio = if (audio.alsaAvailable(self.io, self.allocator) and audio.qemuHas(self.io, self.allocator, qemu.binary(), "alsa") and audio.ensureSink(self.io, self.allocator)) .alsa else if (audio.qemuHas(self.io, self.allocator, qemu.binary(), "pa") and audio.ensureSink(self.io, self.allocator)) .pa else .none;
 		const audio_index: u8 = @intCast(vm.cid % 8);
@@ -2518,6 +2538,22 @@ fn destroyIdleOf(args: json.Value) i64 {
 
 fn idleDestroy(destroy_ms: i64, used_ms: i64, now: i64) bool {
 	return destroy_ms > 0 and now - used_ms > destroy_ms;
+}
+
+fn firstNameserver(resolv: []const u8) ?[]const u8 {
+	var lines = std.mem.splitScalar(u8, resolv, '\n');
+	while (lines.next()) |line| {
+		var words = std.mem.tokenizeAny(u8, line, " \t\r");
+		const key = words.next() orelse continue;
+		if (!std.mem.eql(u8, key, "nameserver")) continue;
+		return words.next();
+	}
+	return null;
+}
+
+test "the first nameserver line wins and comments are skipped" {
+	try std.testing.expectEqualStrings("127.0.0.53", firstNameserver("# nameserver 1.1.1.1\nnameserver 127.0.0.53\nnameserver 75.75.75.75\n").?);
+	try std.testing.expect(firstNameserver("search lan\n") == null);
 }
 
 fn waitFile(io: Io, path: []const u8, timeout_ms: i64) !bool {
