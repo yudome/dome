@@ -195,17 +195,38 @@ pub const Icons = struct {
 				if (categoryIcon(files, body)) |generic| resolved = generic;
 			}
 
-			const key = self.allocator.dupe(u8, id) catch continue;
-			const value = self.allocator.dupe(u8, resolved) catch {
-				self.allocator.free(key);
-				continue;
-			};
+			if (!self.putMap(desktop, id, resolved)) continue;
 
-			desktop.put(self.allocator, key, value) catch {
-				self.allocator.free(key);
-				self.allocator.free(value);
-			};
+			if (std.mem.lastIndexOfScalar(u8, id, '.')) |dot| {
+				const tail = id[dot + 1 ..];
+
+				if (tail.len > 0 and !desktop.contains(tail)) _ = self.putMap(desktop, tail, resolved);
+			}
+
+			if (entryValue(body, "Name")) |label| {
+				var name_buf: [160]u8 = undefined;
+				const lower_name = lowercase(label, &name_buf);
+
+				if (lower_name.len > 0 and !std.mem.eql(u8, lower_name, id) and !desktop.contains(lower_name))
+					_ = self.putMap(desktop, lower_name, resolved);
+			}
 		}
+	}
+
+	fn putMap(self: *Icons, map: *std.StringHashMapUnmanaged([]u8), key: []const u8, value: []const u8) bool {
+		const k = self.allocator.dupe(u8, key) catch return false;
+		const v = self.allocator.dupe(u8, value) catch {
+			self.allocator.free(k);
+			return false;
+		};
+
+		map.put(self.allocator, k, v) catch {
+			self.allocator.free(k);
+			self.allocator.free(v);
+			return false;
+		};
+
+		return true;
 	}
 
 	pub const Found = struct {
@@ -431,7 +452,6 @@ fn entryIcon(body: []const u8) ?[]const u8 {
 
 		if (std.mem.eql(u8, key, "Icon")) icon = value;
 		if (std.mem.eql(u8, key, "Hidden") and std.mem.eql(u8, value, "true")) hidden = true;
-		if (std.mem.eql(u8, key, "NoDisplay") and std.mem.eql(u8, value, "true")) hidden = true;
 	}
 
 	if (hidden or icon.len == 0) return null;
@@ -473,6 +493,7 @@ test "a desktop entry gives up its icon" {
 	try std.testing.expectEqualStrings("helium-browser", entryIcon(body).?);
 	try std.testing.expect(entryIcon("[Desktop Entry]\nName=x\nHidden=true\nIcon=y\n") == null);
 	try std.testing.expect(entryIcon("[Desktop Entry]\nName=x\n") == null);
+	try std.testing.expectEqualStrings("y", entryIcon("[Desktop Entry]\nName=x\nNoDisplay=true\nIcon=y\n").?);
 }
 
 test "a lookup reports the theme name it matched on" {
@@ -495,6 +516,36 @@ test "a lookup reports the theme name it matched on" {
 	try std.testing.expectEqualStrings("steam", self.lookup("steam-runtime").name);
 	try std.testing.expectEqualStrings("steam", self.lookup("Steam").name);
 	try std.testing.expectEqualStrings("", self.lookup("nothing").path);
+}
+
+test "a desktop id answers to its tail and name" {
+	const io = std.testing.io;
+	const allocator = std.testing.allocator;
+	const self = try Icons.create(allocator, io);
+	defer {
+		self.clearMap(&self.files);
+		self.clearMap(&self.desktop);
+		allocator.destroy(self);
+	}
+
+	var tmp = std.testing.tmpDir(.{});
+	defer tmp.cleanup();
+
+	const dir = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+	defer allocator.free(dir);
+
+	const path = try std.fmt.allocPrint(allocator, "{s}/org.quickshell.desktop", .{dir});
+	defer allocator.free(path);
+
+	const alias_path = try std.fmt.allocPrint(allocator, "{s}/com.spotify.Client.desktop", .{dir});
+	defer allocator.free(alias_path);
+
+	try proc.writeFile(io, path, "[Desktop Entry]\nName=Quickshell\nNoDisplay=true\nIcon=org.quickshell\n");
+	try proc.writeFile(io, alias_path, "[Desktop Entry]\nName=Spotify\nIcon=com.spotify.Client\n");
+	self.walkDesktop(&self.desktop, &self.files, dir, 0);
+
+	try std.testing.expectEqualStrings("org.quickshell", self.desktop.get("quickshell") orelse "");
+	try std.testing.expectEqualStrings("com.spotify.Client", self.desktop.get("spotify") orelse "");
 }
 
 test "the parent pid is read out of stat" {
