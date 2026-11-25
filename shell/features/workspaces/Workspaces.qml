@@ -52,10 +52,17 @@ Row {
 			readonly property bool active: root.frozen ? ws.index === 0 : root.focusedSlot === ws.workspaceId
 			readonly property bool versioned: ws.version > 1
 			property real reform: 0
+			property bool ready: false
 
-			onVersionChanged: reformSequence.restart()
+			onVersionChanged: {
+				if (ws.ready)
+					reformSequence.restart();
+			}
 
-			Component.onCompleted: ws.reform = ws.versioned ? 1 : 0
+			Component.onCompleted: {
+				ws.reform = ws.versioned ? 1 : 0;
+				ws.ready = true;
+			}
 
 			SequentialAnimation {
 				id: reformSequence
