@@ -182,7 +182,6 @@ hl.bind("SUPER + ALT + ESCAPE", function()
 
     hl.dispatch(hl.dsp.focus({ workspace = 1 }))
 end, { dont_inhibit = true })
-hl.bind(mainMod .. " + M", hl.dsp.exec_cmd(programs.session))
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(programs.browser))
 hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exec_cmd(programs.fileManager))
 hl.bind(mainMod .. " + SPACE", function()
