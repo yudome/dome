@@ -18,7 +18,8 @@ PanelPage {
 	readonly property string monthText: Yudae.calendarState.month || ""
 	readonly property string yearText: Yudae.calendarState.year || ""
 	readonly property var weekdays: Yudae.calendarState.weekdays || []
-	readonly property real titleX: (Config.calendarCellWidth - weekdayMetrics.width) / 2
+	readonly property real mondayInk: (Config.calendarCellWidth - weekdayMetrics.width) / 2 + weekdayMetrics.tightBoundingRect.x
+	readonly property real titleX: root.mondayInk - monthMetrics.tightBoundingRect.x
 
 	contentWidth: card.implicitWidth
 
@@ -26,6 +27,14 @@ PanelPage {
 		id: clock
 
 		precision: SystemClock.Seconds
+	}
+
+	TextMetrics {
+		id: monthMetrics
+
+		font.family: Config.fontFamily
+		font.pixelSize: Config.calendarMonthSize
+		text: root.monthText
 	}
 
 	TextMetrics {
