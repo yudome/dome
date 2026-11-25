@@ -3,6 +3,6 @@
   "daemon": "media",
   "widget": "MediaStat",
   "panel": "MediaControl",
-  "glyph": "play",
+  "glyph": "app",
   "description": "Now playing and player controls"
 }

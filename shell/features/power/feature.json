@@ -3,6 +3,6 @@
   "daemon": "system",
   "widget": "PowerStat",
   "panel": "PowerMonitor",
-  "glyph": "batteryFull",
+  "glyph": "powerPlug",
   "description": "Battery, governor and keep awake"
 }

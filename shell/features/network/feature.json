@@ -3,6 +3,6 @@
   "daemon": "network",
   "widget": "NetworkStat",
   "panel": "NetworkMonitor",
-  "glyph": "wifi4",
+  "glyph": "ethernet",
   "description": "Connection, Wi-Fi and speed test"
 }
