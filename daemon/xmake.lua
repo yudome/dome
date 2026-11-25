@@ -247,3 +247,17 @@ target("fsd")
 	after_install(function ()
 		import("install").fsd(dir, out)
 	end)
+
+task("wallpaper-check")
+	set_category("action")
+	set_menu {
+		usage = "xmake wallpaper-check [all|daemon|images|video|controls|fullscreen|still|outputs]",
+		description = "check the wallpaper renderer on the live session; puts the wallpaper back after",
+		options = {
+			{ nil, "section", "v", "all", "which checks to run" },
+		}
+	}
+	on_run(function ()
+		import("core.base.option")
+		import("wallpaper_check").run(path.directory(dir), option.get("section"))
+	end)
