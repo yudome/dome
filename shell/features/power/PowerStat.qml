@@ -25,7 +25,6 @@ BarStat {
 	})
 
 	dim: root.applyFailed
-	iconLift: root.battery === null ? 2 : 0
 	icon: root.batteryIcon(root.battery)
 	iconWidth: 20
 	iconHeight: root.iconInkHeight
