@@ -141,6 +141,12 @@ AppWindow {
 					store: settingsStore
 				}
 
+				StillFrame {
+					width: parent.width
+					visible: !settingsStore.searching && settingsStore.current.name === "Wallpaper" && settingsStore.wallpaperIsVideo
+					store: settingsStore
+				}
+
 				Repeater {
 					model: settingsStore.searching ? settingsStore.found : settingsStore.pageSections
 

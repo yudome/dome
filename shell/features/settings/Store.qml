@@ -221,6 +221,53 @@ Item {
 		Yudae.cmd("screen", { detect: true });
 	}
 
+	readonly property bool wallpaperIsVideo: /\.(mp4|webm|mkv|mov)$/i.test(store.wallpaper)
+	property var stillStrip: null
+	property string stillPreview: ""
+	property real stillT: -1
+
+	onWallpaperChanged: store.loadStill()
+
+	function loadStill() {
+		store.stillStrip = null;
+		store.stillPreview = "";
+		store.stillT = -1;
+		if (!store.wallpaperIsVideo)
+			return;
+		const path = store.wallpaper;
+		Yudae.request("wallpaper", "filmstrip", { path: path }, function (result) {
+			if (!result || path !== store.wallpaper)
+				return;
+			store.stillStrip = result;
+			store.previewStill(result.still || 0);
+		});
+	}
+
+	function previewStill(t) {
+		const strip = store.stillStrip;
+		if (!strip)
+			return;
+		const fps = strip.fps > 0 ? strip.fps : 30;
+		const at = Math.max(0, Math.min(strip.duration || 0, Math.round(t * fps) / fps));
+		const path = store.wallpaper;
+		store.stillT = at;
+		Yudae.request("wallpaper", "preview", { path: path, t: at }, function (result) {
+			if (result && result.thumb && path === store.wallpaper && Math.abs(result.t - store.stillT) < 1e-6)
+				store.stillPreview = result.thumb;
+		});
+	}
+
+	function stepStill(direction) {
+		const strip = store.stillStrip;
+		if (strip && store.stillT >= 0)
+			store.previewStill(store.stillT + direction / (strip.fps > 0 ? strip.fps : 30));
+	}
+
+	function saveStill() {
+		if (store.stillT >= 0)
+			Yudae.cmd("wallpaper", { frame: { path: store.wallpaper, t: store.stillT } });
+	}
+
 	function pickWallpaper(path) {
 		Yudae.cmd("wallpaper", { apply: { path: path } });
 	}

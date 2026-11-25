@@ -313,7 +313,15 @@ QtObject {
 	readonly property var launcherIconActive: settings.launcherIconActive !== undefined ? settings.launcherIconActive : "\uf00c"
 
 	// wallpaper picker
+	readonly property var wallpaperTransition: settings.wallpaperTransition !== undefined ? settings.wallpaperTransition : "fade"
+	readonly property var wallpaperVideoLoop: settings.wallpaperVideoLoop !== undefined ? settings.wallpaperVideoLoop : false
+	readonly property var wallpaperPause: settings.wallpaperPause !== undefined ? settings.wallpaperPause : "fullscreen"
+	readonly property var wallpaperAudio: settings.wallpaperAudio !== undefined ? settings.wallpaperAudio : false
+	readonly property var wallpaperVolume: settings.wallpaperVolume !== undefined ? settings.wallpaperVolume : 0.6
 	readonly property var wallpaperTransitionMs: settings.wallpaperTransitionMs !== undefined ? settings.wallpaperTransitionMs : 400
+	readonly property var wallpaperStillTitle: settings.wallpaperStillTitle !== undefined ? settings.wallpaperStillTitle : "Still frame"
+	readonly property var wallpaperStillStepHint: settings.wallpaperStillStepHint !== undefined ? settings.wallpaperStillStepHint : "←→ one frame"
+	readonly property var wallpaperStillSaveHint: settings.wallpaperStillSaveHint !== undefined ? settings.wallpaperStillSaveHint : "save"
 	readonly property var wallpaperEmpty: settings.wallpaperEmpty !== undefined ? settings.wallpaperEmpty : "No wallpapers found"
 	readonly property var wallpaperPickerWidth: settings.wallpaperPickerWidth !== undefined ? settings.wallpaperPickerWidth : 1100
 	readonly property var wallpaperPreviewRatio: settings.wallpaperPreviewRatio !== undefined ? settings.wallpaperPreviewRatio : 1.78

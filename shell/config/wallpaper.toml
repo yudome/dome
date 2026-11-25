@@ -1,7 +1,15 @@
 # Wallpaper picker
 [wallpaper]
+wallpaperTransition = "fade"  # none, fade or a transition plugin id
 wallpaperTransitionMs = 400  # 0..2000
+wallpaperVideoLoop = false  # loop video wallpapers instead of settling on the still frame
+wallpaperPause = "fullscreen"  # fullscreen, any-window or never
+wallpaperAudio = false  # play the sound of video wallpapers
+wallpaperVolume = 0.6  # 0..1
 wallpaperEmpty = "No wallpapers found"  # hidden
+wallpaperStillTitle = "Still frame"  # hidden
+wallpaperStillStepHint = "←→ one frame"  # hidden
+wallpaperStillSaveHint = "save"  # hidden
 wallpaperPickerWidth = 1100
 wallpaperWatchMs = 300
 wallpaperPreviewRatio = 1.78
