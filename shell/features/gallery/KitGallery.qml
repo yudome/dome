@@ -431,7 +431,7 @@ AppPage {
 
 			Breadcrumb {
 				anchors.fill: parent
-				segments: [{ label: "/", value: "/" }, { label: "home", value: "/home" }, { label: "gabriel", value: "/home/gabriel" }, { label: "dotfiles", value: "/home/gabriel/dotfiles" }]
+				segments: [{ label: "/", value: "/" }, { label: "home", value: "/home" }, { label: "user", value: "/home/user" }, { label: "dotfiles", value: "/home/user/dotfiles" }]
 			}
 		}
 	}

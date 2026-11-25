@@ -958,7 +958,7 @@ pub fn frameDiff(a: []const u8, b: []const u8, from: usize, to: usize) f64 {
 }
 
 test "state parsing reads the fields hypr-test writes" {
-	const body = "ID=1-2\nOWNER=gabriel\nQS_PID=4242\nSIG=abc_1_2\nWORKTREE=/tmp/w\nOUTPUT=WAYLAND-1\n";
+	const body = "ID=1-2\nOWNER=user\nQS_PID=4242\nSIG=abc_1_2\nWORKTREE=/tmp/w\nOUTPUT=WAYLAND-1\n";
 
 	try std.testing.expectEqualStrings("4242", parseState(body, "QS_PID").?);
 	try std.testing.expectEqualStrings("abc_1_2", parseState(body, "SIG").?);
