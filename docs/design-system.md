@@ -44,7 +44,7 @@ Files: one TOML per category in `shell/config/`: `appearance`, `display`, `gener
 | `surfaceTranslucent` | `#ff101010` | | bar background, alpha first |
 | `mono` | `true` | | use `*Mono` variants instead of hues |
 
-Chrome colors exist once: every search box, card and calendar box is `surfaceRaised`, every hover and highlight `surfaceHover`, every separator `rule`, every track `dim`. Feature colors are data only (`cpuBase`, `memoryFree`, `contribEmpty`, ...) and stay in their feature; the kits never read them. Every theme in `plugins/*/theme.toml` sets `surfaceRaised`, `surfaceHover` and `rule`, so apps follow the theme. `xmake lint` runs `scripts/color-check`, which rejects color literals in QML; `scripts/ui-check` rejects any `Config.x` that does not exist.
+Chrome colors exist once: every search box, card and calendar box is `surfaceRaised`, every hover and highlight `surfaceHover`, every separator `rule`, every track `dim`. Feature colors are data only (`cpuBase`, `memoryFree`, `contribEmpty`, ...) and stay in their feature; the kits never read them. Every theme in `plugins/*/theme.toml` sets `surfaceRaised`, `surfaceHover` and `rule`, so apps follow the theme. `xmake lint` runs the `shell-checks` test, which rejects color literals in QML and any `Config.x` that does not exist.
 
 ### Type
 
@@ -58,7 +58,7 @@ Shared: `spacing` 12, `gapsIn` 4, `gapsOut` 8, `rowHeight`, `rowInset`, `panelPa
 
 ### Motion
 
-Every duration ends in `Ms`: `popupFadeMs` 140, `popupSlideMs` 400, `toggleMs` 160, `windowStepMs`, `scrollbarFadeMs` 200, `scrollbarIdleMs` 900, `tooltipDelayMs` 600, `confirmMs` 5000, `barFadeMs`, `barSlideMs`, `workspaceMorphMs`, `agentMorphMs`, `stepBarMs`. No local durations; `scripts/ui-check` rejects radius and duration literals.
+Every duration ends in `Ms`: `popupFadeMs` 140, `popupSlideMs` 400, `toggleMs` 160, `windowStepMs`, `scrollbarFadeMs` 200, `scrollbarIdleMs` 900, `tooltipDelayMs` 600, `confirmMs` 5000, `barFadeMs`, `barSlideMs`, `workspaceMorphMs`, `agentMorphMs`, `stepBarMs`. No local durations; the `shell-checks` test rejects radius and duration literals.
 
 ### Icons
 
@@ -78,7 +78,7 @@ Every glyph is `iconX` in `config/icons.toml`, mirrored as `Config.iconX`, plus 
 | Rows | `ListRow`, `FormRow`, `Selector`, `StepList`, `IconRow`, `NotificationRow` | `ListRow`: leading, content, trailing slots. `FormRow`: label, note, pending dot, control slot. |
 | Surfaces | `Card`, `Tooltip`, `Separator`, `Highlight`, `Drawer`, `HyprBorder`, `HyprShadow` | `Tooltip` is every popup. |
 | Navigation | `NavItem`, `Tabs`, `Breadcrumb` | `Breadcrumb` separates with the `right` glyph. |
-| Feedback | `Badge`, `ProgressBar`, `Braille`, `EmptyState`, `Hint` | Empty and error states are a glyph plus a short noun line, with an optional `Hint` under it. `Hint` is the only way to draw a shortcut or instruction; `ui-check` rejects hint text anywhere else. |
+| Feedback | `Badge`, `ProgressBar`, `Braille`, `EmptyState`, `Hint` | Empty and error states are a glyph plus a short noun line, with an optional `Hint` under it. `Hint` is the only way to draw a shortcut or instruction; `shell-checks` rejects hint text anywhere else. |
 | Overlays | `MenuRow`, `MenuList`, `ContextMenu` | Menu entries with `confirm: true` arm first. |
 | Scroll | `Scrollbar` | Low level: right border, no track, fades in on scroll or hover, draggable. Features use `AppScroll`. |
 | Data visuals | `CellGrid`, `DotGraph`, `SignalBars`, `SpeedGauge`, `PowerFlow`, `DayDial`, `Figures` | Stay in `ui` or their feature, never in a kit. |
@@ -117,5 +117,5 @@ Every glyph is `iconX` in `config/icons.toml`, mirrored as `Config.iconX`, plus 
 1. Search `shell/ui`, `shell/appkit` and `shell/panelkit` first; reuse or extend.
 2. One-off visuals stay in the feature. Second real use: move to the right kit, register it in its `qmldir`, delete the feature copy in the same change.
 3. Tokens only: colors, sizes and durations from `Config`; a new token goes in its Config section and the matching TOML.
-4. Logic-heavy primitives leave one `*.check.js` beside them; `xmake lint` and `xmake test` run every one.
-5. Add it to the gallery. `xmake lint` and `scripts/app-check` clean.
+4. Logic-heavy primitives leave one check in `shell/xmake.lua`; `xmake lint` and `xmake test` run them.
+5. Add it to the gallery. `xmake lint` and `xmake test shell-app/app` clean.

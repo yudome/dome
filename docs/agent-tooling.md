@@ -58,6 +58,6 @@ Structured state first, pixels last:
 
 `yudae vm scenario shell-ready` is the UI smoke: boot, Hyprland, Quickshell, screenshot.
 
-Apps start from `shell/app-<name>.qml` (`settings`, `vms`, `disk`, `gallery`); `yudae app open <name>` opens one, and a new app needs only its `app-<name>.qml`. `scripts/app-check` loads every app and the shell headless and fails on QML runtime errors. For a UI change, run `quickshell -p shell/app-gallery.qml` in your own VM and screenshot it at 480, 720, 960 and 1280 wide.
+Apps start from `shell/app-<name>.qml` (`settings`, `vms`, `disk`, `gallery`); `yudae app open <name>` opens one, and a new app needs only its `app-<name>.qml`. `xmake test shell-app/app` loads every app and the shell headless and fails on QML runtime errors. For a UI change, run `quickshell -p shell/app-gallery.qml` in your own VM and screenshot it at 480, 720, 960 and 1280 wide.
 
 A human can watch and take over with `vm view <name>` (the Quickshell `vms` app on that VM, 2560x1440 at scale 1.6667) or from the launcher's Virtual machines entry, which opens the app gallery. The gallery shows gray last-viewed thumbnails and renders no VM until a card is clicked. While a human holds input, agent input fails with "human has control". Closing the window or `vm release <name>` returns the guest to 1536x864 at scale 1 for agents and captures a new thumbnail.

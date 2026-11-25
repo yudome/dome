@@ -2,8 +2,8 @@
 
 The shell backend. One Zig process, no dependencies.
 
-- `zig build -Drelease=true` builds `zig-out/bin/yudaemond`
-- `../scripts/yubuild` builds, times it, and prunes the cache
+- `xmake build yudaemond` builds `zig-out/bin/yudaemond`
+- the build prints its time and binary size, records `bench/build.jsonl`, and prunes the cache over 300MB
 - `yudaemond restart`, `state`, `doctor`, `bench`, `bench widgets`, `parity`, `mcp`
 - Every command prints plain text; `--json` prints the raw JSON
 - `yudaemond bench widgets` ranks every shell widget by open time and by shell

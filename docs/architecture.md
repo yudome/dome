@@ -19,8 +19,8 @@ dotfiles/
     lib/ lock/ launcher/ greeter/
     config/          one TOML per settings category; icons.toml holds every glyph
   daemon/            yudaemond (Zig); src/providers/<name>.zig pairs with features/<name>
-  systemd/ scripts/
-  vm/                images, overlays, guest setup, scenarios
+  systemd/           user units and the root fsd helper units
+  vm/                images, overlays, guest setup, scenarios; xmake vm, bench and doctor
   docs/              reference: how the system is shaped
   .agents/skills/    task guides: how to do X
   xmake.lua + one xmake.lua per dir
@@ -43,7 +43,7 @@ dotfiles/
 - `ui` imports nothing from `appkit`, `panelkit` or features. `appkit` and `panelkit` import `ui`. Features import all three. Never reverse.
 - `ui`, `appkit` and `panelkit` never talk to the daemon (`Yudae`); state and daemon calls live in `features/<name>/Store.qml`, views compose the kits.
 - Colors from `Config` (`AppPalette` in apps), sizes from `Config`/`Metrics`, durations from `Config`/`Motion`.
-- `scripts/ui-check` enforces this in `xmake lint`; the full standard is `plans/appkit.md` and `docs/design-system.md`.
+- The `shell-checks` test enforces this in `xmake test` and `xmake lint`; the full standard is `plans/appkit.md` and `docs/design-system.md`.
 
 ## xmake
 
@@ -51,15 +51,16 @@ xmake orchestrates, it does not replace the real builders.
 
 | task | does |
 | --- | --- |
-| `xmake build` | daemon (wraps `zig build`), cursor plugin, `Yudae.Native` QML module, `yudae-pump` (native C++ targets) |
-| `xmake plugin` | rebuild every `plugins/*/Makefile` into `~/.local/state/yudae/build/<id>` |
-| `xmake link` | symlink `config/*` and `hypr/` into `~/.config` |
-| `xmake lint` | qmllint on `shell/`, every `shell/**/*.check.js`, `scripts/color-check`, `scripts/ui-check` |
-| `xmake test` | daemon parsers/protocol tests, plugin conformance, qml fixtures, `scripts/app-check` (every app and the shell loaded in a headless cage), idle-spawn test |
+| `xmake` | daemon, launcher index, `Yudae.Native` QML module, `yudae-pump` |
+| `xmake install` | daemon into `~/.local/bin`, the `yudae` link, and the native pieces; `xmake install fsd` and `xmake install greeter` ask for root first |
+| `xmake plugin` | rebuild every `plugins/*/Makefile` into `~/.local/state/yudae/build/<id>`; hypr plugins keep `make` |
+| `xmake link` | symlink `config/*`, `hypr/`, the user units and the icons into `$HOME` |
+| `xmake lint` | qmllint on `shell/`, plus the color, kit, slider and face checks |
+| `xmake test` | daemon parsers/protocol tests, plugin conformance, QML lint, the kit and face checks, and every app plus the shell loaded in a headless cage |
 | `xmake bench` | headless daemon cold build, size, start, idle RSS and spawns, then `yudaemond bench` against `bench/baseline.json` |
 | `xmake vm ...` | VM images and the image build bench; running VMs are `yudae vm` |
-| `xmake doctor` | what is missing and why |
+| `xmake doctor` | host and VM checks, `--json` for machines |
 
-`zig build` stays underneath: the build budgets are measured on it and `scripts/yubuild` reports them. `zig build -Dheadless=true` builds `yudaemond-headless`, the minimal control-plane daemon that carries the performance gates.
+`xmake` drives Zig directly for the daemon, the launcher index and the cover tool, and the system `make` for hypr plugins. The build time, binary size and cache size go to `daemon/bench/build.jsonl` in `after_build`, and the daemon cache is pruned over `YUDA_BUILD_CACHE_MB` (300). `xmake f --headless=y` builds `yudaemond-headless`, the minimal control-plane daemon that carries the performance gates.
 
-`scripts/xmake` is linked to `~/.local/bin/xmake`. Inside the repo it dispatches `build`, `plugin`, `link`, `lint`, `bench`, `hypr`, `vm` and `doctor` to `scripts/tasks.sh`; every other xmake command goes to the system xmake. `shell/native` builds the Quickshell app window and the VM display, including the in-process Conduit broker client; the daemon runs `qemu-system-x86_64` from `PATH`, or the NVIDIA path (`~/qemu-linux/install`, Conduit) when `backend=auto` selects it. `YUDAE_QEMU` and `YUDAE_NVIDIA_QEMU` override both.
+There is no wrapper: `/usr/bin/xmake` runs the real thing. `shell/native` builds the Quickshell app window and the VM display, including the in-process Conduit broker client; the daemon runs `qemu-system-x86_64` from `PATH`, or the NVIDIA path (`~/qemu-linux/install`, Conduit) when `backend=auto` selects it. `YUDAE_QEMU` and `YUDAE_NVIDIA_QEMU` override both.

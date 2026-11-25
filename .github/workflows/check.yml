@@ -3,11 +3,11 @@ on:
   push:
   pull_request:
 jobs:
-  daemon:
+  check:
     runs-on: ubuntu-latest
     container: archlinux:latest
     steps:
       - uses: actions/checkout@v4
-      - run: pacman -Syu --noconfirm zig nodejs python3 libsystemd pkgconf polkit glib2
-      - run: cd daemon && zig build test
-      - run: node shell/ui/AgentFace.check.js
+      - run: pacman -Syu --noconfirm base-devel zig xmake git pkgconf libsystemd polkit glib2 qt6-base qt6-declarative qt6-wayland mesa
+      - run: xmake
+      - run: xmake test

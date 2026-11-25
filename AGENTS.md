@@ -65,11 +65,11 @@ templates/         copyable plugin templates, one per kind
 hypr/              hyprland conf + plugins; the one non-config symlinked into ~/.config
 shell/             quickshell; run with `quickshell -p shell/shell.qml`, never symlinked
 daemon/            yudaemond (Zig); providers pair with shell/features/<name>
-systemd/ scripts/ vm/ docs/ .agents/skills/
-xmake.lua          the single entry point: build plugin link lint test bench hypr vm doctor
+systemd/ vm/ docs/ .agents/skills/
+xmake.lua          the single entry point: build install plugin link lint test bench vm doctor
 ```
 
-`xmake` is `scripts/xmake`, linked into `~/.local/bin`. It runs the repo tasks through `scripts/tasks.sh` and passes everything else to the system xmake. `PLANS.md` is the source of truth for the shape and the order of work.
+`xmake` is the system binary; the area `xmake.lua` files hold targets and tasks, `xmake` builds, `xmake test` checks, `xmake install` installs. `PLANS.md` is the source of truth for the shape and the order of work.
 
 # Skills
 

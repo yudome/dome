@@ -13,11 +13,11 @@ Measured, not guessed.
 | idle RSS | under 8MB |
 | subprocess spawns at steady state | zero |
 
-The gates are measured on the headless daemon, `zig build -Drelease=true -Dheadless=true`, binary `yudaemond-headless`. That is the control-plane build used by CI and by tests that do not need the QML providers. The full desktop daemon is measured separately and reported by `xmake bench` as information, because it carries the launcher index, icon cache and every UI provider.
+The gates are measured on the headless daemon, `xmake f --headless=y && xmake build yudaemond-headless`, binary `yudaemond-headless`. That is the control-plane build used by CI and by tests that do not need the QML providers. The full desktop daemon is measured separately and reported by `xmake bench` as information, because it carries the launcher index, icon cache and every UI provider.
 
 ## Tools
 
-- `scripts/yubuild` wraps `zig build -Drelease=true`, prints build time and build-folder size, records `bench/build.jsonl`, and prunes the local cache over 300MB.
+- `xmake` prints build time and binary size, records `daemon/bench/build.jsonl` from `after_build`, and prunes `daemon/.zig-cache` over `YUDA_BUILD_CACHE_MB` (300MB).
 - `xmake bench files` runs `yudaemond bench files`: it builds the synthetic file index, rebuilds it with the unchanged-folder reuse path, runs the folder stat scan, mmaps the index, and times name queries. `home` adds the real disk index build. It appends `bench/files.jsonl` and gates the synthetic throughput against `bench/baseline.json` (`files`).
 - `yudaemond bench` records binary size, start time, idle RSS, idle CPU over 60s, shell total RSS, and the top RAM/CPU hoggers with deltas against `bench/baseline.json`.
 - `xmake build` and `xmake bench` call the same tools and report the same numbers. Compilation is not reimplemented in Lua.
@@ -160,7 +160,7 @@ next=133ms
 
 `xmake vm bench final` from an empty bench cache is **0.45s** (`fetch 0.008s, packages 0.405s, golden 0.037s`). The boot check reports 493 packages, `pacman -Dk` clean, 2 users, `sudo 4755`, and `yudaemond`/`yudae-desktop`/`dotfiles-firstboot` enabled.
 
-Agent VM check: the default cache was cleared and regenerated from the durable image (`packages` 0.42s, `golden` 0.04s), and `scripts/yudae vm create <session>` (no `--from`) booted it. `vm exec` reports uid 1000, 493 packages, `pacman -Dk` clean, and all three user units enabled. Hyprland and quickshell are running (`quickshell` layer 0 0 1536 33). `eth0` is up via DHCP at 10.0.2.15, `/etc/pacman.d/gnupg` is populated, and `pacman -S tree` installs to 494 inside the VM without touching the base or golden. `vm create` prints a `yudae: NotFound` warning but creates and boots the VM.
+Agent VM check: the default cache was cleared and regenerated from the durable image (`packages` 0.42s, `golden` 0.04s), and `yudae vm create <session>` (no `--from`) booted it. `vm exec` reports uid 1000, 493 packages, `pacman -Dk` clean, and all three user units enabled. Hyprland and quickshell are running (`quickshell` layer 0 0 1536 33). `eth0` is up via DHCP at 10.0.2.15, `/etc/pacman.d/gnupg` is populated, and `pacman -S tree` installs to 494 inside the VM without touching the base or golden. `vm create` prints a `yudae: NotFound` warning but creates and boots the VM.
 
 `vm/images backup` refreshes both the output and input compressed images after a package change. The rootfs directory and `mkfs.btrfs -r` remain as a 6.37s fallback when the input image is missing but the rootfs is present; the pacman build remains the final fallback when the store has no transaction/DB artifacts. `btrfs restore` was rejected because it loses setuid/setgid bits; the image slice and restore preserve them.
 

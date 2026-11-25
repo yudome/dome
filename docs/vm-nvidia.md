@@ -6,8 +6,8 @@ TLDR: `backend=auto` uses Conduit on an NVIDIA host when it can, otherwise the Q
 
 ```bash
 yudae vm doctor          # human JSON
-vm/doctor                # human
-xmake doctor             # host checks + vm/doctor
+xmake doctor             # host + vm checks
+xmake doctor --json      # machine readable vm checks
 ```
 
 Each failing check prints a fix. Agents run `yudae vm doctor`, not install commands.

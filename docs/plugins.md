@@ -79,7 +79,7 @@ One adapter per kind in yudaemond. Plugins never touch the loader.
 ### theme
 
 - `provides` has `theme.toml`. It may use the same sections as the files under `shell/config/` (`[colors]`, `[weather]`, `[calendar]`, ...), so a key replaces the base value in its own section. Color keys must be color settings from `shell/services/Config.qml`; values are `#rrggbb` or `#aarrggbb`. Boolean switches such as `mono` are allowed too. Set `surfaceRaised`, `surfaceHover` and `rule` in `[colors]`: every app, card, row and menu draws from them.
-- A theme may carry `wallpaper.jpg|png` (the full-res image applied with the look) and `cover.jpg` (that wallpaper cropped to 16:9 with the top bar drawn in the theme's palette). The picker's look row shows the cover, and the strip previews the wallpaper full screen before applying. `scripts/theme-cover` rebuilds every cover from its theme and wallpaper.
+- A theme may carry `wallpaper.jpg|png` (the full-res image applied with the look) and `cover.jpg` (that wallpaper cropped to 16:9 with the top bar drawn in the theme's palette). The picker's look row shows the cover, and the strip previews the wallpaper full screen before applying. `xmake build theme-cover` then `daemon/zig-out/bin/theme-cover [id...] [--force]` generates `cover.png` from the theme palette when a theme has no cover yet.
 - yudaemond merges themes in load order into `$XDG_STATE_HOME/yudae/theme.toml`.
 - `providers/config.zig` reads that file after the base files in `shell/config/`, so `Yudae.settings` retints live without a shell restart.
 
@@ -124,7 +124,7 @@ yudae plugin reload
 
 ## Tests
 
-- `scripts/plugin-check` (the `checks/plugins` test in `xmake test`) discovers every folder under `plugins/` and `templates/`, validates the manifest, rejects binaries, runs `make`, checks `provides`, lints shell QML, parses theme colors and builds app templates.
+- The `plugin-check` test (`xmake test plugin-check/plugins`) discovers every folder under `plugins/` and `templates/`, validates the manifest, rejects binaries, runs `make`, checks `provides`, lints shell QML, parses theme colors and builds app templates. Hypr plugins are skipped when `pkg-config hyprland` is missing.
 - Zig unit tests cover the load list, missing folder, broken TOML, unknown kind, duplicate id, requires mismatch, order, options, unload, source hash, theme layering and a real Hyprland template build.
 - VM scenarios `vm/scenarios/plugin-*.json` cover no list, load, unload, stale source, broken source, binary in folder, missing compiler, themes, theme layering, Lua themes, shell, app and Hyprland.
 

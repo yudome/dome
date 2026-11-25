@@ -9,5 +9,5 @@ Read `docs/plugins.md` from the repo root first.
 - Copy `templates/_template-hypr/`, `_template-theme/`, `_template-shell/`, `_template-app/` or `_template-daemon/` into `plugins/<id>`; rename every `_template-*` name.
 - Never put a `.so`, `.bin`, `.o` or ELF file in `plugins/`; the suite rejects it.
 - Config for a plugin lives in its folder, not in `hypr/*.lua`.
-- Run `scripts/plugin-check` after every change; it is the `checks/plugins` test in `xmake test`.
+- Run `xmake test plugin-check/plugins` after every change.
 - Prove real loading in a VM scenario, not on the host.
