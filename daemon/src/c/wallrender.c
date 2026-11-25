@@ -1535,6 +1535,7 @@ static void *loop(void *arg) {
 
 int wr_start(void *ctx, wr_event_fn event) {
 	if (W.efd >= 0) return 0;
+	setenv("__NV_DISABLE_EXPLICIT_SYNC", "1", 0);
 	W.ctx = ctx;
 	W.event = event;
 	W.egl = EGL_NO_DISPLAY;
