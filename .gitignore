@@ -17,3 +17,5 @@ config/zsh/.zsh_history
 /bench/images.jsonl
 /config/kconf_updaterc
 /config/kconf_updaterc
+/PLANS.md
+/plans.md
