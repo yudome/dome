@@ -69,7 +69,7 @@ systemd/ scripts/ vm/ docs/ .agents/skills/
 xmake.lua          the single entry point: build plugin link lint test bench hypr vm doctor
 ```
 
-`xmake` is `scripts/xmake`, linked into `~/.local/bin`. It runs the repo tasks through `scripts/tasks.sh` and passes everything else to the system xmake. `plans.md` is the source of truth for the shape and the order of work.
+`xmake` is `scripts/xmake`, linked into `~/.local/bin`. It runs the repo tasks through `scripts/tasks.sh` and passes everything else to the system xmake. `PLANS.md` is the source of truth for the shape and the order of work.
 
 # Skills
 

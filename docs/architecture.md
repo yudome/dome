@@ -24,7 +24,7 @@ dotfiles/
   docs/              reference: how the system is shaped
   .agents/skills/    task guides: how to do X
   xmake.lua + one xmake.lua per dir
-  plans.md AGENTS.md README.md
+  PLANS.md AGENTS.md README.md
 ```
 
 ## Rules
