@@ -28,8 +28,7 @@ ProcessPanel {
 
 		const rows = [
 			{ label: "used", text: m.usedText, color: root.totalInk },
-			{ label: "cached", text: m.cachedText, color: root.cachedInk },
-			{ label: "buffers", text: m.buffersText, color: root.buffersInk }
+			{ label: "cached", text: m.cachedText, color: root.cachedInk }
 		];
 
 		if (m.swapUsed > 0)
