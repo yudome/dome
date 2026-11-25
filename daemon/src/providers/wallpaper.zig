@@ -1,4 +1,5 @@
 const std = @import("std");
+const wayland = @import("../primitives/wayland.zig");
 const hubmod = @import("../hub.zig");
 const exec = @import("../primitives/exec.zig");
 const proc = @import("../primitives/proc.zig");
@@ -13,7 +14,7 @@ const Hub = hubmod.Hub;
 
 const default_dir = "~/Documents/Wallpaper";
 const max_depth = 2;
-const extensions = [_][]const u8{ ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif" };
+const extensions = [_][]const u8{ ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif", ".jxl", ".tiff", ".mp4", ".webm", ".mkv", ".mov" };
 
 const cache_root = ".cache/quickshell/wallpaper";
 const thumb_bin = "/usr/bin/vipsthumbnail";
@@ -384,6 +385,15 @@ pub const Wallpaper = struct {
 	fn convert(self: *Wallpaper, src: []const u8, dest: []const u8, px: u32) bool {
 		if (dest.len == 0) return false;
 		if (proc.exists(self.io, dest)) return true;
+
+		if (wayland.isVideoName(src)) {
+			var arena = std.heap.ArenaAllocator.init(self.allocator);
+			defer arena.deinit();
+			const a = arena.allocator();
+			const src_z = a.dupeSentinel(u8, src, 0) catch return false;
+			const dest_z = a.dupeSentinel(u8, dest, 0) catch return false;
+			return wayland.thumb(src_z, 0, @intCast(px), jpeg_quality, dest_z);
+		}
 
 		const size = std.fmt.allocPrint(self.allocator, "{d}x{d}", .{ px, px }) catch return false;
 		defer self.allocator.free(size);
