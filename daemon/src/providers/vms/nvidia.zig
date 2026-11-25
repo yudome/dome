@@ -15,7 +15,7 @@ pub const Paths = struct {
 pub fn paths(io: Io, allocator: Allocator) !Paths {
 	const home = proc.home(io, allocator);
 	const installed = "/opt/conduit/bin/qemu-system-x86_64";
-	const local = "/home/gabriel/qemu-linux/install/bin/qemu-system-x86_64";
+	const local = try std.fmt.allocPrint(allocator, "{s}/qemu-linux/install/bin/qemu-system-x86_64", .{home});
 	const qemu: []const u8 = if (std.c.getenv("YUDAE_NVIDIA_QEMU")) |value|
 		std.mem.span(value)
 	else if (proc.exists(io, local))

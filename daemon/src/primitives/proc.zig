@@ -95,7 +95,7 @@ pub fn home(io: Io, allocator: Allocator) []const u8 {
 }
 
 pub fn repo(io: Io, allocator: Allocator) []const u8 {
-	return std.fmt.allocPrint(allocator, "{s}/dotfiles", .{home(io, allocator)}) catch "/home/gabriel/dotfiles";
+	return std.fmt.allocPrint(allocator, "{s}/dotfiles", .{home(io, allocator)}) catch "/home/dotfiles";
 }
 
 pub fn selfExe(io: Io, buffer: *[std.Io.Dir.max_path_bytes]u8) []const u8 {
