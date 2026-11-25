@@ -69,6 +69,20 @@ local function gpu_fds()
 	return tonumber(sh("ls -l /proc/" .. p .. "/fd | grep -c /dev/dri")) or -1
 end
 
+local function gpu_mib()
+	local p = pid()
+	local line = p ~= "" and sh("nvidia-smi | grep ' " .. p .. " '") or ""
+	return tonumber(line:match("(%d+)MiB")) or 0
+end
+
+local function idle_gpu(st)
+	return st.gl == false and gpu_mib() <= 2
+end
+
+local function idle_detail(st)
+	return string.format("gl=%s, gpu memory %dMiB, device fds %d (the NVIDIA driver keeps its files open)", tostring(st.gl), gpu_mib(), gpu_fds())
+end
+
 local function wait_for(seconds, test)
 	local deadline = os.mclock() + seconds * 1000
 	while os.mclock() < deadline do
@@ -140,7 +154,7 @@ sections.images = function (ctx)
 	os.sleep(3000)
 	local b = stats()
 	check("idle commits", (b.commits or 0) - (a.commits or 0) == 0, string.format("%d commits in 3s", (b.commits or 0) - (a.commits or 0)))
-	check("idle gpu", b.gl == false and gpu_fds() == 0, string.format("gl=%s gpu fds=%d", tostring(b.gl), gpu_fds()))
+	check("idle gpu", idle_gpu(b), idle_detail(b))
 	local share = path.join(os.getenv("XDG_RUNTIME_DIR") or "/run/user/1000", "yudae-state", "state.json")
 	if ctx.guest then
 		skip("vm share", "guest; only the host writes it")
@@ -170,7 +184,7 @@ sections.video = function (ctx)
 	local d = stats()
 	os.sleep(3000)
 	local e = stats()
-	check("still idle", (e.commits or 0) - (d.commits or 0) == 0 and e.gl == false and gpu_fds() == 0, string.format("%d commits, gl=%s, gpu fds=%d", (e.commits or 0) - (d.commits or 0), tostring(e.gl), gpu_fds()))
+	check("still idle", (e.commits or 0) - (d.commits or 0) == 0 and idle_gpu(e), string.format("%d commits, ", (e.commits or 0) - (d.commits or 0)) .. idle_detail(e))
 	local share = path.join(os.getenv("XDG_RUNTIME_DIR") or "/run/user/1000", "yudae-state", "still.jpg")
 	if ctx.guest then
 		skip("vm share still", "guest; only the host writes it")
