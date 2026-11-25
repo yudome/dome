@@ -1,6 +1,7 @@
 import QtQuick
 import qs
 import qs.ui
+import qs.appkit
 import qs.services
 
 Item {
