@@ -981,6 +981,7 @@ grep -q 'dotfiles /home/gabriel/dotfiles virtiofs' /etc/fstab || echo 'dotfiles 
 grep -q 'nvidia /mnt/nvidia virtiofs' /etc/fstab || echo 'nvidia /mnt/nvidia virtiofs ro,nofail,defaults 0 0' >> /etc/fstab
 mkdir -p /home/gabriel/.config /mnt/nvidia
 ln -sfn /home/gabriel/dotfiles/hypr /home/gabriel/.config/hypr
+ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 cat > /usr/local/bin/yudae-session <<'SESSION'
 #!/bin/bash
 if [ -d /mnt/nvidia/lib ]; then
