@@ -21,6 +21,9 @@ function run(root)
 		if list then
 			local items = {}
 			for item in list:gmatch('"([^"]*)"') do items[#items + 1] = item end
+			if #items == 0 then
+				for item in list:gmatch("[^,]+") do items[#items + 1] = tonumber(trim(item)) or trim(item) end
+			end
 			return items
 		end
 		return tonumber(raw) or raw
@@ -113,8 +116,10 @@ function run(root)
 		if not data then
 			return nil, "bad plugin.toml: " .. err
 		end
+		local transition = data.kind == "transition"
 		for key in pairs(data) do
-			if key ~= "id" and key ~= "kind" and key ~= "version" and key ~= "requires" and key ~= "build" and key ~= "provides" then
+			local extra = transition and (key == "duration" or key == "easing" or key == "ink_at")
+			if not extra and key ~= "id" and key ~= "kind" and key ~= "version" and key ~= "requires" and key ~= "build" and key ~= "provides" then
 				return nil, "unknown manifest keys: " .. key
 			end
 		end
@@ -124,11 +129,34 @@ function run(root)
 		if data.id ~= name then
 			return nil, string.format("id %q does not match folder %q", data.id, name)
 		end
-		if data.kind ~= "hypr" and data.kind ~= "theme" and data.kind ~= "shell" and data.kind ~= "app" and data.kind ~= "daemon" then
+		if data.kind ~= "hypr" and data.kind ~= "theme" and data.kind ~= "shell" and data.kind ~= "app" and data.kind ~= "daemon" and not transition then
 			return nil, string.format("unknown kind %q", tostring(data.kind))
 		end
 		if type(data.version) ~= "string" or data.version == "" then
 			return nil, "version must be a non-empty string"
+		end
+		if transition then
+			for _, key in ipairs({ "build", "provides", "requires" }) do
+				if data[key] ~= nil then return nil, "transition plugin has no " .. key end
+			end
+			if type(data.duration) ~= "number" or data.duration <= 0 or data.duration > 10000 or data.duration % 1 ~= 0 then
+				return nil, "duration must be milliseconds in 1..10000"
+			end
+			local ink_at = data.ink_at == nil and 0.5 or data.ink_at
+			if type(ink_at) ~= "number" or ink_at < 0 or ink_at > 1 then
+				return nil, "ink_at must be in 0..1"
+			end
+			local easing = data.easing or { 0.25, 0.1, 0.25, 1 }
+			if type(easing) ~= "table" or #easing ~= 4 then
+				return nil, "easing must be four cubic-bezier numbers"
+			end
+			for _, value in ipairs(easing) do
+				if type(value) ~= "number" then return nil, "easing must be four cubic-bezier numbers" end
+			end
+			if easing[1] < 0 or easing[1] > 1 or easing[3] < 0 or easing[3] > 1 then
+				return nil, "easing x1 and x2 must be in 0..1"
+			end
+			return data
 		end
 		if type(data.build) ~= "string" or data.build == "" then
 			return nil, "build must be a non-empty command string"
@@ -297,6 +325,21 @@ function run(root)
 		end
 		return nil
 	end
+	local function check_transition(plugin_dir)
+		local shader = path.join(plugin_dir, "transition.frag")
+		if not os.isfile(shader) then
+			return "transition plugin needs transition.frag"
+		end
+		local daemon = path.join(root, "daemon", "zig-out", "bin", "yudaemond")
+		if not os.isfile(daemon) then
+			return "build yudaemond first: it compiles the shader"
+		end
+		local output = os.iorunv("sh", { "-c", string.format("'%s' transition check '%s' 2>&1; echo EXIT:$?", daemon, shader) })
+		if tonumber((output or ""):match("EXIT:(%d+)%s*$")) ~= 0 then
+			return "shader does not compile:\n" .. trim((output or ""):gsub("EXIT:%d+%s*$", ""))
+		end
+		return nil
+	end
 	local function check(root_dir)
 		if not os.isdir(root_dir) then
 			return nil, "missing " .. root_dir
@@ -321,7 +364,13 @@ function run(root)
 				if bad then
 					return nil, name .. ": " .. bad
 				end
-				if data.kind == "hypr" and have == "" then
+				if data.kind == "transition" then
+					local why_transition = check_transition(plugin_dir)
+					if why_transition then
+						return nil, name .. ": " .. why_transition
+					end
+					print(string.format("ok %s (%s)", name, data.kind))
+				elseif data.kind == "hypr" and have == "" then
 					print(string.format("skip %s (hyprland missing)", name))
 					print(string.format("ok %s (%s)", name, data.kind))
 				else

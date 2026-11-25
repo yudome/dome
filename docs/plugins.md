@@ -13,7 +13,7 @@ plugins/<id>/
   theme.toml      theme source, rendered by make
 ```
 
-`templates/_template-hypr/`, `_template-theme/`, `_template-shell/`, `_template-app/` and `_template-daemon/` are working examples. Copy one into `plugins/<id>` and rename every `_template-*` name.
+`templates/_template-hypr/`, `_template-theme/`, `_template-shell/`, `_template-app/`, `_template-daemon/` and `_template-transition/` are working examples. Copy one into `plugins/<id>` and rename every `_template-*` name.
 
 ### Manifest
 
@@ -31,7 +31,7 @@ hyprland = ">=0.50"
 | key | rule |
 | --- | --- |
 | `id` | folder name, `^_?[a-z][a-z0-9-]*$`; a leading `_` marks a template |
-| `kind` | `hypr`, `theme`, `shell`, `app` or `daemon` |
+| `kind` | `hypr`, `theme`, `shell`, `app`, `daemon` or `transition` |
 | `version` | free string |
 | `requires` | optional; only `hyprland`, with `>=`, `<=`, `>`, `<` or `=` and a dotted version |
 | `build` | command run in the folder with `OUT` in the environment; `make` sees `OUT=<dir>` |
@@ -100,6 +100,32 @@ Example: `plugins/foot/theme.ini` renders to `~/.local/state/yudae/build/foot/th
 ### daemon
 
 A compile-time provider. The loader still validates and builds its manifest, but the provider list in yudaemond decides what runs.
+
+### transition
+
+A wallpaper transition drawn by yudaemond. No build: the shader is an asset.
+
+```
+plugins/<id>/
+  plugin.toml
+  transition.frag
+```
+
+```toml
+id = "wipe"
+kind = "transition"
+version = "1.0.0"
+duration = 700              # ms, 1..10000
+easing = [0.65, 0, 0.35, 1] # cubic-bezier, default [0.25, 0.1, 0.25, 1]
+ink_at = 0.5                # eased progress where the bar ink flips, default 0.5
+```
+
+- `build`, `provides` and `requires` are rejected for this kind.
+- `transition.frag` is a GLSL ES 3.00 body. The daemon prepends `#version 300 es`, `precision highp float` and `#line 1`, and declares `uniform sampler2D old, new`, `uniform float progress, time`, `uniform vec2 resolution`, `in vec2 uv` (top-left origin) and `out vec4 color`. The plugin writes `void main()`.
+- `old` and `new` are already cover-scaled to the output, so sample them at `uv`.
+- Each number in the plugin's `[id]` table of the load list is set as `uniform float <name>`; declare the ones you read.
+- Pick one with `wallpaper.apply {path, transition: "<id>"}` or the `wallpaperTransition` setting. `none` and `fade` are built in; `fade` lasts `wallpaperTransitionMs`.
+- `yudae transition check <file>` compiles the shader on the real driver; `xmake test plugin-check/plugins` runs it.
 
 ## Commands
 

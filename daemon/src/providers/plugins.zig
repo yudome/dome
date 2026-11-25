@@ -13,8 +13,9 @@ const Writer = std.Io.Writer;
 const Hub = hubmod.Hub;
 
 const manifest_keys = [_][]const u8{ "id", "kind", "version", "requires", "build", "provides" };
+const transition_keys = [_][]const u8{ "duration", "easing", "ink_at" };
 
-pub const Kind = enum { hypr, theme, shell, app, daemon };
+pub const Kind = enum { hypr, theme, shell, app, daemon, transition };
 
 pub const Paths = struct {
 	load: []const u8,
@@ -83,7 +84,12 @@ const Manifest = struct {
 	build: []const u8,
 	provides: []const []const u8,
 	hyprland: []const u8,
+	duration_ms: i64 = 0,
+	easing: [4]f32 = default_easing,
+	ink_at: f32 = 0.5,
 };
+
+const default_easing: [4]f32 = .{ 0.25, 0.1, 0.25, 1.0 };
 
 const Loaded = struct {
 	manifest: Manifest,
@@ -1227,12 +1233,17 @@ fn defaultPaths(io: Io, allocator: Allocator) Paths {
 fn parseManifest(arena: Allocator, folder: []const u8, body: []const u8) !Manifest {
 	const cfg = configmod.Config.parse(arena, body) catch return error.BadManifest;
 
+	const kind_text = cfg.string("kind", arena) orelse return error.BadManifest;
+	const kind = std.meta.stringToEnum(Kind, kind_text) orelse return error.UnknownKind;
+
 	for (cfg.root.entries.items) |entry| {
 		var known = false;
 		for (manifest_keys) |key| {
-			if (std.mem.eql(u8, entry.key, key)) {
-				known = true;
-				break;
+			if (std.mem.eql(u8, entry.key, key)) known = true;
+		}
+		if (kind == .transition) {
+			for (transition_keys) |key| {
+				if (std.mem.eql(u8, entry.key, key)) known = true;
 			}
 		}
 		if (!known) return error.BadManifest;
@@ -1241,11 +1252,37 @@ fn parseManifest(arena: Allocator, folder: []const u8, body: []const u8) !Manife
 	const id = cfg.string("id", arena) orelse return error.BadManifest;
 	if (!validId(id) or !std.mem.eql(u8, id, folder)) return error.BadId;
 
-	const kind_text = cfg.string("kind", arena) orelse return error.BadManifest;
-	const kind = std.meta.stringToEnum(Kind, kind_text) orelse return error.UnknownKind;
-
 	const version = cfg.string("version", arena) orelse return error.BadManifest;
 	if (version.len == 0) return error.BadManifest;
+
+	if (kind == .transition) {
+		if (cfg.direct("build") != null or cfg.direct("provides") != null or cfg.direct("requires") != null) return error.BadManifest;
+
+		const duration = cfg.integer("duration", 0);
+		if (duration <= 0 or duration > 10000) return error.BadManifest;
+
+		const ink_at = cfg.number("ink_at", 0.5);
+		if (ink_at < 0 or ink_at > 1) return error.BadManifest;
+
+		var easing = default_easing;
+		if (cfg.direct("easing") != null) {
+			const raw = cfg.floats("easing", arena) catch return error.BadManifest;
+			if (raw.len != 4 or raw[0] < 0 or raw[0] > 1 or raw[2] < 0 or raw[2] > 1) return error.BadManifest;
+			for (raw, 0..) |value, index| easing[index] = @floatCast(value);
+		}
+
+		return .{
+			.id = id,
+			.kind = kind,
+			.version = version,
+			.build = "",
+			.provides = &.{},
+			.hyprland = "",
+			.duration_ms = duration,
+			.easing = easing,
+			.ink_at = @floatCast(ink_at),
+		};
+	}
 
 	const build = cfg.string("build", arena) orelse return error.BadManifest;
 	if (build.len == 0) return error.BadManifest;
@@ -1873,3 +1910,78 @@ test "a real hypr template builds and writes loaded.lua" {
 	try std.testing.expectEqualStrings(loader.hyprland, ready);
 }
 
+
+pub const Transition = struct {
+	shader: [:0]const u8,
+	duration_ms: i64,
+	easing: [4]f32,
+	ink_at: f32,
+	names: []const [:0]const u8,
+	values: []const f32,
+};
+
+/// The shader and timing of a `transition` plugin, plus its numeric `[id]` options from the load list.
+pub fn transition(io: Io, arena: Allocator, id: []const u8) ?Transition {
+	if (!validId(id)) return null;
+
+	const paths = defaultPaths(io, arena);
+	const dir = for ([_][]const u8{ paths.repo, paths.data }) |root| {
+		const candidate = std.fmt.allocPrint(arena, "{s}/{s}", .{ root, id }) catch return null;
+		if (isDir(io, candidate)) break candidate;
+	} else return null;
+
+	const body = proc.readFile(io, arena, std.fmt.allocPrint(arena, "{s}/plugin.toml", .{dir}) catch return null) catch return null;
+	const manifest = parseManifest(arena, id, body) catch return null;
+	if (manifest.kind != .transition) return null;
+
+	const source = proc.readFileLimit(io, arena, std.fmt.allocPrint(arena, "{s}/transition.frag", .{dir}) catch return null, 256 * 1024) catch return null;
+	const shader = arena.dupeSentinel(u8, source, 0) catch return null;
+
+	var names: std.ArrayListUnmanaged([:0]const u8) = .empty;
+	var values: std.ArrayListUnmanaged(f32) = .empty;
+
+	if (proc.readFile(io, arena, paths.load)) |load_body| {
+		if (configmod.Config.parse(arena, load_body)) |load| {
+			if (load.direct(id)) |value| switch (value) {
+				.table => |table| for (table.entries.items) |entry| {
+					const number: f64 = switch (entry.value) {
+						.integer => |n| @floatFromInt(n),
+						.float => |n| n,
+						.boolean => |b| if (b) 1 else 0,
+						else => continue,
+					};
+					if (names.items.len >= 16) break;
+					const name = arena.dupeSentinel(u8, entry.key, 0) catch continue;
+					names.append(arena, name) catch continue;
+					values.append(arena, @floatCast(number)) catch continue;
+				},
+				else => {},
+			};
+		} else |_| {}
+	} else |_| {}
+
+	return .{
+		.shader = shader,
+		.duration_ms = manifest.duration_ms,
+		.easing = manifest.easing,
+		.ink_at = manifest.ink_at,
+		.names = names.items,
+		.values = values.items,
+	};
+}
+
+test "a transition manifest needs a duration and keeps its easing and ink moment" {
+	var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+	defer arena.deinit();
+	const a = arena.allocator();
+
+	const manifest = try parseManifest(a, "wipe", "id = \"wipe\"\nkind = \"transition\"\nversion = \"1\"\nduration = 600\neasing = [0.4, 0, 0.2, 1]\nink_at = 0.3\n");
+	try std.testing.expectEqual(Kind.transition, manifest.kind);
+	try std.testing.expectEqual(@as(i64, 600), manifest.duration_ms);
+	try std.testing.expectEqual(@as(f32, 0.4), manifest.easing[0]);
+	try std.testing.expectEqual(@as(f32, 0.3), manifest.ink_at);
+
+	try std.testing.expectError(error.BadManifest, parseManifest(a, "wipe", "id = \"wipe\"\nkind = \"transition\"\nversion = \"1\"\n"));
+	try std.testing.expectError(error.BadManifest, parseManifest(a, "wipe", "id = \"wipe\"\nkind = \"transition\"\nversion = \"1\"\nduration = 600\nbuild = \"make\"\n"));
+	try std.testing.expectError(error.BadManifest, parseManifest(a, "wipe", "id = \"wipe\"\nkind = \"theme\"\nversion = \"1\"\nduration = 600\nbuild = \"make\"\nprovides = [\"a\"]\n"));
+}

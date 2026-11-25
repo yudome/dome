@@ -1,0 +1,6 @@
+id = "_template-transition"
+kind = "transition"
+version = "1.0.0"
+duration = 700
+easing = [0.65, 0, 0.35, 1]
+ink_at = 0.5
