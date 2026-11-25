@@ -106,11 +106,9 @@ Row {
 			readonly property string iconSource: {
 				const url = String(slot.modelData.icon || "");
 				const name = url.replace("image://icon/", "").split("?")[0];
+				const themed = url.indexOf("image://icon/") === 0 ? AppIcons.themed([name.replace(/-symbolic$/, ""), name]) : "";
 
-				if (url.indexOf("image://icon/") === 0)
-					return AppIcons.themed([name.replace(/-symbolic$/, ""), name]);
-
-				return AppIcons.iconOf(slot.modelData.id, [slot.modelData.title]) || url;
+				return themed !== "" ? themed : AppIcons.iconOf(slot.modelData.id, [slot.modelData.title]) || url;
 			}
 
 			readonly property bool symbolic: slot.iconSource.indexOf("-symbolic") >= 0
