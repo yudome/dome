@@ -9,7 +9,6 @@
 #include <QMouseEvent>
 #include <QOpenGLContext>
 #include <QDebug>
-#include <QDateTime>
 #include <QTimer>
 #include <QOpenGLFunctions>
 #include <QQuickWindow>
@@ -198,11 +197,10 @@ VmDisplay::VmDisplay(QQuickItem *parent) : QQuickItem(parent), d(new Private) {
 	setAcceptHoverEvents(true);
 	d->display = new QmpDisplay(this);
 	d->broker = new BrokerDisplay(this);
-	connect(d->display, &QmpDisplay::frameReady, this, [this]() { static int dbgN = 0; static qint64 dbgT = 0; dbgN++; if (QDateTime::currentMSecsSinceEpoch() - dbgT > 1000) { qWarning() << "DBG frames/s" << dbgN; dbgN = 0; dbgT = QDateTime::currentMSecsSinceEpoch(); } update(); });
+	connect(d->display, &QmpDisplay::frameReady, this, [this]() { update(); });
 	connect(d->display, &QmpDisplay::mapReady, this, [this]() { update(); });
 	connect(d->display, &QmpDisplay::pixmapReady, this, [this]() { update(); });
 	connect(d->display, &QmpDisplay::updated, this, [this](int x, int y, int w, int h) {
-		static int dbgN = 0; static qint64 dbgT = 0; dbgN++; if (QDateTime::currentMSecsSinceEpoch() - dbgT > 1000) { qWarning() << "DBG updates/s" << dbgN << w << h; dbgN = 0; dbgT = QDateTime::currentMSecsSinceEpoch(); }
 		if (d->mapMode) {
 			if (!d->updatePending) {
 				d->updateX = x; d->updateY = y; d->updateW = w; d->updateH = h;
@@ -224,7 +222,6 @@ VmDisplay::VmDisplay(QQuickItem *parent) : QQuickItem(parent), d(new Private) {
 		if (d->cursorVisible) setCursor(QCursor(QPixmap::fromImage(image), hotX, hotY));
 	});
 	connect(d->display, &QmpDisplay::mouseState, this, [this](int, int, bool visible) {
-		static int dbgN = 0; static qint64 dbgT = 0; dbgN++; if (QDateTime::currentMSecsSinceEpoch() - dbgT > 1000) { qWarning() << "DBG mouseSet/s" << dbgN << "vis" << visible; dbgN = 0; dbgT = QDateTime::currentMSecsSinceEpoch(); }
 		if (visible == d->cursorVisible) return;
 		d->cursorVisible = visible;
 		if (!visible) setCursor(Qt::BlankCursor);

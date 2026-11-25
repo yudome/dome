@@ -102,6 +102,7 @@ struct QmpDisplay::Impl {
 	GDBusConnection *listener = nullptr;
 	GCancellable *cancel = nullptr;
 	bool running = false;
+	bool virgl = false;
 	QString qmpPath;
 	int width = 0;
 	int height = 0;
@@ -192,6 +193,7 @@ struct QmpDisplay::Impl {
 			g_variant_unref(fds);
 			g_variant_unref(offsets);
 			g_variant_unref(strides);
+			d->virgl = true;
 			{
 				std::lock_guard<std::mutex> lock(d->frameMutex);
 				if (d->pendingFrame.fd >= 0) close(d->pendingFrame.fd);
@@ -286,6 +288,7 @@ struct QmpDisplay::Impl {
 			if (cw > 0 && ch > 0 && g_variant_get_size(data) >= static_cast<gsize>(cw) * ch * 4) {
 				QImage image(cw, ch, QImage::Format_ARGB32);
 				std::memcpy(image.bits(), g_variant_get_data(data), static_cast<size_t>(cw) * ch * 4);
+				if (d->virgl) image.flip(Qt::Vertical);
 				emit d->q->cursorImage(image, hx, hy);
 			}
 			if (data) g_variant_unref(data);
@@ -437,6 +440,7 @@ struct QmpDisplay::Impl {
 		control = nullptr;
 		listener = nullptr;
 		cancel = nullptr;
+		virgl = false;
 	}
 
 	void cleanup() {
