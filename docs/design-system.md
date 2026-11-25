@@ -1,11 +1,11 @@
 # Design system
 
-TLDR: monochrome, dense, glyph-driven. Every value is a token in `shell/services/Config.qml`, editable through `shell/config/*.toml`. Every visual is composed from `shell/ui`, `shell/appkit` and `shell/panelkit`. No literals, no hand-built chrome, hints only through `Hint`. `xmake lint` enforces it.
+TLDR: theme-driven, dense, glyph-driven. Every value is a token in `shell/services/Config.qml`, editable through `shell/config/*.toml`. Every visual is composed from `shell/ui`, `shell/appkit` and `shell/panelkit`. No literals, no hand-built chrome, hints only through `Hint`. `xmake lint` enforces it.
 
 ## Principles
 
 - Hints only through `Hint` (key + short label, text from `Config`, all hidden by `hints = false`); no counters.
-- Monochrome by default: ink is `foreground`. Color stays with the GitHub grid, the calendar dial and the disk bubbles.
+- Color comes from the active theme: ink is `foreground`, chrome is `surfaceRaised`, `surfaceHover` and `rule`; no component carries its own palette. Feature colors are data only.
 - One thing, one glyph, everywhere.
 - Text never overlaps: bounded width, anchored to neighbours, elided.
 - No "·" separators; spacing separates.
@@ -34,9 +34,9 @@ Files: one TOML per category in `shell/config/`: `appearance`, `display`, `gener
 | Token | Default | Role (`AppPalette`) | Use |
 |---|---|---|---|
 | `surface` | `#101010` | `surface` | window, page and sidebar background |
-| `surfaceRaised` | `#1c1c1c` | `raised` | cards, sidebar selection, search box |
-| `surfaceHover` | `#262626` | `hover` | row hover, control fill on cards |
-| `rule` | `#222222` | `rule` | separators, borders |
+| `surfaceRaised` | `#1f1f1f` | `raised` | cards, sidebar selection, search box |
+| `surfaceHover` | `#2f2f2f` | `hover` | row hover, control fill on cards |
+| `rule` | `#2b2b2b` | `rule` | separators, borders |
 | `foreground` | `#ffffff` | `ink` | ink |
 | `muted` | `#ffffff` | `inkMuted` | secondary ink, captions |
 | `dim` | `#3f3f3f` | `inkDim` | tracks, idle scrollbar, disabled |
