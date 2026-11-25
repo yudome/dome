@@ -1,36 +1,28 @@
--- xmake tasks: link lint bench hypr vm doctor (see scripts/tasks.sh)
+-- global build options and area includes
 
-target("checks")
-    set_kind("phony")
-    add_tests("daemon")
-    add_tests("qml")
-    add_tests("plugins")
-    add_tests("apps")
-    add_tests("idle-spawn")
-    on_test(function (target, opt)
-        local name = opt.name:match("/(.+)$")
+option("debug")
+	set_default(false)
+	set_showmenu(true)
+	set_description("debug build with symbols")
 
-        if name == "daemon" then
-            return os.execv("sh", {"-c", "cd daemon && zig build test"}, {try = true}) == 0
-        end
+option("small")
+	set_default(false)
+	set_showmenu(true)
+	set_description("optimize for size")
 
-        if name == "qml" then
-            return os.execv("sh", {"-c", "for f in $(find shell -name '*.check.js' -not -path '*/cache/*'); do node \"$f\" || exit 1; done"}, {try = true}) == 0
-        end
+option("llvm")
+	set_default(true)
+	set_showmenu(true)
+	set_description("use LLVM in zig (false builds faster, runs slower)")
 
-        if name == "apps" then
-            return os.execv("sh", {"-c", "scripts/app-check"}, {try = true}) == 0
-        end
+option("headless")
+	set_default(false)
+	set_showmenu(true)
+	set_description("build only the headless daemon")
 
-        if name == "plugins" then
-            return os.execv("sh", {"-c", "scripts/plugin-check"}, {try = true}) == 0
-        end
+-- runtime install prefix: PREFIX wins, then ~/.local, xmake -o still wins
+function yudae_prefix()
+	return os.getenv("PREFIX") or path.join(os.getenv("HOME"), ".local")
+end
 
-        if name == "idle-spawn" then
-            return os.execv("sh", {"-c", "scripts/yudae spawn-check --seconds 10"}, {try = true}) == 0
-        end
-
-        return false
-    end)
-
-includes("shell/native")
+includes("daemon", "shell", "plugins", "vm")
