@@ -1217,6 +1217,7 @@ PanelWindow {
 						visible: root.results.length > 0 && !root.grid
 						visibleRows: root.rows
 						scrollWidth: root.spotlight ? 0 : Config.scrollbarWidth
+						byRow: true
 						highlightRadius: 0
 						rowHeight: root.rowHeight
 						rowSpacing: root.rowGap

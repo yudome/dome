@@ -121,4 +121,12 @@ Item {
 			}
 		}
 	}
+
+	AppScroll {
+		anchors.fill: parent
+		view: view
+		byRow: true
+		rowStep: view.cellHeight
+		scrollWidth: 0
+	}
 }

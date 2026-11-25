@@ -13,6 +13,7 @@ Item {
 	property real rowSpacing: Config.procsGap
 	property real scrollWidth: Config.scrollbarWidth
 	property real highlightRadius: Config.appControlRadius
+	property bool byRow: false
 
 	readonly property int count: list.count
 	readonly property var current: list.currentItem ? list.currentItem.modelData : null
@@ -115,7 +116,10 @@ Item {
 	}
 
 	Scrollbar {
-		visible: root.scrollWidth > 0 && list.contentHeight > list.height + 1
+		visible: (root.byRow || root.scrollWidth > 0) && list.contentHeight > list.height + 1
+		thickness: root.scrollWidth
+		byRow: root.byRow
+		rowStep: root.rowHeight + root.rowSpacing
 		view: list
 	}
 

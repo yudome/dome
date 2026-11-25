@@ -9,6 +9,9 @@ Item {
 	property alias contentY: own.contentY
 	property alias contentHeight: own.contentHeight
 	property real bottomPadding: 0
+	property bool byRow: false
+	property real rowStep: 0
+	property int scrollWidth: Config.scrollbarWidth
 
 	default property alias content: holder.data
 
@@ -41,5 +44,8 @@ Item {
 	Scrollbar {
 		view: root.view
 		edge: root
+		byRow: root.byRow
+		rowStep: root.rowStep
+		thickness: root.scrollWidth
 	}
 }
