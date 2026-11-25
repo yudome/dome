@@ -464,8 +464,14 @@ struct QmpDisplay::Impl {
 			if (pendingMap.fd >= 0) close(pendingMap.fd);
 			pendingMap = Map{};
 		}
-		if (listener) g_object_unref(listener);
-		if (control) g_object_unref(control);
+		if (listener) {
+			g_dbus_connection_close_sync(listener, nullptr, nullptr);
+			g_object_unref(listener);
+		}
+		if (control) {
+			g_dbus_connection_close_sync(control, nullptr, nullptr);
+			g_object_unref(control);
+		}
 		if (listenerLoop) g_main_loop_unref(listenerLoop);
 		if (listenerContext) g_main_context_unref(listenerContext);
 		if (loop) g_main_loop_unref(loop);
@@ -495,7 +501,7 @@ void QmpDisplay::start(const QString &qmpPath, int width, int height, int fps) {
 }
 
 void QmpDisplay::stop() {
-	d->stop();
+	d->reset();
 }
 
 void QmpDisplay::setUiInfo(int width, int height) {
