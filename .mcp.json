@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "yudae": {
-      "command": "/home/gabriel/.local/bin/yudae",
+      "command": "yudae",
       "args": ["mcp"]
     }
   }

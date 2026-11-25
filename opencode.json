@@ -5,7 +5,7 @@
       "yudae": {
         "type": "local",
         "command": [
-          "/home/gabriel/.local/bin/yudae",
+          "yudae",
           "mcp"
         ]
       }
