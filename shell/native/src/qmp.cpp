@@ -106,7 +106,6 @@ struct QmpDisplay::Impl {
 	QString qmpPath;
 	int width = 0;
 	int height = 0;
-	int fps = 0;
 
 	std::mutex frameMutex;
 	Frame pendingFrame;
@@ -149,22 +148,6 @@ struct QmpDisplay::Impl {
 			params, nullptr, G_DBUS_CALL_FLAGS_NONE, 5000, nullptr, &err);
 		if (r) g_variant_unref(r);
 		if (err) g_error_free(err);
-	}
-
-	void ack(GDBusMethodInvocation *inv) {
-		if (fps <= 0) {
-			g_dbus_method_invocation_return_value(inv, nullptr);
-			return;
-		}
-
-		const int limit = fps < 240 ? fps : 240;
-		GSource *source = g_timeout_source_new(1000 / limit);
-		g_source_set_callback(source, [](gpointer data) -> gboolean {
-			g_dbus_method_invocation_return_value(static_cast<GDBusMethodInvocation *>(data), nullptr);
-			return G_SOURCE_REMOVE;
-		}, g_object_ref(inv), g_object_unref);
-		g_source_attach(source, g_main_context_get_thread_default());
-		g_source_unref(source);
 	}
 
 	static void onMethod(GDBusConnection *, const gchar *, const gchar *, const gchar *iface, const gchar *method,
@@ -274,14 +257,14 @@ struct QmpDisplay::Impl {
 			gint32 x, y, w, h;
 			g_variant_get(params, "(iiii)", &x, &y, &w, &h);
 			emit d->q->updated(x, y, w, h);
-			d->ack(inv);
+			g_dbus_method_invocation_return_value(inv, nullptr);
 			return;
 		}
 		if (g_str_equal(method, "UpdateMap")) {
 			gint32 x, y, w, h;
 			g_variant_get(params, "(iiii)", &x, &y, &w, &h);
 			emit d->q->updated(x, y, w, h);
-			d->ack(inv);
+			g_dbus_method_invocation_return_value(inv, nullptr);
 			return;
 		}
 		if (g_str_equal(method, "MouseSet")) {
@@ -488,12 +471,11 @@ QmpDisplay::~QmpDisplay() {
 	d->reset();
 }
 
-void QmpDisplay::start(const QString &qmpPath, int width, int height, int fps) {
+void QmpDisplay::start(const QString &qmpPath, int width, int height) {
 	d->reset();
 	d->qmpPath = qmpPath;
 	d->width = width;
 	d->height = height;
-	d->fps = fps;
 	d->context = g_main_context_new();
 	d->loop = g_main_loop_new(d->context, FALSE);
 	d->cancel = g_cancellable_new();

@@ -342,7 +342,7 @@ void VmDisplay::maybeStart() {
 		updateBrokerFocus();
 		return;
 	}
-	d->display->start(m_qmp, device.width(), device.height(), qRound(screen ? screen->refreshRate() : 0));
+	d->display->start(m_qmp, device.width(), device.height());
 	m_running = true;
 	emit runningChanged();
 }

@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
 	if (fps > 240) fps = 240;
 
 	QmpDisplay display;
-	display.start(qmp, width, height, fps);
+	display.start(qmp, width, height);
 
 	QTimer timer;
 	timer.setInterval(fps > 0 ? 1000 / fps : 16);
