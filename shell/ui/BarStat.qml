@@ -73,12 +73,10 @@ Item {
 	// The line the icon glyphs sit on, in the content item's coordinates.
 	readonly property real iconBaseline: root.inkAbove
 
-	// The centre of the glyph ink, which is where an icon belongs, drawn or
-	// not. A glyph is measured against its own ink, so a bigger glyph does not
-	// sink below the line.
+	// The centre of the base glyph ink, which is where an icon belongs, drawn
+	// or not. A bigger glyph is centred on the same line; it does not make the
+	// bar taller.
 	readonly property real iconInkCentre: root.iconBaseline - root.iconsInkAbove + root.iconInkHeight / 2
-	readonly property real glyphInkCentre: iconMetrics.tightBoundingRect.y + iconMetrics.tightBoundingRect.height / 2
-	readonly property real glyphInkHeight: iconMetrics.tightBoundingRect.height
 
 	implicitWidth: Math.ceil(root.iconBreadth)
 	implicitHeight: Math.round(root.inkAbove + root.inkBelow)
