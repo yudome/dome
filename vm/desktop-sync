@@ -12,10 +12,6 @@ timezone=$(cat /etc/timezone 2>/dev/null || true)
 [ -n "$timezone" ] || timezone=$(readlink -f /etc/localtime | sed 's|.*/zoneinfo/||')
 printf '%s\n' "$timezone" > "$STATE/timezone"
 
-for name in awww awww-daemon; do
-	[ -x "/usr/bin/$name" ] && cp -f "/usr/bin/$name" "$BIN/$name"
-done
-
 native=$ROOT/shell/native/qml/Yudae/Native
 if [ -d "$native" ]; then
 	mkdir -p "$BIN/yudae-native/Yudae/Native"
