@@ -1,6 +1,7 @@
 # Rules
 
 - Every agent uses its own VM. `vm_create` with no name names it after the session; pass that name to every `vm_*` call. Never start, reuse, stop or destroy another agent's VM, including `ui`.
+- This dotfiles repo is not for a single user. The maintainer's name belongs only in attribution metadata (plugin `author`, copyright or licence lines), never in code, config, paths, docs, tests, fixtures, sample or mock data, or the VM guest account. Use `user`/`$USER`/`HOME`/`~` or the existing home helper instead of a `/home/<name>` path, in every case.
 
 Do not write comments in code
 Talk in an TLDR mode and explain in an simple TLDR with the less amount of words possible
