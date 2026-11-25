@@ -3,12 +3,9 @@ function run(root, dir, out)
 	local args = table.wrap(option.get("args") or {})
 	local seconds = tostring(option.get("seconds") or "5")
 	local verb = args[1] == "disk" or args[1] == "files" and args[1] or nil
-
 	os.execv("xmake", { "build", "yudaemond" }, { curdir = root })
-
 	local full = path.join(out, "yudaemond")
 	local headless = path.join(out, "yudaemond-headless")
-
 	if verb then
 		local rest = { "bench", verb }
 		for index = 2, #args do
@@ -20,33 +17,28 @@ function run(root, dir, out)
 		os.execv(full, rest, { curdir = root })
 		return
 	end
-
 	local full_out = os.iorunv(full, { "bench", "--json", "--seconds", seconds }, { curdir = root })
 	local function field(name)
 		local value = full_out and full_out:match('"' .. name .. '":(%d+)')
 		return tonumber(value or "0")
 	end
 	local full_idle = field("idleRssKb")
-
 	os.execv("sh", { "-c", "xmake f --headless=y -y >/dev/null" }, { curdir = root })
 	os.rm(path.join(dir, ".zig-cache-headless"))
 	local started = os.mclock()
 	os.execv("xmake", { "build", "yudaemond-headless" }, { curdir = root })
 	local cold_ms = os.mclock() - started
 	os.execv("sh", { "-c", "xmake f --headless=n -y >/dev/null" }, { curdir = root })
-
 	local runtime = path.join(os.tmpdir(), "ydheadless-" .. tostring(os.time()) .. "-" .. tostring(math.random(1000000)))
 	os.mkdir(runtime)
 	local envs = os.getenvs()
 	envs.XDG_RUNTIME_DIR = runtime
 	local pid = os.iorunv("sh", { "-c", string.format("'%s' run >/dev/null 2>&1 & echo $!", headless) }, { envs = envs, curdir = root })
-
 	local socket_path = path.join(runtime, "yudaemond.sock")
 	local deadline = os.mclock() + 10000
 	while os.mclock() < deadline and not os.isfile(socket_path) do
 		os.sleep(0.02)
 	end
-
 	local failed = false
 	if not os.isfile(socket_path) then
 		print("FAIL headless daemon did not open its socket")
@@ -67,7 +59,6 @@ function run(root, dir, out)
 			if gate[2] > gate[3] then failed = true end
 			print(string.format("%s %-20s %10d %s  budget %d", state, gate[1], gate[2], gate[4], gate[3]))
 		end
-
 		local spawn, spawn_err = os.iorunv(full, { "spawn-check", "--seconds", seconds }, { envs = envs, curdir = root })
 		if spawn then
 			print("ok   headless spawns    " .. spawn:gsub("%s+$", ""))
@@ -77,11 +68,9 @@ function run(root, dir, out)
 		end
 		print(string.format("info full daemon idle rss %d kB (not a gate)", full_idle))
 	end
-
 	os.execv("sh", { "-c", "kill -TERM " .. pid .. " 2>/dev/null || true" })
 	os.sleep(0.2)
 	os.rm(runtime)
-
 	if failed then
 		print("bench over budget")
 		raise("bench over budget")

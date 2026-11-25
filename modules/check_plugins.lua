@@ -1,144 +1,49 @@
 local util = import("util")
 local trim = util.trim
-
 function run(root)
-
 	local function strip_comment(line)
-		local out = {}
-		local quoted = false
-		local escaped = false
+		local quoted, escaped = false, false
 		for i = 1, #line do
-			local char = line:sub(i, i)
-			if escaped then
-				out[#out + 1] = char
-				escaped = false
-			elseif char == "\\" and quoted then
-				out[#out + 1] = char
-				escaped = true
-			elseif char == '"' then
-				quoted = not quoted
-				out[#out + 1] = char
-			elseif char == "#" and not quoted then
-				break
-			else
-				out[#out + 1] = char
-			end
+			local c = line:sub(i, i)
+			if escaped then escaped = false
+			elseif c == "\\" and quoted then escaped = true
+			elseif c == '"' then quoted = not quoted
+			elseif c == "#" and not quoted then return line:sub(1, i - 1) end
 		end
-		return table.concat(out)
+		return line
 	end
-
-	local function unquote(text)
-		if text:sub(1, 1) ~= '"' or text:sub(-1) ~= '"' or #text < 2 then
-			return nil, "not a string"
+	local function parse_value(raw)
+		raw = trim(raw)
+		if raw:sub(1, 1) == '"' and raw:sub(-1) == '"' then return raw:sub(2, -2) end
+		if raw == "true" then return true end
+		if raw == "false" then return false end
+		local list = raw:match("^%[(.*)%]$")
+		if list then
+			local items = {}
+			for item in list:gmatch('"([^"]*)"') do items[#items + 1] = item end
+			return items
 		end
-		local body = text:sub(2, -2)
-		local out = {}
-		local escaped = false
-		for i = 1, #body do
-			local char = body:sub(i, i)
-			if escaped then
-				if char == "n" then
-					out[#out + 1] = "\n"
-				elseif char == "t" then
-					out[#out + 1] = "\t"
-				else
-					out[#out + 1] = char
-				end
-				escaped = false
-			elseif char == "\\" then
-				escaped = true
-			else
-				out[#out + 1] = char
-			end
-		end
-		if escaped then
-			return nil, "bad escape"
-		end
-		return table.concat(out)
+		return tonumber(raw) or raw
 	end
-
-	local function split_array(text)
-		local items = {}
-		local current = {}
-		local quoted = false
-		local escaped = false
-		for i = 2, #text - 1 do
-			local char = text:sub(i, i)
-			if escaped then
-				current[#current + 1] = char
-				escaped = false
-			elseif char == "\\" and quoted then
-				current[#current + 1] = char
-				escaped = true
-			elseif char == '"' then
-				quoted = not quoted
-				current[#current + 1] = char
-			elseif char == "," and not quoted then
-				items[#items + 1] = trim(table.concat(current))
-				current = {}
-			else
-				current[#current + 1] = char
-			end
-		end
-		local last = trim(table.concat(current))
-		if last ~= "" then
-			items[#items + 1] = last
-		end
-		return items
-	end
-
-	local function parse_value(text, fail)
-		text = trim(text)
-		if text:sub(1, 1) == '"' then
-			local value, err = unquote(text)
-			if not value then fail(err) end
-			return value
-		end
-		if text:sub(1, 1) == "[" and text:sub(-1) == "]" then
-			local values = {}
-			for _, item in ipairs(split_array(text)) do
-				values[#values + 1] = parse_value(item, fail)
-			end
-			return values
-		end
-		if text == "true" then return true end
-		if text == "false" then return false end
-		local number = tonumber(text)
-		if number then return number end
-		fail("cannot read value " .. text)
-	end
-
 	local function parse_toml(text)
-		local parsed = {}
-		local current = parsed
+		local out, current = {}, nil
 		for line in (text .. "\n"):gmatch("([^\n]*)\n") do
 			local code = trim(strip_comment(line))
 			if code ~= "" then
 				local header = code:match("^%[([^%]]+)%]$")
 				if header then
 					current = {}
-					parsed[header] = current
+					out[header] = current
 				else
-					local key, value = code:match("^([%w_%-]+)%s*=%s*(.+)$")
-					if not key then
-						return nil, "cannot parse line " .. code
-					end
-					local ok, result = true, nil
-					local function guard(message)
-						ok = false
-						result = message
-					end
-					local parsed_value = parse_value(value, guard)
-					if not ok then
-						return nil, result
-					end
-					current[key] = parsed_value
+					local key, raw = code:match("^([%w_%-]+)%s*=%s*(.+)$")
+					if not key then return nil, "cannot parse line " .. code end
+					current = current or out
+					current[key] = parse_value(raw)
 				end
 			end
 		end
-		return parsed
+		return out
 	end
-
 	local function color_keys(root)
 		local body = io.readfile(path.join(root, "shell", "services", "Config.qml")) or ""
 		local keys = {}
@@ -150,7 +55,6 @@ function run(root)
 		end
 		return keys
 	end
-
 	local function constraint(text)
 		if type(text) ~= "string" then
 			return nil, "requires.hyprland must be a string"
@@ -170,7 +74,6 @@ function run(root)
 		end
 		return operator or "=", parts
 	end
-
 	local function parse_version(text)
 		local parts = {}
 		for part in text:gmatch("%d+") do
@@ -179,7 +82,6 @@ function run(root)
 		end
 		return parts
 	end
-
 	local function satisfies(have, operator, want)
 		local width = math.max(#have, #want)
 		for i = #have + 1, width do have[i] = 0 end
@@ -195,7 +97,6 @@ function run(root)
 		end
 		return operator == ">=" or operator == "<=" or operator == "="
 	end
-
 	local hypr_version
 	local function hyprland_version()
 		if hypr_version ~= nil then return hypr_version end
@@ -203,7 +104,6 @@ function run(root)
 		hypr_version = trim(out or "")
 		return hypr_version
 	end
-
 	local function manifest(plugin_dir, name)
 		local body = io.readfile(path.join(plugin_dir, "plugin.toml"))
 		if not body then
@@ -262,7 +162,6 @@ function run(root)
 		end
 		return data
 	end
-
 	local function binary(path_)
 		local name = path.filename(path_)
 		local suffix = name:match("%.([^.]+)$")
@@ -275,7 +174,6 @@ function run(root)
 		local head = io.readfile(path_, { binary = true })
 		return head ~= nil and head:sub(1, 4) == "\x7fELF"
 	end
-
 	local function source_only(plugin_dir)
 		for _, file in ipairs(os.files(path.join(plugin_dir, "**"))) do
 			if not path.relative(file, plugin_dir):find("^%.xmake/") and binary(file) then
@@ -284,7 +182,6 @@ function run(root)
 		end
 		return nil
 	end
-
 	local function run_build(plugin_dir, data)
 		local out = path.join(os.tmpdir(), "yudae-" .. path.filename(plugin_dir) .. "-" .. tostring(os.time()))
 		os.tryrm(out)
@@ -319,7 +216,6 @@ function run(root)
 		end
 		return out
 	end
-
 	local function check_theme(plugin_dir, data, out)
 		local present = false
 		for _, item in ipairs(data.provides) do
@@ -361,7 +257,6 @@ function run(root)
 		end
 		return nil
 	end
-
 	local function check_hypr(plugin_dir, data)
 		if not os.isfile(path.join(plugin_dir, "hypr.lua")) then
 			return "hypr plugin needs hypr.lua"
@@ -373,7 +268,6 @@ function run(root)
 		end
 		return "hypr plugin must provide a .so or .bin"
 	end
-
 	local function check_shell(plugin_dir)
 		local files = {}
 		for _, file in ipairs(os.files(path.join(plugin_dir, "**"))) do
@@ -403,7 +297,6 @@ function run(root)
 		end
 		return nil
 	end
-
 	local function check(root_dir)
 		if not os.isdir(root_dir) then
 			return nil, "missing " .. root_dir
@@ -454,7 +347,6 @@ function run(root)
 		print(string.format("%s: %d checked", path.filename(root_dir), count))
 		return true
 	end
-
 	for _, root_dir in ipairs({ path.join(root, "plugins"), path.join(root, "templates") }) do
 		local ok, why = check(root_dir)
 		if not ok then

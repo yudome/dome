@@ -13,16 +13,9 @@ local includes = {
 	"-I/usr/lib/glib-2.0/include",
 }
 
-local links = {
-	"-lc",
-	"-lsystemd",
-	"-lpolkit-gobject-1",
-	"-lgio-2.0",
-	"-lgobject-2.0",
-	"-lglib-2.0",
-}
+local links = { "-lc", "-lsystemd", "-lpolkit-gobject-1", "-lgio-2.0", "-lgobject-2.0", "-lglib-2.0" }
 
-local sources = {
+local c_sources = {
 	path.join(dir, "src", "c", "notifybus.c"),
 	path.join(dir, "src", "c", "traybus.c"),
 	path.join(dir, "src", "c", "polkit.c"),
@@ -34,19 +27,14 @@ end
 
 local function zig_argv(root, emit)
 	local argv = { "build-exe", optimize() }
-	if not has_config("debug") then
-		table.insert(argv, "-fstrip")
-	end
-	if not has_config("llvm") then
-		table.insert(argv, "-fno-llvm")
-	end
+	if not has_config("debug") then table.insert(argv, "-fstrip") end
+	if not has_config("llvm") then table.insert(argv, "-fno-llvm") end
 	table.insert(argv, "--cache-dir")
 	table.insert(argv, cache)
-	for _, flag in ipairs(includes) do
-		table.insert(argv, flag)
-	end
-	for _, flag in ipairs(links) do
-		table.insert(argv, flag)
+	for _, list in ipairs({ includes, links }) do
+		for _, flag in ipairs(list) do
+			table.insert(argv, flag)
+		end
 	end
 	table.insert(argv, "-femit-bin=" .. emit)
 	table.insert(argv, root)
@@ -80,17 +68,16 @@ target("theme-cover")
 		os.execv("zig", { "build-exe", optimize(), "--cache-dir", cache, "-femit-bin=" .. tool, path.join(dir, "src", "theme_cover.zig") })
 	end)
 
-local started = {}
-local built = {}
+local started, built = {}, {}
 
 local function log_build(target)
-	local binary = built[target:name()]
-	local start = started[target:name()]
+	local binary, start = built[target:name()], started[target:name()]
 	if not binary or not start then return end
 	local cache_mb = size_mb(cache)
 	local ms = os.mclock() - start
 	local size = os.filesize(binary) or 0
-	local line = string.format('{"at":%d,"ms":%d,"binary":%d,"cache_mb":%d,"out_mb":%d,"global_mb":%d}\n', os.time(), ms, size, cache_mb, size_mb(path.join(dir, "zig-out")), size_mb(path.join(os.getenv("HOME") or "", ".cache", "zig")))
+	local line = string.format('{"at":%d,"ms":%d,"binary":%d,"cache_mb":%d,"out_mb":%d,"global_mb":%d}\n',
+		os.time(), ms, size, cache_mb, size_mb(path.join(dir, "zig-out")), size_mb(path.join(os.getenv("HOME") or "", ".cache", "zig")))
 	os.mkdir(path.join(dir, "bench"))
 	io.writefile(bench_log, (io.readfile(bench_log) or "") .. line)
 	print(string.format("build %dms  binary %dB  cache %dMB", ms, size, cache_mb))
@@ -100,62 +87,49 @@ local function log_build(target)
 	end
 end
 
-if has_config("headless") then
-	target("yudaemond-headless")
+local function daemon_target(name, source, with_c, link_yudae, deps)
+	target(name)
 		set_kind("phony")
 		set_installdir(yudae_prefix())
-		before_build(function (target)
-			started[target:name()] = os.mclock()
+		if deps then
+			for _, dep in ipairs(deps) do add_deps(dep) end
+		end
+		before_build(function (target_)
+			started[target_:name()] = os.mclock()
 		end)
-		on_build(function (target)
-			local binary = path.join(out, "yudaemond-headless")
-			built[target:name()] = binary
-			os.execv("zig", zig_argv(path.join(dir, "src", "headless.zig"), binary))
-		end)
-		after_build(log_build)
-		after_install(function (target)
-			local bindir = target:installdir("bin")
-			os.mkdir(bindir)
-			local tmp = path.join(bindir, "yudaemond-headless.new")
-			os.execv("install", { "-m", "0755", path.join(out, "yudaemond-headless"), tmp })
-			os.mv(tmp, path.join(bindir, "yudaemond-headless"), { force = true })
-		end)
-else
-	target("yudaemond")
-		set_kind("phony")
-		set_installdir(yudae_prefix())
-		add_deps("launcher-index")
-		before_build(function (target)
-			started[target:name()] = os.mclock()
-		end)
-		on_build(function (target)
-			local binary = path.join(out, "yudaemond")
-			built[target:name()] = binary
-			local argv = zig_argv(path.join(dir, "src", "main.zig"), binary)
-			table.insert(argv, "-cflags")
-			table.insert(argv, "-std=c11")
-			table.insert(argv, "--")
-			for _, source in ipairs(sources) do
-				table.insert(argv, source)
+		on_build(function (target_)
+			local binary = path.join(out, name)
+			built[target_:name()] = binary
+			local argv = zig_argv(path.join(dir, source), binary)
+			if with_c then
+				for _, flag in ipairs({ "-cflags", "-std=c11", "--" }) do table.insert(argv, flag) end
+				for _, c_source in ipairs(c_sources) do table.insert(argv, c_source) end
 			end
 			os.execv("zig", argv)
 		end)
 		after_build(log_build)
-		after_install(function (target)
-			local bindir = target:installdir("bin")
+		after_install(function (target_)
+			local bindir = target_:installdir("bin")
 			local link = path.join(bindir, "yudae")
-			local binary = path.join(bindir, "yudaemond")
-			if os.isfile(link) and not os.islink(link) then
-				raise("refused %s: a real file is there", link)
+			if link_yudae and os.isfile(link) and not os.islink(link) then
+				raise("refused " .. link .. ": a real file is there")
 			end
 			os.mkdir(bindir)
-			local tmp = binary .. ".new"
-			os.execv("install", { "-m", "0755", path.join(out, "yudaemond"), tmp })
-			os.mv(tmp, binary, { force = true })
-			os.rm(link)
-			os.ln(binary, link)
-			print("installed %s and linked %s", binary, link)
+			local tmp = path.join(bindir, name .. ".new")
+			os.execv("install", { "-m", "0755", path.join(out, name), tmp })
+			os.mv(tmp, path.join(bindir, name), { force = true })
+			if link_yudae then
+				os.rm(link)
+				os.ln(path.join(bindir, name), link)
+				print("installed " .. path.join(bindir, name) .. " and linked " .. link)
+			end
 		end)
+end
+
+if has_config("headless") then
+	daemon_target("yudaemond-headless", "src/headless.zig", false, false)
+else
+	daemon_target("yudaemond", "src/main.zig", true, true, { "launcher-index" })
 end
 
 target("daemon-tests")
@@ -165,19 +139,11 @@ target("daemon-tests")
 	add_tests("zig")
 	on_test(function ()
 		local argv = { "test", optimize(), "--cache-dir", cache }
-		for _, flag in ipairs(includes) do
-			table.insert(argv, flag)
+		for _, list in ipairs({ includes, links }) do
+			for _, flag in ipairs(list) do table.insert(argv, flag) end
 		end
-		for _, flag in ipairs(links) do
-			table.insert(argv, flag)
-		end
-		table.insert(argv, "-cflags")
-		table.insert(argv, "-std=c11")
-		table.insert(argv, "--")
-		table.insert(argv, path.join(dir, "src", "tests.zig"))
-		for _, source in ipairs(sources) do
-			table.insert(argv, source)
-		end
+		for _, flag in ipairs({ "-cflags", "-std=c11", "--", path.join(dir, "src", "tests.zig") }) do table.insert(argv, flag) end
+		for _, c_source in ipairs(c_sources) do table.insert(argv, c_source) end
 		os.execv("zig", argv, { curdir = dir })
 		return true
 	end)
@@ -198,7 +164,6 @@ task("bench")
 	on_run(function ()
 		import("daemon_bench").run(path.directory(dir), dir, out)
 	end)
-
 
 target("fsd")
 	set_kind("phony")

@@ -1,10 +1,8 @@
 function run(root, dir)
 	local failures = {}
-
 	local function relative(file)
 		return path.relative(file, root)
 	end
-
 	local function each_line(file, visit)
 		local body = io.readfile(file) or ""
 		local number = 0
@@ -13,7 +11,6 @@ function run(root, dir)
 			visit(line, number)
 		end
 	end
-
 	-- colors come from Config.qml
 	local config = path.join(root, "shell", "services", "Config.qml")
 	local color_keys = { color = true, barColor = true, textColor = true, fillColor = true }
@@ -30,7 +27,6 @@ function run(root, dir)
 			end)
 		end
 	end
-
 	-- kit layers
 	local kits = { ui = true, appkit = true, panelkit = true }
 	local scroll_owners = { ui = true, appkit = true }
@@ -38,7 +34,6 @@ function run(root, dir)
 	local data_visuals = { ["AgentFace.qml"] = true, ["Bubbles.qml"] = true, ["Stage.qml"] = true, ["Session.qml"] = true }
 	local hint_words = { "to type", "to try", "to refresh", "to fetch", "to copy", "to build", "press", "click", "tap", "hit enter" }
 	local modifiers = { "Alt", "Ctrl", "Super", "Shift" }
-
 	local tokens = {}
 	for line in (io.readfile(config) or ""):gmatch("[^\n]+") do
 		local name = line:match("^%s*property%s+[%w_%.]+%s+([%w_]+)") or line:match("^%s*readonly%s+property%s+[%w_%.]+%s+([%w_]+)") or line:match("^%s*function%s+([%w_]+)")
@@ -46,7 +41,6 @@ function run(root, dir)
 			tokens[name] = true
 		end
 	end
-
 	local function block_set(lines, name)
 		local found = {}
 		local index = 0
@@ -67,7 +61,6 @@ function run(root, dir)
 		end
 		return found
 	end
-
 	local function text_blocks(lines, name)
 		local found = {}
 		local index = 0
@@ -94,7 +87,6 @@ function run(root, dir)
 		end
 		return found
 	end
-
 	local function hint_text(code)
 		local lower = code:lower()
 		for _, word in ipairs(hint_words) do
@@ -109,7 +101,6 @@ function run(root, dir)
 		end
 		return false
 	end
-
 	local function glyph_text(prop)
 		if prop:match("^text:%s*Config%.icon%w+") or prop:match("^text:%s*Config%.glyph%(") then
 			return true
@@ -117,7 +108,6 @@ function run(root, dir)
 		local name = prop:match("^text:%s*Config%.(%w+)")
 		return name ~= nil and name:match("^%w+Icon%w*$") ~= nil
 	end
-
 	for _, file in ipairs(os.files(path.join(root, "shell", "**", "*.qml"))) do
 		if not file:find("/cache/", 1, true) then
 			local body = io.readfile(file) or ""
@@ -126,15 +116,12 @@ function run(root, dir)
 				lines[#lines + 1] = line
 			end
 			table.remove(lines)
-
 			local hints = block_set(lines, "Hint")
 			local where = path.relative(file, dir):match("^([^/]+)/") or ""
 			local rel = relative(file)
-
 			local function fail(number, message)
 				failures[#failures + 1] = string.format("%s:%d: %s", rel, number, message)
 			end
-
 			for index, line in ipairs(lines) do
 				local code = line:gsub("//.*$", "")
 				if code:match("%f[%w]Scrollbar%s*{") and not scroll_owners[where] then
@@ -178,7 +165,6 @@ function run(root, dir)
 					end
 				end
 			end
-
 			if not kits[where] and not data_visuals[path.filename(file)] then
 				for _, block in ipairs(text_blocks(lines, "Text")) do
 					for _, prop in ipairs(block.direct) do
@@ -200,7 +186,6 @@ function run(root, dir)
 			end
 		end
 	end
-
 	local qmldir = path.join(root, "shell", "ui", "qmldir")
 	local qmldir_body = io.readfile(qmldir) or ""
 	for _, name in ipairs(retired) do
@@ -208,7 +193,6 @@ function run(root, dir)
 			failures[#failures + 1] = relative(qmldir) .. ": " .. name .. " is retired"
 		end
 	end
-
 	-- Slider.qml logic, mirrored in Lua
 	local function new_slider(props)
 		local self = { from = 0, to = 1, stepSize = 0, stops = {}, held = -1, value = 0 }
@@ -218,15 +202,12 @@ function run(root, dir)
 		self.stopCount = #self.stops
 		return self
 	end
-
 	local function stopValue(self, entry)
 		return type(entry) == "table" and entry.value or entry
 	end
-
 	local function num(v)
 		return tonumber(v) or (0 / 0)
 	end
-
 	local function nearestStop(self, v)
 		local best = 1
 		for index = 1, self.stopCount do
@@ -239,11 +220,9 @@ function run(root, dir)
 		end
 		return best
 	end
-
 	local function indexAt(self, n)
 		return self.stopCount > 1 and math.floor(n * (self.stopCount - 1) + 0.5) or 0
 	end
-
 	local function normalize(self, v)
 		if self.stopCount > 0 then
 			return self.stopCount > 1 and (nearestStop(self, v) - 1) / (self.stopCount - 1) or 0
@@ -253,7 +232,6 @@ function run(root, dir)
 		end
 		return 0
 	end
-
 	local function snap(self, n)
 		if self.stopCount > 1 then
 			return indexAt(self, n) / (self.stopCount - 1)
@@ -264,7 +242,6 @@ function run(root, dir)
 		end
 		return n
 	end
-
 	local function valueAt(self, n)
 		if self.stopCount > 0 then
 			return stopValue(self, self.stops[indexAt(self, n) + 1])
@@ -275,7 +252,6 @@ function run(root, dir)
 		end
 		return v
 	end
-
 	local function unit(self)
 		if self.stopCount > 1 then
 			return 1 / (self.stopCount - 1)
@@ -285,40 +261,33 @@ function run(root, dir)
 		end
 		return 0.01
 	end
-
 	local function close(a, b)
 		if type(a) == "number" and type(b) == "number" then
 			return math.abs(a - b) < 1e-9
 		end
 		return a == b
 	end
-
 	local function expect(got, want, why)
 		if not close(got, want) then
 			failures[#failures + 1] = string.format("slider %s: got %s, want %s", why, tostring(got), tostring(want))
 		end
 	end
-
 	local stops = new_slider({ stops = { { label = "60", value = 60 }, { label = "120", value = 120 }, { label = "144", value = 144 } } })
 	expect(normalize(stops, 120), 0.5, "normalize(120)")
 	expect(normalize(stops, 130), 0.5, "normalize(130)")
 	expect(valueAt(stops, snap(stops, 0.8)), 144, "valueAt(snap(0.8))")
 	expect(valueAt(stops, 0), 60, "valueAt(0)")
 	expect(unit(stops), 0.5, "unit()")
-
 	local text = new_slider({ stops = { "powersave", "balanced", "performance" } })
 	expect(normalize(text, "performance"), 1, "normalize(performance)")
 	expect(valueAt(text, snap(text, 0.4)), "balanced", "valueAt(snap(0.4))")
-
 	local range = new_slider({ from = 1, to = 2, stepSize = 0.25 })
 	expect(normalize(range, 1.5), 0.5, "range normalize(1.5)")
 	expect(valueAt(range, snap(range, 0.6)), 1.5, "range valueAt(snap(0.6))")
 	expect(normalize(range, 9), 1, "range normalize(9)")
 	expect(unit(range), 0.25, "range unit()")
-
 	local free = new_slider({ from = 0, to = 10 })
 	expect(valueAt(free, 0.37), 3.7, "free valueAt(0.37)")
-
 	if #failures > 0 then
 		for _, failure in ipairs(failures) do
 			print(failure)

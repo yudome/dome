@@ -1,6 +1,5 @@
 local util = import("util")
 local trim = util.trim
-
 function fsd(dir, out)
 	local uid = (os.iorunv("id", { "-u" }) or ""):gsub("%s+", "")
 	if uid ~= "0" then
@@ -12,7 +11,6 @@ function fsd(dir, out)
 		print("nothing installed")
 		raise("nothing installed")
 	end
-
 	local prefix = os.getenv("PREFIX") or "/usr/local"
 	local bindir = path.join(prefix, "lib", "yudae")
 	local repo = path.directory(dir)
@@ -25,7 +23,6 @@ function fsd(dir, out)
 	os.execv("systemctl", { "enable", "--now", "yudae-fsd.socket" })
 	print("installed yudae-fsd")
 end
-
 function greeter()
 	local uid = trim(os.iorunv("id", { "-u" }))
 	if uid ~= "0" then
@@ -38,7 +35,6 @@ function greeter()
 	local home = trim(os.iorunv("sh", { "-c", "getent passwd '" .. target .. "' | cut -d: -f6" }))
 	local repo = path.join(home, "dotfiles")
 	local start = path.join(repo, "shell", "features", "greeter", "start")
-
 	for _, tool in ipairs({ "cage", "quickshell" }) do
 		if os.execv("sh", { "-c", "command -v " .. tool }, { try = true }) ~= 0 then
 			raise("missing " .. tool)
@@ -49,7 +45,6 @@ function greeter()
 		or os.execv("runuser", { "-u", "greeter", "--", "test", "-r", path.join(repo, "shell", "greeterShell.qml") }, { try = true }) ~= 0 then
 		raise("greeter cannot run " .. start)
 	end
-
 	os.execv("rm", { "-rf", "/etc/greetd/quickshell", "/var/lib/quickshell/greeter" })
 	os.execv("rmdir", { "/var/lib/quickshell" }, { try = true })
 	os.execv("rm", { "-f", "/etc/greetd/hyprland.lua", "/etc/greetd/start-greeter",
@@ -57,7 +52,6 @@ function greeter()
 		"/etc/tmpfiles.d/greetd-greeter.conf" })
 	os.execv("usermod", { "-aG", "video,render,input", "greeter" })
 	os.execv("install", { "-d", "-m", "700", "-o", "greeter", "-g", "greeter", "/var/lib/greetd" })
-
 	os.execv("install", { "-d", "-m", "755", "/etc/polkit-1/rules.d" })
 	io.writefile("/etc/polkit-1/rules.d/49-quickshell-greeter.rules", string.format([[
 polkit.addRule(function (action, subject) {
@@ -67,7 +61,6 @@ polkit.addRule(function (action, subject) {
 		action.lookup("verb") == "start") {
 		return polkit.Result.YES;
 	}
-
 	if (subject.user == "greeter" &&
 		(action.id == "org.freedesktop.login1.power-off" ||
 		 action.id == "org.freedesktop.login1.power-off-multiple-sessions" ||
@@ -78,12 +71,10 @@ polkit.addRule(function (action, subject) {
 });
 	]], target))
 	os.execv("chmod", { "644", "/etc/polkit-1/rules.d/49-quickshell-greeter.rules" })
-
 	if not os.exists("/etc/security/faillock.conf.bak") then
 		os.execv("cp", { "-a", "/etc/security/faillock.conf", "/etc/security/faillock.conf.bak" })
 	end
 	io.writefile("/etc/security/faillock.conf", "deny = 3\nunlock_time = 3\n")
-
 	os.execv("install", { "-d", "-m", "755", "/etc/greetd" })
 	if not os.exists("/etc/greetd/config.toml.bak") then
 		os.execv("cp", { "-a", "/etc/greetd/config.toml", "/etc/greetd/config.toml.bak" })
@@ -94,21 +85,17 @@ polkit.addRule(function (action, subject) {
 [terminal]
 vt = 1
 switch = false
-
 [default_session]
 command = "%s %s"
 user = "greeter"
 	]], start, target))
-
 	os.execv("faillock", { "--user", target, "--reset" }, { try = true, stdout = "/dev/null", stderr = "/dev/null" })
 	os.execv("systemctl", { "disable", "sddm" }, { try = true, stdout = "/dev/null", stderr = "/dev/null" })
 	os.execv("systemctl", { "enable", "greetd" }, { try = true, stdout = "/dev/null" })
-
 	print("greeter installed for " .. target)
 	print("your current session is untouched; reboot to test.")
 	print("rollback: sudo xmake uninstall greeter")
 end
-
 function uninstall_greeter()
 	local uid = trim(os.iorunv("id", { "-u" }))
 	if uid ~= "0" then

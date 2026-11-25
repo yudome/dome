@@ -14,7 +14,6 @@ function run(root, dir)
 		entries[#entries + 1] = { file = entry, isolated = false }
 	end
 	entries[#entries + 1] = { file = path.join(dir, "shell.qml"), isolated = true }
-
 	for _, item in ipairs(entries) do
 		local envs = os.getenvs()
 		envs.WLR_BACKENDS = "headless"
@@ -64,7 +63,6 @@ function run(root, dir)
 			print(name .. ": loads clean")
 		end
 	end
-
 	if failures > 0 then
 		return false
 	end

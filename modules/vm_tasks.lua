@@ -1,15 +1,10 @@
 local util = import("util")
-
 local trim = util.trim
 local capture = util.capture
-
 function vm(dir, root)
-
-
 	local function run_images(args)
 		os.execv(path.join(dir, "images"), args, { curdir = root })
 	end
-
 	local function bench_images(tag)
 		tag = tag or "local"
 		tag = tag:gsub('"', "")
@@ -21,11 +16,9 @@ function vm(dir, root)
 		os.mkdir(cache)
 		os.mkdir(logs)
 		os.mkdir(path.join(root, "bench"))
-
 		local envs = os.getenvs()
 		envs.XDG_CACHE_HOME = cache_home
 		envs.DOTFILES_VM_RUNS = runs
-
 		local function phase(name, args)
 			local started = os.mclock()
 			local log = path.join(logs, name .. ".log")
@@ -36,7 +29,6 @@ function vm(dir, root)
 			end
 			return os.mclock() - started
 		end
-
 		local fetch_ms = phase("fetch", { "fetch" })
 		local packages_ms = phase("packages", { "packages", "--force" })
 		local golden_ms = phase("golden", { "golden", "--force" })
@@ -44,13 +36,11 @@ function vm(dir, root)
 		local packages_mb = capture(string.format("du -sm '%s' '%s' 2>/dev/null | awk '{ s += $1 } END { print s + 0 }'",
 			path.join(cache, "packages.qcow2"), path.join(cache, "packages.raw")))
 		local golden_mb = capture(string.format("du -sm '%s' 2>/dev/null | cut -f1", path.join(cache, "golden.qcow2")))
-
 		local line = string.format('{"at":%d,"tag":"%s","fetchMs":%d,"packagesMs":%d,"goldenMs":%d,"totalMs":%d,"packagesMb":%s,"goldenMb":%s}',
 			os.time(), tag, fetch_ms, packages_ms, golden_ms, total, packages_mb ~= "" and packages_mb or "0", golden_mb ~= "" and golden_mb or "0")
 		local logfile = path.join(root, "bench", "images.jsonl")
 		io.writefile(logfile, (io.readfile(logfile) or "") .. line .. "\n")
 		print(line)
-
 		local function show(ms)
 			return string.format("%dm%02ds", math.floor(ms / 60000), math.floor(ms / 1000) % 60)
 		end
@@ -77,49 +67,25 @@ function vm(dir, root)
 	end
 	run_images(args)
 end
-
 function doctor(dir, root)
 	import("core.base.option")
 	local json = option.get("json") and true or false
-
-
-
 	local missing = 0
 	if not json then
+		local function mark(ok, label)
+			print((ok and "ok   " or "miss ") .. label)
+			if not ok then missing = 1 end
+		end
 		for _, tool in ipairs({ "zig", "xmake", "make", "qemu-system-x86_64", "qemu-img" }) do
-			local path_ = capture("command -v " .. tool)
-			if path_ ~= "" then
-				print("ok   " .. tool .. " " .. path_)
-			else
-				print("miss " .. tool)
-				missing = 1
-			end
+			mark(capture("command -v " .. tool) ~= "", tool)
 		end
 		for _, path_ in ipairs({ "/usr/lib/virtiofsd", "/dev/kvm", "/dev/vhost-vsock", "/dev/dri/renderD128" }) do
-			if os.exists(path_) then
-				print("ok   " .. path_)
-			else
-				print("miss " .. path_)
-				missing = 1
-			end
+			mark(os.exists(path_), path_)
 		end
-		local daemon = path.join(root, "daemon", "zig-out", "bin", "yudaemond")
-		if os.isfile(daemon) then
-			print("ok   daemon " .. daemon)
-		else
-			print("miss daemon binary")
-			missing = 1
-		end
-		local enabled = os.execv("systemctl", { "--user", "is-enabled", "yudaemond" }, { try = true, stdout = "/dev/null", stderr = "/dev/null" })
-		if enabled == 0 then
-			print("ok   yudaemond.service")
-		else
-			print("miss yudaemond.service")
-			missing = 1
-		end
+		mark(os.isfile(path.join(root, "daemon", "zig-out", "bin", "yudaemond")), "daemon binary")
+		mark(os.execv("systemctl", { "--user", "is-enabled", "yudaemond" }, { try = true, stdout = "/dev/null", stderr = "/dev/null" }) == 0, "yudaemond.service")
 		print("")
 	end
-
 	local rows = {}
 	local fail, warn = 0, 0
 	local function row(name, status, detail, fix)
@@ -127,7 +93,9 @@ function doctor(dir, root)
 		if status == "fail" then fail = fail + 1 end
 		if status == "warn" then warn = warn + 1 end
 	end
-
+	local function expectPath(name, path_, status, fix)
+		if os.exists(path_) then row(name, "ok", path_, "") else row(name, status, "missing " .. path_, fix) end
+	end
 	local gpu = capture("nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1")
 	local driver = capture("nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1")
 	local bar1 = capture("nvidia-smi -q 2>/dev/null | awk -F: '/BAR1 Memory Usage/ {bar=1} bar && /Total/ {gsub(/^ +| MiB$/, \"\", $2); print $2; exit}'")
@@ -138,13 +106,11 @@ function doctor(dir, root)
 	local userspace = path.join(prefix, "bin", "conduit-userspace")
 	local supported = path.join(prefix, "share", "conduit", "supported-drivers.txt")
 	local golden = path.join(os.getenv("XDG_CACHE_HOME") or path.join(os.getenv("HOME"), ".cache"), "dotfiles", "vm", "golden.qcow2")
-
 	if gpu ~= "" then
 		row("gpu", "ok", gpu, "")
 	else
 		row("gpu", "fail", "no NVIDIA GPU", "use the GL backend")
 	end
-
 	if driver ~= "" then
 		local known = os.execv("grep", { "-qxF", driver, supported }, { try = true, stdout = "/dev/null", stderr = "/dev/null" })
 		if os.isfile(supported) and known == 0 then
@@ -157,14 +123,12 @@ function doctor(dir, root)
 	else
 		row("driver", "warn", "not detected", "")
 	end
-
 	local fork = path.join(os.getenv("HOME"), "qemu-linux", "install", "bin", "qemu-system-x86_64")
 	if os.exists(fork) then
 		row("qemu.fork", "ok", fork, "")
 	else
 		row("qemu.fork", "fail", "missing QEMU fork", "build ~/qemu-linux and install it")
 	end
-
 	for _, pair in ipairs({ { "qemu", qemu }, { "backend", backend }, { "userspace", userspace } }) do
 		if os.exists(pair[2]) then
 			row("conduit." .. pair[1], "ok", pair[2], "")
@@ -172,13 +136,11 @@ function doctor(dir, root)
 			row("conduit." .. pair[1], "fail", "missing " .. pair[2], "install the Conduit package")
 		end
 	end
-
 	if os.exists(viewer) then
 		row("conduit.viewer", "ok", viewer, "")
 	else
 		row("conduit.viewer", "warn", "missing " .. viewer, "optional: only the external viewer fallback needs it")
 	end
-
 	if bar1 ~= "" then
 		if tonumber(bar1) and tonumber(bar1) < 1024 then
 			row("bar1", "warn", bar1 .. "MiB, ReBAR off", "enable ReBAR in BIOS for a larger window; 256MiB works but is slower")
@@ -188,22 +150,15 @@ function doctor(dir, root)
 	else
 		row("bar1", "warn", "unknown", "")
 	end
-
 	local ovmf = capture("find /usr/share/OVMF /usr/share/edk2 /usr/share/ovmf -name 'OVMF_CODE*.fd' 2>/dev/null | head -1")
 	if ovmf ~= "" then
 		row("ovmf", "ok", ovmf, "")
 	else
 		row("ovmf", "warn", "no OVMF firmware", "install ovmf; required for the 64-bit GPU BAR")
 	end
-
 	for _, path_ in ipairs({ "/dev/kvm", "/dev/dri/renderD128", "/usr/lib/virtiofsd" }) do
-		if os.exists(path_) then
-			row("host." .. path_, "ok", path_, "")
-		else
-			row("host." .. path_, "fail", "missing " .. path_, "enable KVM/render node or install virtiofsd")
-		end
+		expectPath("host." .. path_, path_, "fail", "enable KVM/render node or install virtiofsd")
 	end
-
 	if os.exists(golden) then
 		local listed = os.execv("grep", { "-qx", "conduit-guest", path.join(root, "vm", "packages.txt") }, { try = true, stdout = "/dev/null", stderr = "/dev/null" })
 		if listed == 0 then
@@ -214,13 +169,10 @@ function doctor(dir, root)
 	else
 		row("golden", "fail", "no golden image", "run xmake vm golden")
 	end
-
 	local verdict = fail == 0 and "nvidia" or "gl"
-
 	local function escape(text)
 		return (text:gsub("\\", "\\\\"):gsub('"', '\\"'))
 	end
-
 	if json then
 		local parts = {}
 		for _, item in ipairs(rows) do
@@ -231,7 +183,6 @@ function doctor(dir, root)
 			verdict, escape(gpu), escape(driver), fail, warn, table.concat(parts, ",")))
 		return
 	end
-
 	for _, item in ipairs(rows) do
 		local line = string.format("%-8s %-4s %-4s %s", item.name, item.status, "", item.detail)
 		if item.fix ~= "" then
@@ -241,9 +192,7 @@ function doctor(dir, root)
 	end
 	print("")
 	print("verdict: " .. verdict)
-
 	if missing ~= 0 then
 		raise("doctor found missing pieces")
 	end
 end
-

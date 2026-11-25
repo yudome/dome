@@ -1,16 +1,12 @@
 function run()
 	local twoPi = math.pi * 2
-
 	local function round(x) return math.floor(x + 0.5) end
-
 	local function clamp01(x) return math.max(0, math.min(1, x)) end
-
 	local function superellipseRadius(angle, exponent)
 		local cos = math.abs(math.cos(angle))
 		local sin = math.abs(math.sin(angle))
 		return (cos ^ exponent + sin ^ exponent) ^ (-1 / exponent)
 	end
-
 	local function shapePoints(spec)
 		local width = math.max(1, spec.width or 1)
 		local height = math.max(1, spec.height or 1)
@@ -21,7 +17,6 @@ function run()
 		local samples = math.max(24, round(spec.samples or 128))
 		local cx, cy = width / 2, height / 2
 		local points = {}
-
 		for i = 0, samples - 1 do
 			local fraction = i / samples
 			local angle = fraction * twoPi - math.pi / 2
@@ -33,7 +28,6 @@ function run()
 		end
 		return points
 	end
-
 	local function blendPoints(from, to, progress)
 		local amount = clamp01(progress)
 		local points = {}
@@ -42,7 +36,6 @@ function run()
 		end
 		return points
 	end
-
 	local function rotatePoints(points, cx, cy, angle)
 		if angle == 0 then return points end
 		local cos, sin = math.cos(angle), math.sin(angle)
@@ -54,7 +47,6 @@ function run()
 		end
 		return out
 	end
-
 	local function ellipsePoints(cx, cy, radiusX, radiusY, samples)
 		local count = math.max(12, round(samples or 24))
 		local points = {}
@@ -65,7 +57,6 @@ function run()
 		end
 		return points
 	end
-
 	local function roundedRectPoints(cx, cy, halfWidth, halfHeight, radius, samples)
 		local count = math.max(2, round((samples or 40) / 4))
 		local r = math.min(radius, math.min(halfWidth, halfHeight))
@@ -86,14 +77,12 @@ function run()
 		end
 		return points
 	end
-
 	local function socketInside(outline, cx, cy, radiusX, radiusY, samples, margin)
 		local total = #outline / 2
 		local stride = math.max(1, math.floor(total / 48))
 		local count = math.floor(total / stride)
 		local gap = margin or 0
 		local edge = roundedRectPoints(cx, cy, radiusX + gap, radiusY + gap, math.min(radiusX, radiusY) + gap, samples or 24)
-
 		for i = 1, #edge, 2 do
 			local x, y = edge[i], edge[i + 1]
 			local insidePoint = false
@@ -111,7 +100,6 @@ function run()
 		end
 		return true
 	end
-
 	local function clipSockets(outline, sockets, margin)
 		local function inside(socket, factor)
 			return socketInside(outline, socket.x, socket.y, socket.radiusX * factor, socket.radiusY * factor, 24, margin or 0)
@@ -131,7 +119,6 @@ function run()
 		end
 		return fitted
 	end
-
 	local function clampShift(outline, sockets, dx, dy, margin)
 		local function fits(t)
 			for _, socket in ipairs(sockets) do
@@ -148,7 +135,6 @@ function run()
 		end
 		return { x = dx * low, y = dy * low }
 	end
-
 	local function circleInside(points, cx, cy)
 		local radius = math.huge
 		for i = 1, #points, 2 do
@@ -156,7 +142,6 @@ function run()
 		end
 		return ellipsePoints(cx, cy, radius, radius, 48)
 	end
-
 	local function maxReach(outline, sockets, travel, margin)
 		local reaches = {}
 		for i = 0, 15 do
@@ -172,7 +157,6 @@ function run()
 		end
 		return out
 	end
-
 	local function reachAt(reaches, angle)
 		local count = #reaches
 		local at = math.fmod(angle / twoPi * count, count)
@@ -181,17 +165,14 @@ function run()
 		local blend = at - low
 		return reaches[low + 1] * (1 - blend) + reaches[(low + 1) % count + 1] * blend
 	end
-
 	local size = 44
 	local width = size * 0.86
 	local height = size * 0.86
 	local margin = size * 0.02
-
 	local sockets = {
 		{ x = width / 2 - size * 0.22, y = height / 2 - size * 0.04, radiusX = size * 0.105, radiusY = size * 0.185 },
 		{ x = width / 2 + size * 0.22, y = height / 2 - size * 0.04, radiusX = size * 0.105, radiusY = size * 0.185 },
 	}
-
 	local shapes = {
 		idle = { exponent = 2, lobes = 1, scallop = 0 },
 		working = { exponent = 2, lobes = 9, scallop = 0.16 },
@@ -199,7 +180,6 @@ function run()
 		error = { exponent = 1, lobes = 1, scallop = 0 },
 	}
 	local names = { "idle", "working", "blocked", "error" }
-
 	local function bodyAt(samples, from, to, morph)
 		local spec = { width = width, height = height, samples = samples }
 		local a, b = {}, {}
@@ -208,7 +188,6 @@ function run()
 		for key, value in pairs(spec) do a[key] = value b[key] = value end
 		return blendPoints(shapePoints(a), shapePoints(b), morph)
 	end
-
 	local function socketInsideWhole(outline, cx, cy, radiusX, radiusY, samples, gap)
 		local count = #outline / 2
 		local edge = roundedRectPoints(cx, cy, radiusX + gap, radiusY + gap, math.min(radiusX, radiusY) + gap, samples)
@@ -226,7 +205,6 @@ function run()
 		end
 		return true
 	end
-
 	local function fitWhole(outline)
 		local low, high = 0, 1
 		for _ = 1, 12 do
@@ -242,7 +220,6 @@ function run()
 		end
 		return low
 	end
-
 	local failures = {}
 	local worst = 0
 	local function check(condition, message)
@@ -252,7 +229,6 @@ function run()
 		end
 		return true
 	end
-
 	for _, samples in ipairs({ 48, 96, 160, 320 }) do
 		for _, from in ipairs(names) do
 			for _, to in ipairs(names) do
@@ -278,7 +254,6 @@ function run()
 		end
 		if #failures > 0 then break end
 	end
-
 	local function area(points)
 		local sum = 0
 		local len = #points
@@ -290,11 +265,9 @@ function run()
 		end
 		return sum
 	end
-
 	for _, name in ipairs(names) do
 		check(area(bodyAt(48, name, name, 1)) * area(roundedRectPoints(10, 10, 3, 6, 3, 40)) < 0, "eye winds with the " .. name .. " body")
 	end
-
 	for _, name in ipairs(names) do
 		local body = bodyAt(160, name, name, 1)
 		local fitted = clipSockets(body, sockets, margin)
@@ -310,7 +283,6 @@ function run()
 			end
 		end
 	end
-
 	local body = bodyAt(160, "working", "working", 1)
 	local safe = circleInside(body, width / 2, height / 2)
 	local fitted = clipSockets(safe, sockets, margin)
@@ -325,7 +297,6 @@ function run()
 			end
 		end
 	end
-
 	if #failures > 0 then
 		for index = 1, math.min(8, #failures) do
 			print(failures[index])

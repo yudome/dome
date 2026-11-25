@@ -2,38 +2,31 @@ const std = @import("std");
 const http = @import("primitives/http.zig");
 const json = @import("primitives/json.zig");
 const proc = @import("primitives/proc.zig");
-
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
-
 const langs = [_][]const u8{ "en", "de", "es", "pt", "ja", "zh", "fr", "it", "ko", "ru", "nl", "pl", "tr", "id", "vi", "uk", "hi", "th", "ar" };
 const kao_langs = [_][]const u8{ "en", "de", "es", "pt", "ja", "zh" };
 const cldr_tag = "release-49";
 const emoji_url = "https://unicode.org/Public/emoji/16.0/emoji-test.txt";
 const kao_url = "https://registry.npmjs.org/kaomoji-dataset/-/kaomoji-dataset-1.0.6.tgz";
-
 const Entry = struct {
 	kind: u8,
 	text: []const u8,
 	name: []const u8,
 	keywords: std.StringHashMapUnmanaged(void) = .empty,
 };
-
 const Ref = struct {
 	start: u32,
 	len: u32,
 };
-
 const Parser = struct {
 	allocator: Allocator,
 	io: Io,
 	client: http.Client,
 	cache: []const u8,
-
 	fn init(allocator: Allocator, io: Io, cache: []const u8) Parser {
 		return .{ .allocator = allocator, .io = io, .client = http.Client.init(allocator, io), .cache = cache };
 	}
-
 	fn fetch(self: *Parser, url: []const u8, path: []const u8) ![]const u8 {
 		if (proc.exists(self.io, path)) return path;
 		const reply = try self.client.get(self.allocator, url, null, &.{});
@@ -42,19 +35,16 @@ const Parser = struct {
 		try proc.writeFileAtomic(self.io, self.allocator, path, reply.body);
 		return path;
 	}
-
 	fn fetchCldr(self: *Parser, language: []const u8) ![]const u8 {
 		const url = try std.fmt.allocPrint(self.allocator, "https://raw.githubusercontent.com/unicode-org/cldr/{s}/common/annotations/{s}.xml", .{ cldr_tag, language });
 		const path = try std.fmt.allocPrint(self.allocator, "{s}/cldr/{s}/{s}.xml", .{ self.cache, cldr_tag, language });
 		return self.fetch(url, path);
 	}
 };
-
 const Annotations = struct {
 	name: []const u8 = "",
 	keywords: [][]const u8 = &.{},
 };
-
 fn unescape(allocator: Allocator, text: []const u8, out: *std.ArrayList(u8)) !void {
 	var index: usize = 0;
 	while (index < text.len) {
@@ -93,14 +83,12 @@ fn unescape(allocator: Allocator, text: []const u8, out: *std.ArrayList(u8)) !vo
 		}
 	}
 }
-
 fn loadLanguage(parser: *Parser, allocator: Allocator, language: []const u8) !std.StringHashMapUnmanaged(Annotations) {
 	const path = try parser.fetchCldr(language);
 	const body = try proc.readFile(parser.io, allocator, path);
 	var map: std.StringHashMapUnmanaged(Annotations) = .empty;
 	var scratch: std.ArrayList(u8) = .empty;
 	defer scratch.deinit(allocator);
-
 	var lines = std.mem.splitScalar(u8, body, '\n');
 	while (lines.next()) |raw_line| {
 		const line = std.mem.trim(u8, raw_line, " \t\r");
@@ -111,11 +99,9 @@ fn loadLanguage(parser: *Parser, allocator: Allocator, language: []const u8) !st
 		const rest = line[tag_end + 2 ..];
 		const text_end = std.mem.indexOf(u8, rest, "</annotation>") orelse continue;
 		const tts = std.mem.indexOf(u8, line[cp_end..tag_end + 1], "type=\"tts\"") != null;
-
 		scratch.clearRetainingCapacity();
 		try unescape(allocator, rest[0..text_end], &scratch);
 		const text = try allocator.dupe(u8, scratch.items);
-
 		const entry = try map.getOrPut(allocator, cp);
 		if (!entry.found_existing) entry.value_ptr.* = .{};
 		if (tts) {
@@ -131,7 +117,6 @@ fn loadLanguage(parser: *Parser, allocator: Allocator, language: []const u8) !st
 	}
 	return map;
 }
-
 fn uppercaseFirst(name: []const u8) []const u8 {
 	if (name.len == 0) return name;
 	const upper = std.ascii.toUpper(name[0]);
@@ -140,7 +125,6 @@ fn uppercaseFirst(name: []const u8) []const u8 {
 	copy[0] = upper;
 	return copy;
 }
-
 fn fileref(allocator: Allocator, pool: *std.ArrayList(u8), offsets: *std.StringHashMapUnmanaged(Ref), text: []const u8) !Ref {
 	if (offsets.get(text)) |ref| return ref;
 	const start: u32 = @intCast(pool.items.len);
@@ -149,14 +133,12 @@ fn fileref(allocator: Allocator, pool: *std.ArrayList(u8), offsets: *std.StringH
 	try offsets.put(allocator, text, ref);
 	return ref;
 }
-
 fn gzipDecompress(allocator: Allocator, body: []const u8) ![]u8 {
 	var input = std.Io.Reader.fixed(body);
 	var window: [std.compress.flate.max_window_len]u8 = undefined;
 	var decompress = std.compress.flate.Decompress.init(&input, .gzip, &window);
 	return decompress.reader.allocRemaining(allocator, .unlimited);
 }
-
 fn gzipCompress(allocator: Allocator, body: []const u8) ![]u8 {
 	var window: [std.compress.flate.max_window_len]u8 = undefined;
 	var out: std.Io.Writer.Allocating = try .initCapacity(allocator, 64 * 1024);
@@ -165,14 +147,12 @@ fn gzipCompress(allocator: Allocator, body: []const u8) ![]u8 {
 	try compress.finish();
 	return out.toOwnedSlice();
 }
-
 pub fn main() !void {
 	var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 	defer arena.deinit();
 	const allocator = arena.allocator();
 	var threaded: std.Io.Threaded = .init(std.heap.page_allocator, .{ .async_limit = .nothing, .concurrent_limit = .nothing });
 	const io = threaded.io();
-
 	const args = try proc.args(io, allocator);
 	const repo = proc.repo(io, allocator);
 	const cache = try std.fmt.allocPrint(allocator, "{s}/daemon/cache/launcher-index-src", .{repo});
@@ -182,19 +162,15 @@ pub fn main() !void {
 		if (std.mem.eql(u8, arg, "--force")) force = true;
 	}
 	if (proc.exists(io, out) and !force) return;
-
 	var parser = Parser.init(allocator, io, cache);
-
 	var annotations = std.StringHashMapUnmanaged(std.StringHashMapUnmanaged(Annotations)){};
 	for (langs) |language| {
 		const map = try loadLanguage(&parser, allocator, language);
 		try annotations.put(allocator, language, map);
 	}
-
 	const english = annotations.get("en").?;
 	var seen = std.StringHashMapUnmanaged(void){};
 	var entries: std.ArrayList(Entry) = .empty;
-
 	const emoji_path = try parser.fetch(emoji_url, try std.fmt.allocPrint(allocator, "{s}/emoji-test-16.0.txt", .{cache}));
 	const emoji_body = try proc.readFile(io, allocator, emoji_path);
 	var emoji_lines = std.mem.splitScalar(u8, emoji_body, '\n');
@@ -204,7 +180,6 @@ pub fn main() !void {
 		if (std.mem.indexOf(u8, line, "; fully-qualified") == null) continue;
 		const semi = std.mem.indexOfScalar(u8, line, ';') orelse continue;
 		const codepoints_text = std.mem.trim(u8, line[0..semi], " \t");
-
 		var codepoints: [16]u21 = undefined;
 		var count: usize = 0;
 		var tokens = std.mem.tokenizeAny(u8, codepoints_text, " \t");
@@ -218,7 +193,6 @@ pub fn main() !void {
 			}
 		}
 		if (skin or count == 0) continue;
-
 		var key: std.ArrayList(u8) = .empty;
 		var text: std.ArrayList(u8) = .empty;
 		for (codepoints[0..count]) |cp| {
@@ -228,10 +202,8 @@ pub fn main() !void {
 			if (cp != 0xFE0F) try key.appendSlice(allocator, buffer[0..size]);
 		}
 		if ((try seen.getOrPut(allocator, key.items)).found_existing) continue;
-
 		const annotation = english.get(key.items) orelse english.get(text.items) orelse continue;
 		if (annotation.name.len == 0) continue;
-
 		var keywords: std.StringHashMapUnmanaged(void) = .empty;
 		for (langs) |language| {
 			const map = annotations.get(language) orelse continue;
@@ -239,7 +211,6 @@ pub fn main() !void {
 			for (found.keywords) |word| try keywords.put(allocator, word, {});
 			if (found.name.len > 0) try keywords.put(allocator, found.name, {});
 		}
-
 		try entries.append(allocator, .{
 			.kind = 0,
 			.text = try text.toOwnedSlice(allocator),
@@ -247,7 +218,6 @@ pub fn main() !void {
 			.keywords = keywords,
 		});
 	}
-
 	const archive_path = try parser.fetch(kao_url, try std.fmt.allocPrint(allocator, "{s}/kaomoji-dataset-1.0.6.tgz", .{cache}));
 	const jsonl_path = try std.fmt.allocPrint(allocator, "{s}/kaomoji-dataset-1.0.6.jsonl.gz", .{cache});
 	if (!proc.exists(io, jsonl_path)) {
@@ -266,7 +236,6 @@ pub fn main() !void {
 		const body = found orelse return error.MissingKaomoji;
 		try proc.writeFileAtomic(io, allocator, jsonl_path, body);
 	}
-
 	const jsonl_gz = try proc.readFileLimit(io, allocator, jsonl_path, 64 * 1024 * 1024);
 	const jsonl = try gzipDecompress(allocator, jsonl_gz);
 	var kao_map: std.StringHashMapUnmanaged(usize) = .empty;
@@ -276,7 +245,6 @@ pub fn main() !void {
 		if (line.len == 0) continue;
 		const parsed = try json.parse(allocator, line);
 		if (!std.mem.eql(u8, json.textAt(parsed.value, "tier"), "core")) continue;
-
 		const raw_text = json.textAt(parsed.value, "text");
 		var text: std.ArrayList(u8) = .empty;
 		for (raw_text) |char| {
@@ -286,7 +254,6 @@ pub fn main() !void {
 			});
 		}
 		if (text.items.len == 0) continue;
-
 		var name: std.ArrayList(u8) = .empty;
 		const names = json.field(parsed.value, "names") orelse continue;
 		for (json.textAt(names, "en")) |char| {
@@ -295,7 +262,6 @@ pub fn main() !void {
 				else => char,
 			});
 		}
-
 		var keywords: std.StringHashMapUnmanaged(void) = .empty;
 		for (kao_langs) |language| {
 			if (json.field(parsed.value, "keywords")) |keyword_map| {
@@ -309,7 +275,6 @@ pub fn main() !void {
 			const localized = json.textAt(names, language);
 			if (localized.len > 0) try keywords.put(allocator, localized, {});
 		}
-
 		if (kao_map.get(text.items)) |index| {
 			const old = &entry_list.items[index];
 			var merged = old.keywords;
@@ -323,7 +288,6 @@ pub fn main() !void {
 		}
 	}
 	try entries.appendSlice(allocator, entry_list.items);
-
 	var keyword_set: std.StringHashMapUnmanaged(void) = .empty;
 	for (entries.items) |entry| {
 		var it = entry.keywords.keyIterator();
@@ -334,7 +298,6 @@ pub fn main() !void {
 			try keyword_set.put(allocator, lower, {});
 		}
 	}
-
 	var keyword_list: std.ArrayList([]const u8) = .empty;
 	var keyword_it = keyword_set.keyIterator();
 	while (keyword_it.next()) |word| try keyword_list.append(allocator, word.*);
@@ -343,15 +306,12 @@ pub fn main() !void {
 			return std.mem.order(u8, a, b) == .lt;
 		}
 	}.lessThan);
-
 	var keyword_ids: std.StringHashMapUnmanaged(u32) = .empty;
 	for (keyword_list.items, 0..) |word, index| try keyword_ids.put(allocator, word, @intCast(index));
-
 	var pool: std.ArrayList(u8) = .empty;
 	var offsets: std.StringHashMapUnmanaged(Ref) = .empty;
 	var keyword_refs: std.ArrayList(Ref) = .empty;
 	for (keyword_list.items) |word| try keyword_refs.append(allocator, try fileref(allocator, &pool, &offsets, word));
-
 	var ids: std.ArrayList(u32) = .empty;
 	var records: std.ArrayList(struct {
 		kind: u8,
@@ -361,13 +321,11 @@ pub fn main() !void {
 		start: u32,
 		count: u16,
 	}) = .empty;
-
 	for (entries.items) |entry| {
 		const text_ref = try fileref(allocator, &pool, &offsets, entry.text);
 		const name_ref = try fileref(allocator, &pool, &offsets, entry.name);
 		const lower = try std.ascii.allocLowerString(allocator, entry.name);
 		const lower_ref = try fileref(allocator, &pool, &offsets, lower);
-
 		var entry_ids: std.ArrayList(u32) = .empty;
 		var it = entry.keywords.keyIterator();
 		while (it.next()) |word| {
@@ -382,7 +340,6 @@ pub fn main() !void {
 			if (!duplicate) try entry_ids.append(allocator, id);
 		}
 		std.mem.sort(u32, entry_ids.items, {}, std.sort.asc(u32));
-
 		const start: u32 = @intCast(ids.items.len);
 		try ids.appendSlice(allocator, entry_ids.items);
 		try records.append(allocator, .{
@@ -394,7 +351,6 @@ pub fn main() !void {
 			.count = @intCast(entry_ids.items.len),
 		});
 	}
-
 	const id_size: u32 = if (keyword_list.items.len <= 65535) 2 else 4;
 	var body: std.ArrayList(u8) = .empty;
 	try body.appendSlice(allocator, "YIDX");
@@ -438,7 +394,6 @@ pub fn main() !void {
 		std.mem.writeInt(u16, raw[31..33], 0, .little);
 		try body.appendSlice(allocator, &raw);
 	}
-
 	const gz = try gzipCompress(allocator, body.items);
 	try proc.writeFileAtomic(io, allocator, out, gz);
 	std.debug.print("launcher index: {d} entries, {d} keywords, {d} bytes\n", .{ records.items.len, keyword_list.items.len, gz.len });

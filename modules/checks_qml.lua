@@ -3,7 +3,6 @@ function run(root, dir)
 	os.tryrm(imports)
 	os.mkdir(imports)
 	os.ln(dir, path.join(imports, "qs"))
-
 	local fail = 0
 	local lint = "/usr/lib/qt6/bin/qmllint"
 	if not os.isfile(lint) then
