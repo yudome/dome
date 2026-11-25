@@ -9,6 +9,7 @@ test {
 	_ = @import("primitives/proc.zig");
 	_ = @import("primitives/watch.zig");
 	_ = @import("primitives/sock.zig");
+	_ = @import("primitives/wayland.zig");
 	_ = @import("ipc.zig");
 	_ = @import("providers/opencode.zig");
 	_ = @import("providers/codex.zig");
@@ -32,6 +33,7 @@ test {
 	_ = @import("providers/audio.zig");
 	_ = @import("providers/wallpaper.zig");
 	_ = @import("providers/ink.zig");
+	_ = @import("providers/stills.zig");
 	_ = @import("providers/bar.zig");
 	_ = @import("providers/launcher.zig");
 	_ = @import("providers/files/index.zig");

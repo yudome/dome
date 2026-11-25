@@ -19,3 +19,4 @@ config/zsh/.zsh_history
 /config/kconf_updaterc
 /PLANS.md
 /plans.md
+/daemon/.deps/

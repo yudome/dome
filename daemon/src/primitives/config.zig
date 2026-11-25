@@ -226,6 +226,24 @@ pub const Config = struct {
 		return out.toOwnedSlice(allocator);
 	}
 
+	pub fn floats(self: Config, name: []const u8, allocator: Allocator) ![]f64 {
+		const items = switch (find(self.root, name) orelse return &.{}) {
+			.array => |items| items,
+			else => return &.{},
+		};
+
+		const out = try allocator.alloc(f64, items.len);
+		for (items, 0..) |item, index| {
+			out[index] = switch (item) {
+				.integer => |n| @floatFromInt(n),
+				.float => |n| n,
+				else => return error.NotANumber,
+			};
+		}
+
+		return out;
+	}
+
 	pub fn strings(self: Config, name: []const u8, allocator: Allocator) ![][]u8 {
 		const items = switch (find(self.root, name) orelse return &.{}) {
 			.array => |items| items,

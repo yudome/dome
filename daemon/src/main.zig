@@ -26,6 +26,8 @@ const network = @import("providers/network.zig");
 const audio = @import("providers/audio.zig");
 const wallpaper = @import("providers/wallpaper.zig");
 const ink = @import("providers/ink.zig");
+const stills = @import("providers/stills.zig");
+const wayland = @import("primitives/wayland.zig");
 const bar = @import("providers/bar.zig");
 const launcher = @import("providers/launcher.zig");
 const icons = @import("providers/icons.zig");
@@ -313,12 +315,17 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 
 			if (path.len > 0) {
 				const fade = if (json.field(target, "fade")) |_| json.flag(target, "fade") else true;
-				context.wallpaper.save(path);
-				context.ink.apply(path, band, fade);
+				const output = json.textAt(target, "output");
+				if (output.len == 0) context.wallpaper.save(path);
+				context.ink.apply(path, band, json.textAt(target, "transition"), fade, output);
 			}
 		}
 
 		if (json.flag(wp_cmd, "scan")) context.wallpaper.reload();
+		if (json.field(wp_cmd, "play") != null) wayland.play();
+		if (json.field(wp_cmd, "settle") != null) wayland.settle();
+		if (json.field(wp_cmd, "pause")) |paused| wayland.pause(paused == .bool and paused.bool);
+		if (json.field(wp_cmd, "frame")) |frame| context.ink.saveStill(json.textAt(frame, "path"), json.numberAt(frame, "t"));
 
 		return;
 	}
@@ -434,6 +441,7 @@ fn callThunk(ctx: *anyopaque, target: []const u8, method: []const u8, args: json
 	if (std.mem.eql(u8, target, "plugins")) return context.plugins.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "bar")) return context.bar.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "settings")) return context.config.call(method, args, alloc);
+	if (std.mem.eql(u8, target, "wallpaper") and (std.mem.eql(u8, method, "filmstrip") or std.mem.eql(u8, method, "preview") or std.mem.eql(u8, method, "stats"))) return context.ink.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "state")) return context.hub.syncSnapshot(allocator);
 	if (std.mem.eql(u8, target, "ui")) return context.hub.syncSnapshot(allocator);
 
@@ -506,9 +514,10 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "mcp")) return cli.mcp(io, args);
 	if (std.mem.eql(u8, command, "fsd") or std.mem.eql(u8, command, "yudae-fsd")) return fsd.run(io);
 	if (std.mem.eql(u8, command, "files-index")) return files.command(io, args);
+	if (std.mem.eql(u8, command, "transition")) return cli.transition(io, args);
 
 	if (!std.mem.eql(u8, command, "run")) {
-		std.debug.print("usage: yudae [--json] [run|restart|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|settings|bar|ui|spawn-check|logout|files rebuild]\n", .{});
+		std.debug.print("usage: yudae [--json] [run|restart|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|settings|bar|ui|spawn-check|logout|files rebuild|transition check <file>]\n", .{});
 		return;
 	}
 
@@ -600,6 +609,8 @@ fn run(io: std.Io) !void {
 
 	const ink_provider = try ink.Ink.create(allocator, io, hub);
 	ink_provider.attach(wallpaper_provider);
+	const stills_store = try stills.Stills.create(allocator, io);
+	ink_provider.stills = stills_store;
 	wallpaper_provider.onRescan(.{ .ctx = ink_provider, .run = ink.Ink.rescanned });
 	try hub.add(ink_provider.provider());
 
