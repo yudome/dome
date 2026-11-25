@@ -212,7 +212,8 @@ pub const Config = struct {
 };
 
 pub fn openApp(io: Io, alloc: Allocator, name: []const u8, pane: []const u8) ![]u8 {
-	const script = try std.fmt.allocPrint(alloc, "{s}/scripts/yudae", .{proc.repo(io, alloc)});
+	var exe_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+	const script = proc.selfExe(io, &exe_buffer);
 	const argv = try appArgv(alloc, script, name, pane);
 	_ = exec.spawn(io, .{
 		.argv = argv,
@@ -235,15 +236,15 @@ test "settings.app opens the settings app, on a pane when one is named" {
 	defer arena.deinit();
 	const a = arena.allocator();
 
-	const plain = try appArgv(a, "/r/scripts/yudae", "settings", "");
+	const plain = try appArgv(a, "/proc/self/exe", "settings", "");
 	try std.testing.expectEqual(@as(usize, 5), plain.len);
 	try std.testing.expectEqualStrings("settings", plain[4]);
 
-	const pane = try appArgv(a, "/r/scripts/yudae", "settings", "display");
+	const pane = try appArgv(a, "/proc/self/exe", "settings", "display");
 	try std.testing.expectEqualStrings("--pane", pane[5]);
 	try std.testing.expectEqualStrings("display", pane[6]);
 
-	try std.testing.expectError(error.BadPane, appArgv(a, "/r/scripts/yudae", "settings", "a/b"));
+	try std.testing.expectError(error.BadPane, appArgv(a, "/proc/self/exe", "settings", "a/b"));
 }
 
 const Literal = enum { string, integer, float, boolean };

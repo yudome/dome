@@ -244,12 +244,12 @@ fn stampAgent(io: Io, allocator: std.mem.Allocator, name: []const u8, harness: [
 }
 
 fn spawnViewer(io: Io, allocator: std.mem.Allocator, name: []const u8) void {
+	_ = allocator;
 	if (name.len == 0) return;
 
-	const script = std.fmt.allocPrint(allocator, "{s}/scripts/yudae", .{proc.repo(io, allocator)}) catch return;
-
+	var exe_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
 	_ = exec.spawn(io, .{
-		.argv = &.{ "setsid", script, "vm", "view", name },
+		.argv = &.{ "setsid", proc.selfExe(io, &exe_buffer), "vm", "view", name },
 		.stdin = .ignore,
 		.stdout = .ignore,
 		.stderr = .ignore,
@@ -327,9 +327,9 @@ fn fetch(io: Io, allocator: std.mem.Allocator) ![]const u8 {
 }
 
 fn runSelf(io: Io, allocator: std.mem.Allocator, argv: []const []const u8) ![]const u8 {
-	const self_path = try proc.readFile(io, allocator, "/proc/self/exe");
+	var exe_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
 	var full: std.ArrayList([]const u8) = .empty;
-	try full.append(allocator, std.mem.trimEnd(u8, self_path, "\x00\n"));
+	try full.append(allocator, proc.selfExe(io, &exe_buffer));
 
 	for (argv) |arg| try full.append(allocator, arg);
 

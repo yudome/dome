@@ -98,6 +98,20 @@ pub fn repo(io: Io, allocator: Allocator) []const u8 {
 	return std.fmt.allocPrint(allocator, "{s}/dotfiles", .{home(io, allocator)}) catch "/home/gabriel/dotfiles";
 }
 
+pub fn selfExe(io: Io, buffer: *[std.Io.Dir.max_path_bytes]u8) []const u8 {
+	const len = std.Io.Dir.readLinkAbsolute(io, "/proc/self/exe", buffer) catch return "yudae";
+	return buffer[0..len];
+}
+
+test "the running binary path is resolved, not left as /proc/self/exe" {
+	var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+	const path = selfExe(std.testing.io, &buffer);
+
+	try std.testing.expect(path.len > 0);
+	try std.testing.expect(std.mem.startsWith(u8, path, "/"));
+	try std.testing.expect(!std.mem.eql(u8, path, "/proc/self/exe"));
+}
+
 pub fn runtimeDir(io: Io, allocator: Allocator) []const u8 {
 	return env(io, allocator, "XDG_RUNTIME_DIR") orelse "/tmp";
 }

@@ -926,12 +926,10 @@ pub const Launcher = struct {
 	fn yudaeVm(self: *Launcher, verb: []const u8, name: []const u8) void {
 		if (name.len == 0) return;
 
-		const repo = proc.repo(self.io, self.allocator);
-		const script = std.fmt.allocPrint(self.allocator, "{s}/scripts/yudae", .{repo}) catch return;
-		defer self.allocator.free(script);
-
+		var exe_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+		const argv = [_][]const u8{ "setsid", proc.selfExe(self.io, &exe_buffer), "vm", verb, name };
 		_ = exec.spawn(self.io, .{
-			.argv = &.{ "setsid", script, "vm", verb, name },
+			.argv = &argv,
 			.stdin = .ignore,
 			.stdout = .ignore,
 			.stderr = .ignore,
@@ -941,12 +939,10 @@ pub const Launcher = struct {
 	fn yudaeApp(self: *Launcher, name: []const u8) void {
 		if (name.len == 0) return;
 
-		const repo = proc.repo(self.io, self.allocator);
-		const script = std.fmt.allocPrint(self.allocator, "{s}/scripts/yudae", .{repo}) catch return;
-		defer self.allocator.free(script);
-
+		var exe_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+		const argv = [_][]const u8{ "setsid", proc.selfExe(self.io, &exe_buffer), "app", "open", name };
 		_ = exec.spawn(self.io, .{
-			.argv = &.{ "setsid", script, "app", "open", name },
+			.argv = &argv,
 			.stdin = .ignore,
 			.stdout = .ignore,
 			.stderr = .ignore,

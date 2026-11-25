@@ -583,10 +583,10 @@ pub const Disk = struct {
 	}
 
 	fn openApp(self: *Disk, alloc: Allocator) ![]u8 {
-		const repo = proc.repo(self.io, self.allocator);
-		const script = try std.fmt.allocPrint(alloc, "{s}/scripts/yudae", .{repo});
+		var exe_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+		const argv = [_][]const u8{ "setsid", proc.selfExe(self.io, &exe_buffer), "app", "open", "disk" };
 		_ = exec.spawn(self.io, .{
-			.argv = &.{ "setsid", script, "app", "open", "disk" },
+			.argv = &argv,
 			.stdin = .ignore,
 			.stdout = .ignore,
 			.stderr = .ignore,
