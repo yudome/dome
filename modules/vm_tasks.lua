@@ -79,7 +79,7 @@ function doctor(dir, root)
 		for _, tool in ipairs({ "zig", "xmake", "make", "qemu-system-x86_64", "qemu-img" }) do
 			mark(capture("command -v " .. tool) ~= "", tool)
 		end
-		for _, path_ in ipairs({ "/usr/lib/virtiofsd", "/dev/kvm", "/dev/vhost-vsock", "/dev/dri/renderD128" }) do
+		for _, path_ in ipairs({ "/usr/lib/virtiofsd", "/usr/bin/passt", "/dev/kvm", "/dev/vhost-vsock", "/dev/dri/renderD128" }) do
 			mark(os.exists(path_), path_)
 		end
 		mark(os.isfile(path.join(root, "daemon", "zig-out", "bin", "yudaemond")), "daemon binary")
@@ -156,8 +156,8 @@ function doctor(dir, root)
 	else
 		row("ovmf", "warn", "no OVMF firmware", "install ovmf; required for the 64-bit GPU BAR")
 	end
-	for _, path_ in ipairs({ "/dev/kvm", "/dev/dri/renderD128", "/usr/lib/virtiofsd" }) do
-		expectPath("host." .. path_, path_, "fail", "enable KVM/render node or install virtiofsd")
+	for _, path_ in ipairs({ "/dev/kvm", "/dev/dri/renderD128", "/usr/lib/virtiofsd", "/usr/bin/passt" }) do
+		expectPath("host." .. path_, path_, "fail", "enable KVM/render node or install virtiofsd and passt")
 	end
 	if os.exists(golden) then
 		local listed = os.execv("grep", { "-qx", "conduit-guest", path.join(root, "vm", "packages.txt") }, { try = true, stdout = "/dev/null", stderr = "/dev/null" })
