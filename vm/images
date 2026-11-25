@@ -991,8 +991,6 @@ if [ -d /mnt/nvidia/lib ]; then
 	export __EGL_VENDOR_LIBRARY_FILENAMES=/mnt/nvidia/share/glvnd/egl_vendor.d/10_nvidia.json
 	export __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS=/mnt/nvidia/share/egl/egl_external_platform.d:/usr/share/egl/egl_external_platform.d
 	export VK_ICD_FILENAMES=/mnt/nvidia/share/vulkan/icd.d/nvidia_icd.json
-else
-	export AQ_NO_ATOMIC=1
 fi
 systemctl --user start pipewire.socket pipewire-pulse.socket wireplumber.service 2>/dev/null || true
 exec /usr/bin/start-hyprland
