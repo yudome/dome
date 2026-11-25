@@ -145,6 +145,7 @@ const Row = struct {
 	image: bool = false,
 	pid: i32 = 0,
 	value: f64 = 0,
+	memory: i64 = 0,
 	keywords: []const []const u8 = &.{},
 	score: f64 = 0,
 	pre_scored: bool = false,
@@ -1347,6 +1348,7 @@ pub const Launcher = struct {
 				.app_id = copy,
 				.pid = entry.pid,
 				.value = entry.cpu,
+				.memory = entry.rss_kb,
 			});
 		}
 
@@ -2241,7 +2243,7 @@ fn rememberable(id: []const u8) bool {
 fn detailOf(arena: Allocator, row: Row) ![]const u8 {
 	if (!std.mem.eql(u8, row.kind, "proc")) return "";
 
-	return std.fmt.allocPrint(arena, "{d:.1}%", .{row.value});
+	return std.fmt.allocPrint(arena, "{d:>6.1}%   {s:>9}", .{ row.value, try sysmod.kbText(arena, row.memory) });
 }
 
 fn displayMode(mode: []const u8) []const u8 {
@@ -2549,6 +2551,13 @@ test "process rows keep every process, hottest first" {
 	try std.testing.expectEqual(@as(i32, 8), rows.items[0].pid);
 	try std.testing.expectEqual(@as(i32, 9), rows.items[1].pid);
 	try std.testing.expectEqual(@as(i32, 7), rows.items[2].pid);
+}
+
+test "process detail shows cpu and ram" {
+	var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+	defer arena.deinit();
+
+	try std.testing.expectEqualStrings("  12.5%      1.5 MB", try detailOf(arena.allocator(), .{ .id = "", .kind = "proc", .name = "", .glyph = "", .value = 12.5, .memory = 1536 }));
 }
 
 test "every mode id renders rows of its own kind" {

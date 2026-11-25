@@ -44,6 +44,7 @@ pub const TopOut = struct {
 	name: [16]u8 = undefined,
 	name_len: usize = 0,
 	cpu: f64,
+	rss_kb: i64 = 0,
 
 	pub fn getName(self: *const TopOut) []const u8 {
 		return self.name[0..self.name_len];
@@ -315,7 +316,7 @@ pub const System = struct {
 		const out = try arena.alloc(TopOut, self.all.items.len);
 
 		for (self.all.items, 0..) |*entry, index| {
-			out[index] = .{ .pid = entry.pid, .name = entry.comm, .name_len = entry.comm_len, .cpu = entry.cpu };
+			out[index] = .{ .pid = entry.pid, .name = entry.comm, .name_len = entry.comm_len, .cpu = entry.cpu, .rss_kb = entry.rss_kb };
 		}
 
 		return out;
@@ -914,7 +915,7 @@ fn awakeWanted(mode: AwakeMode, working: bool) bool {
 	return mode == .on or (mode == .auto and working);
 }
 
-fn kbText(arena: Allocator, kb: i64) ![]const u8 {
+pub fn kbText(arena: Allocator, kb: i64) ![]const u8 {
 	const value: f64 = @floatFromInt(kb);
 
 	if (kb >= 1024 * 1024) return std.fmt.allocPrint(arena, "{d:.1} GB", .{value / 1024 / 1024});
