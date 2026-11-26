@@ -21,31 +21,10 @@ Item {
 	HyprBorder {
 		id: card
 
-		property real shift: 0
-		readonly property rect dock: root.view.dock
-		readonly property bool docks: card.dock.width > 0 && card.dock.height > 0
-		readonly property real restWidth: Config.lockCardWidth + card.inset * 2
-		readonly property real restHeight: column.implicitHeight + card.inset * 2
-		readonly property real restX: (root.width - card.restWidth) / 2
-		readonly property real grow: tall.height + column.spacing
-		readonly property real restY: (root.height - card.restHeight - card.grow) / 2
-		readonly property real fold: root.view.phase(0, 0.35)
-		readonly property real rise: card.docks ? root.view.phase(0.35, 0.65) : 0
-		readonly property real fill: card.docks ? root.view.phase(0.6, 0.95) : 0
-		readonly property real foldHeight: card.docks ? card.dock.height : 0
-		readonly property real middle: card.mix(card.restY + card.restHeight / 2, card.dock.y + card.dock.height / 2, card.rise)
-
-		function mix(a, b, t) {
-			return a + (b - a) * t;
-		}
-
-		x: card.mix(card.restX, card.dock.x, card.fill) + card.shift
-		y: card.middle - card.height / 2
-		width: card.mix(card.restWidth, card.dock.width, card.fill)
-		height: card.mix(card.restHeight, card.foldHeight, card.fold)
-		opacity: 1 - root.view.phase(card.docks ? 0.95 : 0.3, 1)
-		borderOpacity: 1 - card.fill
-		clip: root.view.outro > 0
+		anchors.horizontalCenter: parent.horizontalCenter
+		anchors.verticalCenter: parent.verticalCenter
+		width: Config.lockCardWidth + card.inset * 2
+		height: column.implicitHeight + card.inset * 2
 		padding: Config.launcherPadding
 		backgroundColor: Config.surfaceTranslucent
 
@@ -61,23 +40,17 @@ Item {
 			id: shake
 
 			loops: 2
-			NumberAnimation { target: card; property: "shift"; to: Config.launcherPadding; duration: Motion.toggleMs / 2 }
-			NumberAnimation { target: card; property: "shift"; to: -Config.launcherPadding; duration: Motion.toggleMs }
-			NumberAnimation { target: card; property: "shift"; to: 0; duration: Motion.toggleMs / 2 }
+			NumberAnimation { target: card; property: "anchors.horizontalCenterOffset"; to: Config.launcherPadding; duration: Motion.toggleMs / 2 }
+			NumberAnimation { target: card; property: "anchors.horizontalCenterOffset"; to: -Config.launcherPadding; duration: Motion.toggleMs }
+			NumberAnimation { target: card; property: "anchors.horizontalCenterOffset"; to: 0; duration: Motion.toggleMs / 2 }
 		}
 
 		Column {
 			id: column
 
-			y: (card.height - card.restHeight) / 2
 			width: parent.width
 			visible: !root.choosing
 			spacing: Config.launcherGap
-			opacity: 1 - root.view.phase(0, 0.25)
-			transform: Scale {
-				origin.y: column.height / 2
-				yScale: 1 - card.fold
-			}
 
 			Label {
 				width: parent.width
@@ -94,13 +67,6 @@ Item {
 				font.pixelSize: Config.lockDateSize
 				ink: Config.muted
 				text: Qt.formatDate(clock.date, Config.lockDateFormat)
-			}
-
-			Item {
-				id: tall
-
-				width: 1
-				height: Config.lockCardGrow
 			}
 
 			SearchField {

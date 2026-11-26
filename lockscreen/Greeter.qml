@@ -74,20 +74,6 @@ Scope {
 		greeter: true
 		user: greetd.userName
 		onUnlocked: greetd.launch()
-		onModeChanged: if (greeterStore.mode === "open")
-			leave.restart()
-	}
-
-	property real outro: 0
-
-	NumberAnimation {
-		id: leave
-
-		target: root
-		property: "outro"
-		from: 0
-		to: 1
-		duration: Config.lockFadeMs
 	}
 
 	Variants {
@@ -112,7 +98,6 @@ Scope {
 			Surface {
 				anchors.fill: parent
 				store: greeterStore
-				outro: root.outro
 				auth: greetd
 				entry: root.greeter
 				userName: greetd.userName

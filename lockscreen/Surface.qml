@@ -10,8 +10,6 @@ Item {
 	property var entry: ({})
 	property string userName: ""
 	property string home: ""
-	property rect dock: Qt.rect(0, 0, 0, 0)
-	property real outro: 0
 
 	readonly property bool greeter: root.auth !== null
 	readonly property bool shown: root.store.awake && root.store.mode !== "open"
@@ -33,30 +31,20 @@ Item {
 		}
 	}
 
-	function phase(from, to) {
-		const t = Math.min(1, Math.max(0, (root.outro - from) / (to - from)));
-		return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(2 - 2 * t, 3) / 2;
+	Backdrop {
+		id: backdrop
+
+		anchors.fill: parent
+		entry: root.entry
 	}
 
-	Item {
+	Rectangle {
 		anchors.fill: parent
-		opacity: 1 - root.phase(0.25, 1)
+		color: Config.surface
+		opacity: root.shown ? Config.wallpaperScrim : 0
 
-		Backdrop {
-			id: backdrop
-
-			anchors.fill: parent
-			entry: root.entry
-		}
-
-		Rectangle {
-			anchors.fill: parent
-			color: Config.surface
-			opacity: root.store.awake ? Config.wallpaperScrim : 0
-
-			Fade on opacity {
-				duration: Config.lockFadeMs
-			}
+		Fade on opacity {
+			duration: Config.lockFadeMs
 		}
 	}
 
@@ -74,7 +62,7 @@ Item {
 		id: controls
 
 		anchors.fill: parent
-		opacity: root.store.awake ? 1 : 0
+		opacity: root.shown ? 1 : 0
 		enabled: root.shown
 
 		Fade on opacity {
