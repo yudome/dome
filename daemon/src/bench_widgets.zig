@@ -61,7 +61,6 @@ pub const specs = [_]Spec{
 	.{ .id = "killPopupsLocal", .kind = .control, .note = "control entry point, closes the launcher" },
 	.{ .id = "closeBarPopups", .kind = .control, .note = "control entry point, closes bar popups" },
 	.{ .id = "closeLauncher", .kind = .control, .note = "control entry point, closes the launcher" },
-	.{ .id = "display", .kind = .layer },
 	.{ .id = "agent", .kind = .layer },
 	.{ .id = "power", .kind = .layer },
 	.{ .id = "powerMenu", .kind = .frame },
@@ -1017,7 +1016,7 @@ test "the widget list matches the shell entry points" {
 		"launcher",       "clipboard",   "windows", "windowsStep",   "cpu",      "memory",
 		"volume",         "calendar",    "weather", "notifications", "github",   "media",
 		"network",        "speedtest",   "bareBar", "killPopups",    "killPopupsLocal",
-		"closeBarPopups", "closeLauncher", "display", "agent",       "power",    "powerMenu",
+		"closeBarPopups", "closeLauncher", "agent",   "power",       "powerMenu",
 		"tray",           "wallpaper",
 	};
 

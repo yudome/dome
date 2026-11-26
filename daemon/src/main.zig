@@ -70,7 +70,6 @@ pub const Context = struct {
 	system: *system.System,
 	apps: *apps.Apps,
 	screen: *screen.Screen,
-	settings: *settings.Settings,
 	config: *config_provider.Config,
 	network: *network.Network,
 	audio: *audio.Audio,
@@ -341,43 +340,6 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 		if (json.field(wp_cmd, "settle") != null) wayland.settle();
 		if (json.field(wp_cmd, "pause")) |paused| wayland.pause(paused == .bool and paused.bool);
 		if (json.field(wp_cmd, "frame")) |frame| context.ink.saveStill(json.textAt(frame, "path"), json.numberAt(frame, "t"));
-
-		return;
-	}
-
-	if (json.field(value, "screen")) |screen_cmd| {
-		const key = json.textAt(screen_cmd, "key");
-		if (key.len > 0) context.screen.key(key);
-
-		const code = json.field(screen_cmd, "keyCode");
-		if (code) |value_code| context.screen.keyCode(json.integer(value_code));
-
-		if (json.field(screen_cmd, "pick")) |pick| {
-			const kind = json.textAt(pick, "kind");
-			const choice = json.textAt(pick, "value");
-
-			if (kind.len > 0) context.screen.pick(kind, choice);
-		}
-
-		if (json.flag(screen_cmd, "detect")) context.screen.detect();
-
-		return;
-	}
-
-	if (json.field(value, "settings")) |settings_cmd| {
-		if (json.field(settings_cmd, "output")) |output| {
-			const name = json.textAt(output, "name");
-			const mode = json.field(output, "mode");
-			const scale = json.field(output, "scale");
-
-			if (name.len > 0) {
-				context.settings.setOutput(
-					name,
-					if (mode) |m| json.text(m) else null,
-					if (scale) |s| json.number(s) else null,
-				);
-			}
-		}
 
 		return;
 	}
@@ -678,7 +640,6 @@ fn run(io: std.Io) !void {
 	const disk_provider = try disk.Disk.create(allocator, io, hub);
 	try hub.add(disk_provider.provider());
 
-	screen_provider.attachSettings(settings_provider);
 
 	const context = try allocator.create(Context);
 	context.* = .{
@@ -700,7 +661,6 @@ fn run(io: std.Io) !void {
 		.system = system_provider,
 		.apps = apps_provider,
 		.screen = screen_provider,
-		.settings = settings_provider,
 		.config = config_settings,
 		.network = network_provider,
 		.audio = audio_provider,

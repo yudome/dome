@@ -46,7 +46,6 @@ const glyph_wallpaper = "\u{f0e09}";
 const glyph_process = "\u{f0874}";
 const glyph_vm = "\u{f0379}";
 const glyph_disk = "\u{f0a0}";
-const glyph_settings = "\u{f013}";
 const glyph_power = "\u{f011}";
 const glyph_prompt = "\u{ea6d}";
 const glyph_emoji = "\u{f118}";
@@ -64,7 +63,6 @@ const modes = [_]Mode{
 	.{ .mode = "procs", .name = "Processes", .mark = "%", .glyph = glyph_process },
 	.{ .mode = "vms", .name = "Virtual machines", .mark = "", .glyph = glyph_vm },
 	.{ .mode = "disk", .name = "Disk", .mark = "", .glyph = glyph_disk },
-	.{ .mode = "settings", .name = "Settings", .mark = "", .glyph = glyph_settings },
 	.{ .mode = "emoji", .name = "Emoji & Kaomoji", .mark = ":", .glyph = glyph_emoji },
 };
 
@@ -913,11 +911,6 @@ pub const Launcher = struct {
 			return;
 		}
 
-		if (std.mem.eql(u8, id, "settings:app")) {
-			self.yudaeApp("settings");
-			return;
-		}
-
 		if (std.mem.eql(u8, id, "calc")) self.copyCalc();
 	}
 
@@ -1173,17 +1166,6 @@ pub const Launcher = struct {
 				.name = "Disk map",
 				.glyph = glyph_disk,
 				.mode = "disk",
-			});
-			return rows.items;
-		}
-
-		if (std.mem.eql(u8, mode, "settings")) {
-			try rows.append(arena, .{
-				.id = "settings:app",
-				.kind = "mode",
-				.name = "Settings",
-				.glyph = glyph_settings,
-				.mode = "settings",
 			});
 			return rows.items;
 		}
@@ -2608,7 +2590,7 @@ test "every mode id renders rows of its own kind" {
 				std.mem.eql(u8, row.kind, "proc")
 			else if (std.mem.eql(u8, mode.mode, "emoji"))
 				std.mem.eql(u8, row.kind, "emoji") or std.mem.eql(u8, row.kind, "kaomoji")
-			else if (std.mem.eql(u8, mode.mode, "disk") or std.mem.eql(u8, mode.mode, "settings"))
+			else if (std.mem.eql(u8, mode.mode, "disk"))
 				std.mem.eql(u8, row.kind, "mode")
 			else
 				false;
