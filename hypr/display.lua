@@ -1,5 +1,5 @@
 local repo = require("repo")
-local path = repo .. "/shell/cache/display.lua"
+local path = repo .. "/cache/.shell/display.lua"
 
 local ok, saved = pcall(dofile, path)
 if not ok or type(saved) ~= "table" then saved = {} end

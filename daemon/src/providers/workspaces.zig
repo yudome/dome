@@ -165,7 +165,7 @@ pub const Workspaces = struct {
 		defer arena.deinit();
 
 		const allocator = arena.allocator();
-		const path = std.fmt.allocPrint(allocator, "{s}/shell/cache/versions.json", .{proc.repo(self.io, allocator)}) catch return;
+		const path = std.fmt.allocPrint(allocator, "{s}/cache/.shell/versions.json", .{proc.repo(self.io, allocator)}) catch return;
 		const body = proc.readFile(self.io, allocator, path) catch return;
 
 		seedVersions(&self.versions, allocator, body);

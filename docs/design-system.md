@@ -25,7 +25,7 @@ TLDR: theme-driven, dense, glyph-driven. Every value is a token in `shell/servic
 
 ## Tokens
 
-Source: `Config.qml`. Each token reads `settings.<name>` with a built-in default. `settings` is the daemon's live snapshot (`Yudae.settings`), else `shell/cache/settings.json`.
+Source: `Config.qml`. Each token reads `settings.<name>` with a built-in default. `settings` is the daemon's live snapshot (`Yudae.settings`), else `cache/.shell/settings.json`.
 
 Files: one TOML per category in `shell/config/`: `appearance`, `display`, `general`, `icons`, `launcher`, `popups`, `power`, `wallpaper`, `widgets`.
 

@@ -321,7 +321,7 @@ pub const Launcher = struct {
 	}
 
 	fn stateDir(self: *Launcher, allocator: Allocator) ![]u8 {
-		return std.fmt.allocPrint(allocator, "{s}/dotfiles/shell/cache/launcher", .{proc.home(self.io, self.allocator)});
+		return std.fmt.allocPrint(allocator, "{s}/dotfiles/cache/.shell/launcher", .{proc.home(self.io, self.allocator)});
 	}
 
 	fn cacheFile(self: *Launcher, allocator: Allocator, name: []const u8) ![]u8 {
@@ -330,7 +330,7 @@ pub const Launcher = struct {
 	}
 
 	fn statePath(self: *Launcher, allocator: Allocator, name: []const u8) ![]u8 {
-		return std.fmt.allocPrint(allocator, "{s}/dotfiles/shell/cache/launcher/{s}", .{ proc.home(self.io, self.allocator), name });
+		return std.fmt.allocPrint(allocator, "{s}/dotfiles/cache/.shell/launcher/{s}", .{ proc.home(self.io, self.allocator), name });
 	}
 
 	fn load(self: *Launcher) void {

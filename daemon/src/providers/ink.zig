@@ -17,7 +17,7 @@ const Io = std.Io;
 const Writer = std.Io.Writer;
 const Hub = hubmod.Hub;
 
-const state_file = "dotfiles/shell/cache/bar-ink.json";
+const state_file = "dotfiles/cache/.shell/bar-ink.json";
 const guest_state = "/run/yudae-state";
 const black_ink = "#000000";
 const white_ink = "#ffffff";
@@ -589,7 +589,7 @@ fn shouldPause(allocator: Allocator, mode: PauseMode, monitors_raw: []const u8, 
 
 fn configured(io: Io, allocator: Allocator) []const u8 {
 	const cfg = configmod.Config.load(io, allocator) catch return "fade";
-	const settings = std.fmt.allocPrint(allocator, "{s}/dotfiles/shell/cache/settings.lua", .{proc.home(io, allocator)}) catch return "fade";
+	const settings = std.fmt.allocPrint(allocator, "{s}/dotfiles/cache/.shell/settings.lua", .{proc.home(io, allocator)}) catch return "fade";
 	const body = proc.readFile(io, allocator, settings) catch "";
 
 	if (luaString(body, "wallpaperTransition")) |id| return id;

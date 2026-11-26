@@ -1,7 +1,7 @@
 local repo = require("repo")
 local autostart = require("autostart")
 
-local ok, prefs = pcall(dofile, repo .. "/shell/cache/settings.lua")
+local ok, prefs = pcall(dofile, repo .. "/cache/.shell/settings.lua")
 if not ok or type(prefs) ~= "table" then prefs = {} end
 
 local function once(name, cmd)

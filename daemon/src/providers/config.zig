@@ -55,7 +55,7 @@ pub const Config = struct {
 	}
 
 	fn cachePath(self: *Config, allocator: Allocator) []const u8 {
-		return std.fmt.allocPrint(allocator, "{s}/shell/cache/settings.json", .{proc.repo(self.io, allocator)}) catch "/nonexistent";
+		return std.fmt.allocPrint(allocator, "{s}/cache/.shell/settings.json", .{proc.repo(self.io, allocator)}) catch "/nonexistent";
 	}
 
 	fn watchLoop(self: *Config) void {

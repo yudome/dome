@@ -18,6 +18,6 @@ if [ -d "$native" ]; then
 	cp -f "$native"/* "$BIN/yudae-native/Yudae/Native/"
 fi
 
-settings=$ROOT/shell/cache/settings.lua
+settings=$ROOT/cache/.shell/settings.lua
 wallpaper=$(sed -n 's/^[[:space:]]*wallpaper[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' "$settings" 2>/dev/null | head -1)
 printf '%s\n' "$wallpaper" > "$STATE/wallpaper"

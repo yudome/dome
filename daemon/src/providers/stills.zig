@@ -7,7 +7,7 @@ const Allocator = std.mem.Allocator;
 const Io = std.Io;
 const Writer = std.Io.Writer;
 
-const cache_file = "dotfiles/build/cache/wallpaper-videos.json";
+const cache_file = "dotfiles/cache/.shell/wallpaper-videos.json";
 
 /// What a video settles on: the analysed pick, unless the user saved their own.
 pub const Entry = struct {
@@ -202,7 +202,7 @@ pub const Stills = struct {
 		};
 		self.mutex.unlock(self.io);
 
-		const dir = std.fmt.allocPrint(allocator, "{s}/dotfiles/build/cache", .{proc.home(self.io, allocator)}) catch return;
+		const dir = std.fmt.allocPrint(allocator, "{s}/dotfiles/cache/.shell", .{proc.home(self.io, allocator)}) catch return;
 		std.Io.Dir.cwd().createDirPath(self.io, dir) catch {};
 		const path = std.fmt.allocPrint(allocator, "{s}/{s}", .{ proc.home(self.io, allocator), cache_file }) catch return;
 		proc.writeFileAtomic(self.io, self.allocator, path, buffer.written()) catch return;

@@ -3,7 +3,7 @@ local namedPrefix = "name:v"
 local sticky = {}
 
 local function save()
-	local base = require("repo") .. "/shell/cache"
+	local base = require("repo") .. "/cache/.shell"
 	local parts = {}
 
 	for slot, version in pairs(sticky) do

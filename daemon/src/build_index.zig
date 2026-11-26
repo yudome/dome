@@ -155,7 +155,7 @@ pub fn main() !void {
 	const io = threaded.io();
 	const args = try proc.args(io, allocator);
 	const repo = proc.repo(io, allocator);
-	const cache = try std.fmt.allocPrint(allocator, "{s}/build/cache/launcher-index-src", .{repo});
+	const cache = try std.fmt.allocPrint(allocator, "{s}/cache/.shell/launcher-index-src", .{repo});
 	const out = if (args.len > 1) args[1] else try std.fmt.allocPrint(allocator, "{s}/build/assets/launcher-index.bin.gz", .{repo});
 	var force = false;
 	for (args[2..]) |arg| {

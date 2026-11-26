@@ -659,7 +659,7 @@ pub const Vms = struct {
 	}
 
 	fn wallpaperDir(self: *Vms, repo: []const u8) []const u8 {
-		const path = std.fs.path.join(self.allocator, &.{ repo, "shell", "cache", "settings.lua" }) catch return "";
+		const path = std.fs.path.join(self.allocator, &.{ repo, "cache", ".shell", "settings.lua" }) catch return "";
 		defer self.allocator.free(path);
 
 		const body = proc.readFile(self.io, self.allocator, path) catch return "";

@@ -30,13 +30,13 @@ extern fn sd_bus_message_read(message: *Message, signature: [*:0]const u8, ...) 
 const lock_match: [*:0]const u8 = "type='signal',sender='org.freedesktop.login1',interface='org.freedesktop.login1.Session',member='Lock'";
 const sleep_match: [*:0]const u8 = "type='signal',sender='org.freedesktop.login1',interface='org.freedesktop.login1.Manager',member='PrepareForSleep',path='/org/freedesktop/login1'";
 const why: [*:0]const u8 = "lock the screen first";
-const profile_dir = "shell/cache/lockscreen";
+const profile_dir = "cache/.shell/lockscreen";
 const fallback_dir = "/var/tmp/yudae-lockscreen";
 const preview_px = 2560;
 const preview_quality = 90;
 
 /// Locks the shell on logind `Lock` and before sleep, and writes the wallpaper profile the lock
-/// screen and the greeter both read from `shell/cache/lockscreen/<machine-id>/profile.json`.
+/// screen and the greeter both read from `cache/.shell/lockscreen/<machine-id>/profile.json`.
 pub const Lockscreen = struct {
 	allocator: Allocator,
 	io: Io,

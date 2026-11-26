@@ -1,4 +1,4 @@
-shell/cache
+/cache/
 plugins/**/*.so
 plugins/**/*.bin
 plugins/**/*.o

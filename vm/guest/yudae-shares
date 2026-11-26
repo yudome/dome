@@ -1,7 +1,7 @@
 #!/bin/bash
 mkdir -p /run/yudae-state
 mountpoint -q /run/yudae-state || mount -t virtiofs -o ro yudae-state /run/yudae-state || true
-wall=$(sed -n 's/^[[:space:]]*wallpaper[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' /home/user/dotfiles/shell/cache/settings.lua 2>/dev/null | head -1)
+wall=$(sed -n 's/^[[:space:]]*wallpaper[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' /home/user/dotfiles/cache/.shell/settings.lua 2>/dev/null | head -1)
 [ -n "$wall" ] || exit 0
 dir=$(dirname "$wall")
 mkdir -p "$dir"
