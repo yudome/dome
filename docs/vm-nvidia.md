@@ -51,7 +51,27 @@ xmake vm images
 ```
 
 The daemon only picks the NVIDIA backend when the current image manifest lists
-`conduit-guest`.
+`conduit-guest` and the installed backend's `share/conduit/supported-drivers.txt`
+lists the running driver (`/sys/module/nvidia/version`); otherwise VMs boot on GL
+instead of a guest without a GPU.
+
+## Backend and ABI tables
+
+The backend forwards the guest's RM calls and needs ABI tables for the exact
+host driver release: struct layouts and which controls carry pointers. `xmake vm
+conduit` keeps them in step with the host. It clones or updates the Conduit fork
+(`CONDUIT_SRC`, default `~/.local/share/dotfiles/conduit`; `CONDUIT_URL`), runs
+`make host-abi`, which generates the tables for the loaded driver from its
+open-gpu-kernel-modules tag when the fork has none (a few seconds, git and a C
+compiler), builds the backend and installs it with the supported list into
+`CONDUIT_PREFIX` (default `/opt/conduit`, asks for sudo). Run it after a driver
+update. The fork's weekly `abi` workflow does the same upstream and opens a PR
+for each new release.
+
+The shared window (`--window-mib`) is `auto`: at least 4 GiB, more with
+Resizable BAR. It is guest address space backed by a sparse memfd, not BAR1, so
+it does not need ReBAR; at the old fixed 256 MiB a terminal redrawing every 2 ms
+ran it out (`SHM alloc failed`) within seconds.
 
 ## Display
 

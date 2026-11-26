@@ -91,6 +91,8 @@ Guest networking is `vm/net`: one unprivileged network namespace per VM made by 
 
 Shares (repo, wallpaper, state, nvidia, host pacman cache) are `virtiofsd --readonly`. The pacman cache share is the first `CacheDir` of the host (`pacman-conf CacheDir`), mounted at `/mnt/hostpkg` and listed first in the guest's `CacheDir`, so guest installs take the host's exact builds and download the rest into the guest's own cache.
 
+Pausing a VM (idle tiers, `vm sleep`, `vm park`) tells a Conduit backend `keep` on its power socket (`--power-socket`, `power.sock` in the run dir) before QMP `stop`, so the device restart on `cont` keeps the guest's GPU objects instead of resetting them under Hyprland. A logind delay inhibitor watches `PrepareForSleep`: before the host sleeps the daemon pauses every hot VM (and asks Conduit backends to `hold`), after it wakes it `release`s them, continues exactly those VMs and sets their clocks.
+
 Images come from `vm/mkosi/build` (see `docs/agent-tooling.md`). When the base of a disk's backing chain sits next to a `vmlinuz` and `cmdline`, the daemon boots that kernel directly (`-kernel`/`-append`); older images without them boot from their own disk.
 
 A governor loop every 5s steps idle VMs hot to warm (5 min), warm to parked (15 min), parked to off (60 min, disk kept). Past the idle destroy budget (default 24h, `YUDAE_VM_IDLE_DESTROY_MS`) it removes the VM and deletes its run dir. Scenario runs delete their VM on success and keep their screenshots.

@@ -165,13 +165,15 @@ mkosi image against the old `vm/images` script (cloud image plus a provisioning 
 | --- | --- | --- |
 | old, package store warm | 95.4s | 3308MB packages layer |
 | old, cold | fails: the pinned cloud image is gone from the mirrors (404) | - |
-| mkosi, host cache seeded | 98.5s | 1470MB |
+| mkosi, host cache seeded | 98.5s | 1470MB (1555MB with zlib, the current setting) |
 | mkosi, nothing cached, every package downloaded | 109.6s | 1470MB |
 | mkosi, edit under `mkosi.extra/` (cached packages) | 39-44s | 1470MB |
 | mkosi without the NVIDIA profile, host cache seeded | 66s | 1236MB |
 | edit to `vm/guest/yudae-session` | no rebuild, read from the repo share at boot | - |
 
 Of a cached rebuild, about 22s is `mkfs.btrfs --rootdir` copying the tree into the disk and 7s is `qemu-img convert -c`. Filesystem compression cost 10s more than leaving it to qcow2. `mkfs.btrfs --reflink` would remove the copy, but mkosi does not pass the environment to systemd-repart.
+
+Viewer overlay (`Ctrl+Alt+O`) with a terminal printing every 2ms, viewer open at 2560x1440 on a 280Hz host: old image 240 fps received / 132 shown, mkosi image 260 / 128, about 4ms average frame on both; Conduit path 158 / 148.
 
 Boot to a mapped shell (`shell-ready`, two runs each): old image 17.4-17.5s (guest reachable after 12.5s), mkosi image 13.0-13.2s (guest reachable after 8.0-8.3s). The mkosi image boots the host's kernel directly, with no bootloader and no initrd.
 
