@@ -129,7 +129,7 @@ function run(root)
 		if data.id ~= name then
 			return nil, string.format("id %q does not match folder %q", data.id, name)
 		end
-		if data.kind ~= "hypr" and data.kind ~= "theme" and data.kind ~= "shell" and data.kind ~= "app" and data.kind ~= "daemon" and not transition then
+		if data.kind ~= "hypr" and data.kind ~= "theme" and data.kind ~= "shell" and data.kind ~= "app" and data.kind ~= "zsh" and data.kind ~= "daemon" and not transition then
 			return nil, string.format("unknown kind %q", tostring(data.kind))
 		end
 		if type(data.version) ~= "string" or data.version == "" then
@@ -325,12 +325,32 @@ function run(root)
 		end
 		return nil
 	end
+	local function check_zsh(data, out)
+		if trim(os.iorunv("sh", { "-c", "command -v zsh 2>/dev/null || true" }) or "") == "" then
+			return "zsh is missing"
+		end
+		local found = false
+		for _, item in ipairs(data.provides) do
+			if item:sub(-4) == ".zsh" then
+				found = true
+				local command = string.format("zsh -n '%s' 2>&1; echo EXIT:$?", path.join(out, item))
+				local output = os.iorunv("sh", { "-c", command })
+				if tonumber((output or ""):match("EXIT:(%d+)%s*$")) ~= 0 then
+					return "zsh syntax error in " .. item .. ":\n" .. trim((output or ""):gsub("EXIT:%d+%s*$", ""))
+				end
+			end
+		end
+		if not found then
+			return "zsh plugin must provide a .zsh file"
+		end
+		return nil
+	end
 	local function check_transition(plugin_dir)
 		local shader = path.join(plugin_dir, "transition.frag")
 		if not os.isfile(shader) then
 			return "transition plugin needs transition.frag"
 		end
-		local daemon = path.join(root, "daemon", "zig-out", "bin", "yudaemond")
+		local daemon = path.join(root, "build", "bin", "yudaemond")
 		if not os.isfile(daemon) then
 			return "build yudaemond first: it compiles the shader"
 		end
@@ -384,6 +404,8 @@ function run(root)
 						bad = check_hypr(plugin_dir, data)
 					elseif data.kind == "shell" then
 						bad = check_shell(plugin_dir)
+					elseif data.kind == "zsh" then
+						bad = check_zsh(data, out)
 					end
 					os.rm(out)
 					if bad then

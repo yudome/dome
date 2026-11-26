@@ -7,7 +7,7 @@ TLDR: one repo, split by what a thing is. xmake is the single entry point. `vm` 
 ```
 dotfiles/
   config/            plain app configs, one dir per app, each symlinked to ~/.config/<name>
-  plugins/           source-only plugins: hypr, theme, shell, app; see docs/plugins.md
+  plugins/           source-only plugins: hypr, theme, shell, app, zsh; see docs/plugins.md
   hypr/              hyprland conf; the one non-config symlinked, hyprland reads ~/.config/hypr
   shell/             quickshell, run with `quickshell -p`, never symlinked
     features/<name>/ one folder per feature: App.qml Store.qml widget, panel, feature.json

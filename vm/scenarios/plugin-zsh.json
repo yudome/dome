@@ -1,0 +1,13 @@
+{
+  "context": { "cores": 2, "mem": 4096, "gl": true },
+  "steps": [
+    { "do": "wait", "until": "guest", "timeout": 60000 },
+    { "do": "wait", "until": "exec:pgrep -x yudaemond", "timeout": 60000 },
+    { "do": "exec", "cmd": "mkdir -p /home/user/.local/state/yudae && printf 'load = [\"minimal\"]\\n' > /home/user/.local/state/yudae/plugins.toml", "code": 0 },
+    { "do": "exec", "cmd": "/home/user/dotfiles/build/bin/yudaemond plugin reload", "code": 0 },
+    { "do": "wait", "until": "exec:test -f /home/user/.local/state/yudae/build/minimal/prompt.zsh", "timeout": 30000 },
+    { "do": "wait", "until": "exec:grep -q 'build/minimal/prompt.zsh' /home/user/.local/state/yudae/plugins.zsh", "timeout": 30000 },
+    { "do": "exec", "cmd": "zsh -n /home/user/.local/state/yudae/build/minimal/prompt.zsh && zsh -f -i -c 'source /home/user/.local/state/yudae/plugins.zsh; [[ -n $PROMPT ]]'", "code": 0 }
+  ],
+  "proof": "a zsh plugin builds and its entry is sourced by a fresh interactive shell"
+}
