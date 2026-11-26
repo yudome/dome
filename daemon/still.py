@@ -10,6 +10,8 @@ def yudae(*args):
 
 def main(app):
     path = sys.argv[1] if len(sys.argv) > 1 else yudae("state")["wallpaper"]["active"]
+    if not path.lower().endswith((".mp4", ".webm", ".mkv", ".mov")):
+        sys.exit(f"yudae still: {path} is not a video")
     strip = yudae("call", "wallpaper", "filmstrip", json.dumps({"path": path}))
     fps = strip["fps"] or 30
     last = max(0, strip["duration"] - 1 / fps)
