@@ -420,7 +420,10 @@ PanelWindow {
 	}
 
 	function openClipboard() {
-		root.open("clipboard");
+		if (root.shown && root.forced === "clipboard")
+			root.close();
+		else
+			root.open("clipboard");
 	}
 
 	function hideInstant() {
