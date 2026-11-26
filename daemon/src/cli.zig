@@ -87,6 +87,14 @@ pub fn files(io: Io, args: []const []const u8) !void {
 }
 
 pub fn logout(io: Io) !void {
+	try send(io, "{\"cmd\":{\"system\":{\"logout\":true}}}");
+}
+
+pub fn lock(io: Io) !void {
+	try send(io, "{\"cmd\":{\"lockscreen\":{\"lock\":true}}}");
+}
+
+fn send(io: Io, line: []const u8) !void {
 	const path = try proc.socketPath(io, std.heap.smp_allocator);
 	defer std.heap.smp_allocator.free(path);
 
@@ -97,7 +105,7 @@ pub fn logout(io: Io) !void {
 	};
 	defer connection.close();
 
-	try connection.writeLine("{\"cmd\":{\"system\":{\"logout\":true}}}");
+	try connection.writeLine(line);
 }
 
 pub fn doctor(io: Io) !void {

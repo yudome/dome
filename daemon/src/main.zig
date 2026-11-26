@@ -27,6 +27,7 @@ const audio = @import("providers/audio.zig");
 const wallpaper = @import("providers/wallpaper.zig");
 const ink = @import("providers/ink.zig");
 const stills = @import("providers/stills.zig");
+const lockscreen = @import("providers/lockscreen.zig");
 const wayland = @import("primitives/wayland.zig");
 const bar = @import("providers/bar.zig");
 const launcher = @import("providers/launcher.zig");
@@ -75,6 +76,7 @@ pub const Context = struct {
 	audio: *audio.Audio,
 	wallpaper: *wallpaper.Wallpaper,
 	ink: *ink.Ink,
+	lockscreen: *lockscreen.Lockscreen,
 	bar: *bar.Bar,
 	launcher: *launcher.Launcher,
 	icons: *icons.Icons,
@@ -290,6 +292,14 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 
 	if (json.field(value, "agentName")) |name| {
 		context.agent_name.set(json.textAt(name, "set"));
+		return;
+	}
+
+	if (json.field(value, "lockscreen")) |lock_cmd| {
+		if (json.flag(lock_cmd, "lock")) context.lockscreen.lock();
+		if (json.flag(lock_cmd, "unlock")) context.lockscreen.unlock();
+		const verb = json.textAt(lock_cmd, "power");
+		if (verb.len > 0) context.lockscreen.power(verb);
 		return;
 	}
 
@@ -512,6 +522,7 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "spawn-check")) return cli.spawnCheck(io, args);
 
 	if (std.mem.eql(u8, command, "logout")) return cli.logout(io);
+	if (std.mem.eql(u8, command, "lock")) return cli.lock(io);
 	if (std.mem.eql(u8, command, "files")) return cli.files(io, args);
 	if (std.mem.eql(u8, command, "doctor")) return cli.doctor(io);
 	if (std.mem.eql(u8, command, "bench")) return cli.bench(io, args);
@@ -522,7 +533,7 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "transition")) return cli.transition(io, args);
 
 	if (!std.mem.eql(u8, command, "run")) {
-		std.debug.print("usage: yudae [--json] [run|restart|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|settings|bar|ui|spawn-check|logout|files rebuild|transition check <file>]\n", .{});
+		std.debug.print("usage: yudae [--json] [run|restart|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|settings|bar|ui|spawn-check|logout|lock|files rebuild|transition check <file>]\n", .{});
 		return;
 	}
 
@@ -619,6 +630,15 @@ fn run(io: std.Io) !void {
 	wallpaper_provider.onRescan(.{ .ctx = ink_provider, .run = ink.Ink.rescanned });
 	try hub.add(ink_provider.provider());
 
+	const lockscreen_provider = try lockscreen.Lockscreen.create(allocator, io, hub);
+	lockscreen_provider.wallpaper = wallpaper_provider;
+	lockscreen_provider.stills = stills_store;
+	const refresh_lock: stills.Hook = .{ .ctx = lockscreen_provider, .run = lockscreen.Lockscreen.refreshThunk };
+	ink_provider.changed = refresh_lock;
+	stills_store.analysed = refresh_lock;
+	config_settings.changed = refresh_lock;
+	try hub.add(lockscreen_provider.provider());
+
 	const bar_provider = try bar.Bar.create(allocator, io, hub);
 	try hub.add(bar_provider.provider());
 
@@ -686,6 +706,7 @@ fn run(io: std.Io) !void {
 		.audio = audio_provider,
 		.wallpaper = wallpaper_provider,
 		.ink = ink_provider,
+		.lockscreen = lockscreen_provider,
 		.bar = bar_provider,
 		.launcher = launcher_provider,
 		.icons = icons_provider,
@@ -740,6 +761,7 @@ fn run(io: std.Io) !void {
 	try audio_provider.start();
 	try wallpaper_provider.start();
 	try ink_provider.start();
+	try lockscreen_provider.start();
 	try bar_provider.start();
 	try launcher_provider.start();
 	try icons_provider.start();
