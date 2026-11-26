@@ -19,3 +19,7 @@ ln -sfn /home/user/dotfiles/hypr /home/user/.config/hypr
 systemctl set-default graphical.target
 systemctl mask systemd-firstboot.service
 passwd -d root >/dev/null
+systemctl mask systemd-nsresourced.socket systemd-nsresourced.service systemd-mountfsd.socket systemd-mountfsd.service systemd-homed.service systemd-homed-activate.service systemd-networkd-wait-online.service systemd-boot-update.service systemd-boot-clear-sysfail.service systemd-tpm2-clear.service systemd-pstore.service systemd-sysext.service systemd-confext.service systemd-sysupdate-notify-bootctl.socket systemd-sysupdate-notify-pcrlock.socket systemd-sysupdate-notify-sysext.socket
+ldconfig
+journalctl --update-catalog
+/usr/lib/systemd/systemd-update-done
