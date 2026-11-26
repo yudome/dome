@@ -258,7 +258,6 @@ pub const Notifications = struct {
 
 	pub fn post(self: *Notifications, app: []const u8, summary: []const u8, body: []const u8, timeout: i32) void {
 		self.insert(app, summary, body, timeout);
-		self.hub.publish();
 	}
 
 	fn insert(self: *Notifications, app: []const u8, summary: []const u8, body: []const u8, timeout: i32) void {
