@@ -69,7 +69,7 @@ pub fn backendArgs(allocator: Allocator, dir: []const u8, backend: []const u8) !
 	try addPair(allocator, &list, "--display", "2560x1440@240");
 	try addPair(allocator, &list, "--display-socket", display);
 	try addPair(allocator, &list, "--console-vnc", console);
-	try addPair(allocator, &list, "--window-mib", "256");
+	try addPair(allocator, &list, "--window-mib", "auto");
 	try addPair(allocator, &list, "--power-socket", try std.fmt.allocPrint(allocator, "{s}/power.sock", .{dir}));
 	try list.append(allocator, "--allow-nearest-abi");
 	return list.toOwnedSlice(allocator);
