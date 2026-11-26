@@ -27,6 +27,7 @@ const audio = @import("providers/audio.zig");
 const wallpaper = @import("providers/wallpaper.zig");
 const ink = @import("providers/ink.zig");
 const stills = @import("providers/stills.zig");
+const lockscreen = @import("providers/lockscreen.zig");
 const wayland = @import("primitives/wayland.zig");
 const bar = @import("providers/bar.zig");
 const launcher = @import("providers/launcher.zig");
@@ -69,12 +70,12 @@ pub const Context = struct {
 	system: *system.System,
 	apps: *apps.Apps,
 	screen: *screen.Screen,
-	settings: *settings.Settings,
 	config: *config_provider.Config,
 	network: *network.Network,
 	audio: *audio.Audio,
 	wallpaper: *wallpaper.Wallpaper,
 	ink: *ink.Ink,
+	lockscreen: *lockscreen.Lockscreen,
 	bar: *bar.Bar,
 	launcher: *launcher.Launcher,
 	icons: *icons.Icons,
@@ -238,6 +239,8 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 
 		if (json.flag(l_cmd, "filesMore")) context.launcher.moreFiles();
 
+		if (json.field(l_cmd, "drag") != null) context.launcher.drag(json.flag(l_cmd, "drag"));
+
 		const power = json.integer(json.field(l_cmd, "power"));
 		if (json.field(l_cmd, "power") != null and power >= 0) context.launcher.power(@intCast(power));
 
@@ -266,6 +269,9 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 		const focus = json.integer(json.field(ws_cmd, "focus"));
 		if (focus > 0) context.workspaces.focus(focus);
 
+		const show = json.textAt(ws_cmd, "show");
+		if (show.len > 0) context.workspaces.show(show);
+
 		return;
 	}
 
@@ -285,6 +291,14 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 
 	if (json.field(value, "agentName")) |name| {
 		context.agent_name.set(json.textAt(name, "set"));
+		return;
+	}
+
+	if (json.field(value, "lockscreen")) |lock_cmd| {
+		if (json.flag(lock_cmd, "lock")) context.lockscreen.lock();
+		if (json.flag(lock_cmd, "unlock")) context.lockscreen.unlock();
+		const verb = json.textAt(lock_cmd, "power");
+		if (verb.len > 0) context.lockscreen.power(verb);
 		return;
 	}
 
@@ -326,43 +340,6 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 		if (json.field(wp_cmd, "settle") != null) wayland.settle();
 		if (json.field(wp_cmd, "pause")) |paused| wayland.pause(paused == .bool and paused.bool);
 		if (json.field(wp_cmd, "frame")) |frame| context.ink.saveStill(json.textAt(frame, "path"), json.numberAt(frame, "t"));
-
-		return;
-	}
-
-	if (json.field(value, "screen")) |screen_cmd| {
-		const key = json.textAt(screen_cmd, "key");
-		if (key.len > 0) context.screen.key(key);
-
-		const code = json.field(screen_cmd, "keyCode");
-		if (code) |value_code| context.screen.keyCode(json.integer(value_code));
-
-		if (json.field(screen_cmd, "pick")) |pick| {
-			const kind = json.textAt(pick, "kind");
-			const choice = json.textAt(pick, "value");
-
-			if (kind.len > 0) context.screen.pick(kind, choice);
-		}
-
-		if (json.flag(screen_cmd, "detect")) context.screen.detect();
-
-		return;
-	}
-
-	if (json.field(value, "settings")) |settings_cmd| {
-		if (json.field(settings_cmd, "output")) |output| {
-			const name = json.textAt(output, "name");
-			const mode = json.field(output, "mode");
-			const scale = json.field(output, "scale");
-
-			if (name.len > 0) {
-				context.settings.setOutput(
-					name,
-					if (mode) |m| json.text(m) else null,
-					if (scale) |s| json.number(s) else null,
-				);
-			}
-		}
 
 		return;
 	}
@@ -441,7 +418,7 @@ fn callThunk(ctx: *anyopaque, target: []const u8, method: []const u8, args: json
 	if (std.mem.eql(u8, target, "plugins")) return context.plugins.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "bar")) return context.bar.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "settings")) return context.config.call(method, args, alloc);
-	if (std.mem.eql(u8, target, "wallpaper") and (std.mem.eql(u8, method, "filmstrip") or std.mem.eql(u8, method, "preview") or std.mem.eql(u8, method, "stats"))) return context.ink.call(method, args, alloc);
+	if (std.mem.eql(u8, target, "wallpaper") and (std.mem.eql(u8, method, "filmstrip") or std.mem.eql(u8, method, "preview") or std.mem.eql(u8, method, "frame") or std.mem.eql(u8, method, "stats"))) return context.ink.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "state")) return context.hub.syncSnapshot(allocator);
 	if (std.mem.eql(u8, target, "ui")) return context.hub.syncSnapshot(allocator);
 
@@ -507,6 +484,8 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "spawn-check")) return cli.spawnCheck(io, args);
 
 	if (std.mem.eql(u8, command, "logout")) return cli.logout(io);
+	if (std.mem.eql(u8, command, "lock")) return cli.lock(io);
+	if (std.mem.eql(u8, command, "still")) return cli.still(io, args);
 	if (std.mem.eql(u8, command, "files")) return cli.files(io, args);
 	if (std.mem.eql(u8, command, "doctor")) return cli.doctor(io);
 	if (std.mem.eql(u8, command, "bench")) return cli.bench(io, args);
@@ -517,7 +496,7 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "transition")) return cli.transition(io, args);
 
 	if (!std.mem.eql(u8, command, "run")) {
-		std.debug.print("usage: yudae [--json] [run|restart|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|settings|bar|ui|spawn-check|logout|files rebuild|transition check <file>]\n", .{});
+		std.debug.print("usage: yudae [--json] [run|restart|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|settings|bar|ui|spawn-check|logout|lock|still [path]|files rebuild|transition check <file>]\n", .{});
 		return;
 	}
 
@@ -614,6 +593,15 @@ fn run(io: std.Io) !void {
 	wallpaper_provider.onRescan(.{ .ctx = ink_provider, .run = ink.Ink.rescanned });
 	try hub.add(ink_provider.provider());
 
+	const lockscreen_provider = try lockscreen.Lockscreen.create(allocator, io, hub);
+	lockscreen_provider.wallpaper = wallpaper_provider;
+	lockscreen_provider.stills = stills_store;
+	const refresh_lock: stills.Hook = .{ .ctx = lockscreen_provider, .run = lockscreen.Lockscreen.refreshThunk };
+	ink_provider.changed = refresh_lock;
+	stills_store.analysed = refresh_lock;
+	config_settings.changed = refresh_lock;
+	try hub.add(lockscreen_provider.provider());
+
 	const bar_provider = try bar.Bar.create(allocator, io, hub);
 	try hub.add(bar_provider.provider());
 
@@ -653,7 +641,6 @@ fn run(io: std.Io) !void {
 	const disk_provider = try disk.Disk.create(allocator, io, hub);
 	try hub.add(disk_provider.provider());
 
-	screen_provider.attachSettings(settings_provider);
 
 	const context = try allocator.create(Context);
 	context.* = .{
@@ -675,12 +662,12 @@ fn run(io: std.Io) !void {
 		.system = system_provider,
 		.apps = apps_provider,
 		.screen = screen_provider,
-		.settings = settings_provider,
 		.config = config_settings,
 		.network = network_provider,
 		.audio = audio_provider,
 		.wallpaper = wallpaper_provider,
 		.ink = ink_provider,
+		.lockscreen = lockscreen_provider,
 		.bar = bar_provider,
 		.launcher = launcher_provider,
 		.icons = icons_provider,
@@ -735,6 +722,7 @@ fn run(io: std.Io) !void {
 	try audio_provider.start();
 	try wallpaper_provider.start();
 	try ink_provider.start();
+	try lockscreen_provider.start();
 	try bar_provider.start();
 	try launcher_provider.start();
 	try icons_provider.start();

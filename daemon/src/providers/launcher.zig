@@ -18,6 +18,7 @@ const http = @import("../primitives/http.zig");
 const config = @import("../primitives/config.zig");
 const environ = @import("../primitives/environ.zig");
 const proc = @import("../primitives/proc.zig");
+const hypr = @import("../primitives/hypr.zig");
 const fmt = @import("../primitives/fmt.zig");
 const mimemod = @import("../primitives/mime.zig");
 
@@ -45,7 +46,6 @@ const glyph_wallpaper = "\u{f0e09}";
 const glyph_process = "\u{f0874}";
 const glyph_vm = "\u{f0379}";
 const glyph_disk = "\u{f0a0}";
-const glyph_settings = "\u{f013}";
 const glyph_power = "\u{f011}";
 const glyph_prompt = "\u{ea6d}";
 const glyph_emoji = "\u{f118}";
@@ -63,7 +63,6 @@ const modes = [_]Mode{
 	.{ .mode = "procs", .name = "Processes", .mark = "%", .glyph = glyph_process },
 	.{ .mode = "vms", .name = "Virtual machines", .mark = "", .glyph = glyph_vm },
 	.{ .mode = "disk", .name = "Disk", .mark = "", .glyph = glyph_disk },
-	.{ .mode = "settings", .name = "Settings", .mark = "", .glyph = glyph_settings },
 	.{ .mode = "emoji", .name = "Emoji & Kaomoji", .mark = ":", .glyph = glyph_emoji },
 };
 
@@ -322,7 +321,7 @@ pub const Launcher = struct {
 	}
 
 	fn stateDir(self: *Launcher, allocator: Allocator) ![]u8 {
-		return std.fmt.allocPrint(allocator, "{s}/dotfiles/shell/cache/launcher", .{proc.home(self.io, self.allocator)});
+		return std.fmt.allocPrint(allocator, "{s}/dotfiles/cache/.shell/launcher", .{proc.home(self.io, self.allocator)});
 	}
 
 	fn cacheFile(self: *Launcher, allocator: Allocator, name: []const u8) ![]u8 {
@@ -331,7 +330,7 @@ pub const Launcher = struct {
 	}
 
 	fn statePath(self: *Launcher, allocator: Allocator, name: []const u8) ![]u8 {
-		return std.fmt.allocPrint(allocator, "{s}/dotfiles/shell/cache/launcher/{s}", .{ proc.home(self.io, self.allocator), name });
+		return std.fmt.allocPrint(allocator, "{s}/dotfiles/cache/.shell/launcher/{s}", .{ proc.home(self.io, self.allocator), name });
 	}
 
 	fn load(self: *Launcher) void {
@@ -845,6 +844,18 @@ pub const Launcher = struct {
 		thread.detach();
 	}
 
+	/// Window dragging is off while the launcher is open so a drag can move the launcher instead.
+	pub fn drag(self: *Launcher, open: bool) void {
+		const thread = std.Thread.spawn(.{}, dragThread, .{ self, open }) catch return;
+		thread.detach();
+	}
+
+	fn dragThread(self: *Launcher, open: bool) void {
+		const script = if (open) "require('actions').launcherDrag(true)" else "require('actions').launcherDrag(false)";
+		const result = hypr.ctl(self.io, self.allocator, &.{ "eval", script }) catch return;
+		result.deinit(self.allocator);
+	}
+
 	fn runDetached(self: *Launcher, command: []u8) void {
 		defer self.allocator.free(command);
 
@@ -897,11 +908,6 @@ pub const Launcher = struct {
 
 		if (std.mem.eql(u8, id, "disk:app")) {
 			self.yudaeApp("disk");
-			return;
-		}
-
-		if (std.mem.eql(u8, id, "settings:app")) {
-			self.yudaeApp("settings");
 			return;
 		}
 
@@ -1160,17 +1166,6 @@ pub const Launcher = struct {
 				.name = "Disk map",
 				.glyph = glyph_disk,
 				.mode = "disk",
-			});
-			return rows.items;
-		}
-
-		if (std.mem.eql(u8, mode, "settings")) {
-			try rows.append(arena, .{
-				.id = "settings:app",
-				.kind = "mode",
-				.name = "Settings",
-				.glyph = glyph_settings,
-				.mode = "settings",
 			});
 			return rows.items;
 		}
@@ -2056,12 +2051,12 @@ const index_entry = 33;
 
 fn indexPath(io: Io, allocator: Allocator) ![]u8 {
 	const home = proc.home(io, allocator);
-	const path = try std.fmt.allocPrint(allocator, "{s}/dotfiles/daemon/assets/launcher-index.bin.gz", .{home});
+	const path = try std.fmt.allocPrint(allocator, "{s}/dotfiles/build/assets/launcher-index.bin.gz", .{home});
 
 	if (proc.exists(io, path)) return path;
 
 	allocator.free(path);
-	return allocator.dupe(u8, "assets/launcher-index.bin.gz");
+	return allocator.dupe(u8, "build/assets/launcher-index.bin.gz");
 }
 
 fn readU32(bytes: []const u8, at: usize) u32 {
@@ -2595,7 +2590,7 @@ test "every mode id renders rows of its own kind" {
 				std.mem.eql(u8, row.kind, "proc")
 			else if (std.mem.eql(u8, mode.mode, "emoji"))
 				std.mem.eql(u8, row.kind, "emoji") or std.mem.eql(u8, row.kind, "kaomoji")
-			else if (std.mem.eql(u8, mode.mode, "disk") or std.mem.eql(u8, mode.mode, "settings"))
+			else if (std.mem.eql(u8, mode.mode, "disk"))
 				std.mem.eql(u8, row.kind, "mode")
 			else
 				false;

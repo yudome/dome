@@ -367,7 +367,7 @@ PanelWindow {
 	}
 
 	function applyWindowDrag() {
-		Quickshell.execDetached(["hyprctl", "eval", "require('binds').launcherDrag(" + (root.dragHold ? "true" : "false") + ")"]);
+		Yudae.cmd("launcher", { drag: root.dragHold });
 	}
 
 	function open(mode) {
@@ -833,12 +833,6 @@ PanelWindow {
 				return;
 			}
 
-			if (entry.mode === "settings") {
-				root.close();
-				Yudae.request("settings", "app", {});
-				return;
-			}
-
 			root.group = "";
 			root.forced = entry.mode;
 			root.query = "";
@@ -993,10 +987,8 @@ PanelWindow {
 		onWidthChanged: root.clampPlace()
 		onHeightChanged: root.clampPlace()
 
-		Behavior on opacity {
+		Fade on opacity {
 			enabled: !root.instant
-
-			NumberAnimation { duration: Config.popupFadeMs; easing.type: Easing.OutCubic }
 		}
 		focus: true
 

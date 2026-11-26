@@ -60,6 +60,19 @@ task("lint")
 		print("lint clean")
 	end)
 
+task("lockscreen")
+	set_category("action")
+	set_menu {
+		usage = "xmake lockscreen",
+		description = "open the lock screen and greeter preview",
+	}
+	on_run(function ()
+		local envs = {
+			QML_IMPORT_PATH = path.join(os.getenv("HOME"), ".local", "lib", "yudae", "qml") .. ":" .. path.join(dir, "native", "qml"),
+		}
+		os.execv("quickshell", { "-p", path.join(dir, "app-lockscreen.qml") }, { envs = envs })
+	end)
+
 target("greeter")
 	set_kind("phony")
 	set_default(false)

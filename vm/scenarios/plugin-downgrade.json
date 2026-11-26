@@ -27,7 +27,7 @@
     },
     {
       "do": "exec",
-      "cmd": "/home/user/dotfiles/daemon/zig-out/bin/yudaemond plugin reload",
+      "cmd": "/home/user/dotfiles/build/bin/yudaemond plugin reload",
       "code": 0
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "do": "exec",
-      "cmd": "/home/user/dotfiles/daemon/zig-out/bin/yudaemond plugin reload",
+      "cmd": "/home/user/dotfiles/build/bin/yudaemond plugin reload",
       "code": 0
     },
     {

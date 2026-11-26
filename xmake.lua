@@ -25,6 +25,6 @@ function yudae_prefix()
 	return os.getenv("PREFIX") or path.join(os.getenv("HOME"), ".local")
 end
 
-add_moduledirs("modules")
+add_moduledirs("xmake")
 
 includes("daemon", "shell", "plugins", "vm")

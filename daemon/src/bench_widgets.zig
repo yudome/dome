@@ -61,7 +61,6 @@ pub const specs = [_]Spec{
 	.{ .id = "killPopupsLocal", .kind = .control, .note = "control entry point, closes the launcher" },
 	.{ .id = "closeBarPopups", .kind = .control, .note = "control entry point, closes bar popups" },
 	.{ .id = "closeLauncher", .kind = .control, .note = "control entry point, closes the launcher" },
-	.{ .id = "display", .kind = .layer },
 	.{ .id = "agent", .kind = .layer },
 	.{ .id = "power", .kind = .layer },
 	.{ .id = "powerMenu", .kind = .frame },
@@ -693,7 +692,7 @@ pub fn run(io: Io, args: []const []const u8) !void {
 	};
 
 	const body = try std.fmt.allocPrint(allocator, "{f}\n", .{std.json.fmt(payload, .{ .whitespace = .indent_2 })});
-	const dir = try std.fmt.allocPrint(allocator, "{s}/dotfiles/daemon/bench/widgets", .{proc.home(io, allocator)});
+	const dir = try std.fmt.allocPrint(allocator, "{s}/dotfiles/.bench/widgets", .{proc.home(io, allocator)});
 	std.Io.Dir.cwd().createDirPath(io, dir) catch {};
 	const path = try std.fmt.allocPrint(allocator, "{s}/{s}.json", .{ dir, stamp });
 	proc.writeFileAtomic(io, allocator, path, body) catch {};
@@ -1017,7 +1016,7 @@ test "the widget list matches the shell entry points" {
 		"launcher",       "clipboard",   "windows", "windowsStep",   "cpu",      "memory",
 		"volume",         "calendar",    "weather", "notifications", "github",   "media",
 		"network",        "speedtest",   "bareBar", "killPopups",    "killPopupsLocal",
-		"closeBarPopups", "closeLauncher", "display", "agent",       "power",    "powerMenu",
+		"closeBarPopups", "closeLauncher", "agent",   "power",       "powerMenu",
 		"tray",           "wallpaper",
 	};
 

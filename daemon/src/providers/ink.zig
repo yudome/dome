@@ -17,7 +17,7 @@ const Io = std.Io;
 const Writer = std.Io.Writer;
 const Hub = hubmod.Hub;
 
-const state_file = "dotfiles/shell/cache/bar-ink.json";
+const state_file = "dotfiles/cache/.shell/bar-ink.json";
 const guest_state = "/run/yudae-state";
 const black_ink = "#000000";
 const white_ink = "#ffffff";
@@ -49,6 +49,7 @@ pub const Ink = struct {
 	inks: std.StringHashMapUnmanaged([]u8) = .empty,
 	wallpaper: ?*wallpaper.Wallpaper = null,
 	stills: ?*stills.Stills = null,
+	changed: ?stills.Hook = null,
 	running: bool = false,
 	paused: bool = false,
 	guest: bool = false,
@@ -190,7 +191,7 @@ pub const Ink = struct {
 	}
 
 	/// `filmstrip {path}` writes keyframe thumbnails once per file version; `preview {path, t}`
-	/// writes the exact frame at `t`. Both answer with file paths the settings page shows.
+	/// writes the exact frame at `t`; `frame {path, t}` saves the still frame.
 	pub fn call(self: *Ink, method: []const u8, args: json.Value, alloc: Allocator) ![]u8 {
 		var arena = std.heap.ArenaAllocator.init(self.allocator);
 		defer arena.deinit();
@@ -241,6 +242,13 @@ pub const Ink = struct {
 			return out.toOwnedSlice();
 		}
 
+		if (std.mem.eql(u8, method, "frame")) {
+			const t = json.numberAt(args, "t");
+			if (t < 0) return error.BadTime;
+			self.saveStill(path, t);
+			return std.fmt.allocPrint(alloc, "{{\"t\":{d}}}", .{t});
+		}
+
 		return error.UnknownMethod;
 	}
 
@@ -252,6 +260,7 @@ pub const Ink = struct {
 
 		const target = if (path.len > 0) path else if (self.wallpaper) |source| source.activePath(arena.allocator()) orelse return else return;
 		if (self.stills) |store| store.setRest(target, t);
+		if (self.changed) |hook| hook.run(hook.ctx);
 
 		const active = if (self.wallpaper) |source| source.activePath(arena.allocator()) else null;
 		if (active) |shown| {
@@ -316,7 +325,10 @@ pub const Ink = struct {
 				self.share();
 			},
 			.gone => self.forget(name),
-			.shown => self.share(),
+			.shown => {
+				self.share();
+				if (self.changed) |hook| hook.run(hook.ctx);
+			},
 			else => {},
 		}
 	}
@@ -577,7 +589,7 @@ fn shouldPause(allocator: Allocator, mode: PauseMode, monitors_raw: []const u8, 
 
 fn configured(io: Io, allocator: Allocator) []const u8 {
 	const cfg = configmod.Config.load(io, allocator) catch return "fade";
-	const settings = std.fmt.allocPrint(allocator, "{s}/dotfiles/shell/cache/settings.lua", .{proc.home(io, allocator)}) catch return "fade";
+	const settings = std.fmt.allocPrint(allocator, "{s}/dotfiles/cache/.shell/settings.lua", .{proc.home(io, allocator)}) catch return "fade";
 	const body = proc.readFile(io, allocator, settings) catch "";
 
 	if (luaString(body, "wallpaperTransition")) |id| return id;

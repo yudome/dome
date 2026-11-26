@@ -70,11 +70,8 @@ PanelWindow {
 		color: Config.surface
 		opacity: root.shown ? Config.wallpaperScrim : 0
 
-		Behavior on opacity {
-			NumberAnimation {
-				duration: Config.wallpaperScrimMs
-				easing.type: Easing.OutCubic
-			}
+		Fade on opacity {
+			duration: Config.wallpaperScrimMs
 		}
 	}
 
@@ -102,12 +99,7 @@ PanelWindow {
 		visible: root.shown || card.opacity > 0
 		focus: true
 
-		Behavior on opacity {
-			NumberAnimation {
-				duration: Config.popupFadeMs
-				easing.type: Easing.OutCubic
-			}
-		}
+		Fade on opacity {}
 
 		Keys.onPressed: function (event) {
 			const direction = Input.direction(event);
@@ -134,14 +126,12 @@ PanelWindow {
 			labelSize: Config.powerLabelSize
 			model: root.actions
 			index: root.index
-		}
-
-		MouseArea {
-			anchors.fill: parent
-			hoverEnabled: true
-
-			onPositionChanged: function (mouse) { root.index = Calc.clamp(Math.floor(mouse.x / Config.powerCellSize), 0, Math.max(0, root.count - 1)); }
-			onClicked: root.execute()
+			interactive: true
+			onHover: index => root.index = index
+			onPicked: index => {
+				root.index = index;
+				root.execute();
+			}
 		}
 	}
 }

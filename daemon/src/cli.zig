@@ -87,6 +87,21 @@ pub fn files(io: Io, args: []const []const u8) !void {
 }
 
 pub fn logout(io: Io) !void {
+	try send(io, "{\"cmd\":{\"system\":{\"logout\":true}}}");
+}
+
+pub fn still(io: Io, args: []const []const u8) !void {
+	const script = try std.fmt.allocPrint(std.heap.smp_allocator, "{s}/daemon/still.py", .{proc.repo(io, std.heap.smp_allocator)});
+	const err = std.process.replace(io, .{ .argv = if (args.len > 2) &.{ "python3", script, args[2] } else &.{ "python3", script } });
+	std.debug.print("yudae still: {t}\n", .{err});
+	std.process.exit(1);
+}
+
+pub fn lock(io: Io) !void {
+	try send(io, "{\"cmd\":{\"lockscreen\":{\"lock\":true}}}");
+}
+
+fn send(io: Io, line: []const u8) !void {
 	const path = try proc.socketPath(io, std.heap.smp_allocator);
 	defer std.heap.smp_allocator.free(path);
 
@@ -97,7 +112,7 @@ pub fn logout(io: Io) !void {
 	};
 	defer connection.close();
 
-	try connection.writeLine("{\"cmd\":{\"system\":{\"logout\":true}}}");
+	try connection.writeLine(line);
 }
 
 pub fn doctor(io: Io) !void {
@@ -809,7 +824,7 @@ fn appName(name: []const u8) bool {
 }
 
 test "app names stay inside shell/app-<name>.qml" {
-	try std.testing.expect(appName("settings"));
+	try std.testing.expect(appName("vms"));
 	try std.testing.expect(appName("kit-gallery2"));
 	try std.testing.expect(!appName(""));
 	try std.testing.expect(!appName("../etc"));
@@ -819,7 +834,7 @@ test "app names stay inside shell/app-<name>.qml" {
 
 pub fn app(io: Io, args: []const []const u8) !void {
 	if (args.len < 4 or !std.mem.eql(u8, args[2], "open")) {
-		std.debug.print("usage: yudae app open <name> [--vm <vm>] [--pane <pane>]\n", .{});
+		std.debug.print("usage: yudae app open <name> [--vm <vm>]\n", .{});
 		std.process.exit(2);
 	}
 
@@ -829,16 +844,11 @@ pub fn app(io: Io, args: []const []const u8) !void {
 		std.process.exit(2);
 	}
 	var vm: []const u8 = "";
-	var pane: []const u8 = "";
 	var index: usize = 4;
 	while (index < args.len) : (index += 1) {
 		if (std.mem.eql(u8, args[index], "--vm") and index + 1 < args.len) {
 			index += 1;
 			vm = args[index];
-		}
-		if (std.mem.eql(u8, args[index], "--pane") and index + 1 < args.len) {
-			index += 1;
-			pane = args[index];
 		}
 	}
 
@@ -881,7 +891,6 @@ pub fn app(io: Io, args: []const []const u8) !void {
 	try argv.append(allocator, "QSG_RHI_BACKEND=opengl");
 	try argv.append(allocator, try std.fmt.allocPrint(allocator, "YUDAE_APP={s}", .{name}));
 	if (vm.len > 0) try argv.append(allocator, try std.fmt.allocPrint(allocator, "YUDAE_VM={s}", .{vm}));
-	if (pane.len > 0) try argv.append(allocator, try std.fmt.allocPrint(allocator, "YUDAE_PANE={s}", .{pane}));
 	try argv.append(allocator, "quickshell");
 	try argv.append(allocator, "-p");
 	try argv.append(allocator, entry);
@@ -952,7 +961,7 @@ pub fn settings(io: Io, args: []const []const u8) !void {
 	const allocator = arena.allocator();
 
 	const message = settingsMessage(io, allocator, args) catch {
-		std.debug.print("usage: yudae settings schema | get <key> | set <key> <value> | app [pane] | yudae bar layout <file>\n", .{});
+		std.debug.print("usage: yudae settings get <key> | set <key> <value> | yudae bar layout <file>\n", .{});
 		std.process.exit(2);
 	};
 
@@ -968,11 +977,9 @@ fn settingsMessage(io: Io, allocator: Allocator, args: []const []const u8) ![]u8
 	const target = args[1];
 	const method = args[2];
 
-	if (std.mem.eql(u8, target, "settings") and (std.mem.eql(u8, method, "schema") or std.mem.eql(u8, method, "get"))) {
-		try w.writeAll("{\"call\":{\"target\":\"settings\",\"method\":");
-		try std.json.Stringify.encodeJsonString(method, .{}, w);
-		try w.writeAll(",\"args\":{");
-		if (std.mem.eql(u8, method, "get") and args.len >= 4) {
+	if (std.mem.eql(u8, target, "settings") and std.mem.eql(u8, method, "get")) {
+		try w.writeAll("{\"call\":{\"target\":\"settings\",\"method\":\"get\",\"args\":{");
+		if (args.len >= 4) {
 			try w.writeAll("\"key\":");
 			try std.json.Stringify.encodeJsonString(args[3], .{}, w);
 		}
@@ -986,10 +993,6 @@ fn settingsMessage(io: Io, allocator: Allocator, args: []const []const u8) ![]u8
 		} else |_| {
 			try std.json.Stringify.encodeJsonString(args[4], .{}, w);
 		}
-		try w.writeAll("}}}");
-	} else if (std.mem.eql(u8, target, "settings") and std.mem.eql(u8, method, "app") and args.len <= 4) {
-		try w.writeAll("{\"call\":{\"target\":\"settings\",\"method\":\"app\",\"args\":{\"pane\":");
-		try std.json.Stringify.encodeJsonString(if (args.len == 4) args[3] else "", .{}, w);
 		try w.writeAll("}}}");
 	} else if (std.mem.eql(u8, target, "bar") and std.mem.eql(u8, method, "layout") and args.len == 4) {
 		const body = try proc.readFile(io, allocator, args[3]);
@@ -1014,15 +1017,7 @@ test "settings and bar verbs build their calls" {
 		"{\"call\":{\"target\":\"settings\",\"method\":\"set\",\"args\":{\"key\":\"popupPos\",\"value\":\"top-left\"}}}",
 		try settingsMessage(io, a, &.{ "yudae", "settings", "set", "popupPos", "top-left" }),
 	);
-	try std.testing.expectEqualStrings(
-		"{\"call\":{\"target\":\"settings\",\"method\":\"app\",\"args\":{\"pane\":\"\"}}}",
-		try settingsMessage(io, a, &.{ "yudae", "settings", "app" }),
-	);
 	try std.testing.expectError(error.Usage, settingsMessage(io, a, &.{ "yudae", "settings", "set", "barStatSpacing" }));
-	try std.testing.expectEqualStrings(
-		"{\"call\":{\"target\":\"settings\",\"method\":\"schema\",\"args\":{}}}",
-		try settingsMessage(io, a, &.{ "yudae", "settings", "schema" }),
-	);
 	try std.testing.expectEqualStrings(
 		"{\"call\":{\"target\":\"settings\",\"method\":\"get\",\"args\":{\"key\":\"barStatSpacing\"}}}",
 		try settingsMessage(io, a, &.{ "yudae", "settings", "get", "barStatSpacing" }),

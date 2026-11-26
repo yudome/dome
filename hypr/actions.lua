@@ -28,8 +28,6 @@ end
 
 local CASCADE_STEP = 40
 
--- windows and monitors are measured in logical pixels, the monitor only reports
--- its physical size, so the screen edge is divided back by the scale
 local function cascadeTo(win, last)
     local monitor = win.monitor
     local size = type(win.size) == "table" and win.size or nil
@@ -48,13 +46,6 @@ local function cascadeTo(win, last)
     hl.dispatch(hl.dsp.window.move({ x = math.floor(x), y = math.floor(y) }))
 end
 
--- ponytail: a window opening while the last focused one floats floats too, so a
--- round of floating windows stays floating, and each one lands a step down and
--- right of that last one until the screen runs out and the stair starts over.
--- hl.dsp.window.float toggles in this build -- the action field it takes is
--- ignored -- so the guard on win.floating is what makes the call a set.
--- Ceiling: only the last focused window is looked at, one toggle per open, and
--- the bar's reserved strip is not counted when the stair wraps.
 local function followFloat(win)
     local last = hl.get_last_window()
     if not last or last.address == win.address or not last.floating or win.floating then return end
@@ -69,6 +60,25 @@ hl.on("window.active", function ()
     hl.dispatch(hl.dsp.window.bring_to_top())
 end)
 
+local windowDrag = hl.bind("SUPER + mouse:272", hl.dsp.window.drag(), { mouse = true })
+
+local function launcherDrag(open)
+    windowDrag:set_enabled(not open)
+end
+
+local function focusFirst()
+    for _, win in ipairs(hl.get_windows()) do
+        if win.class ~= "qemu" and win.mapped then
+            hl.dispatch(hl.dsp.focus({ window = win }))
+            return
+        end
+    end
+
+    hl.dispatch(hl.dsp.focus({ workspace = 1 }))
+end
+
 return {
     floatToggle = floatToggle,
+    focusFirst = focusFirst,
+    launcherDrag = launcherDrag,
 }

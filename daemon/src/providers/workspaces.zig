@@ -131,12 +131,41 @@ pub const Workspaces = struct {
 		self.allocator.free(answer);
 	}
 
+	/// Focuses a workspace by its name, which may carry a slot version; any name hidden from the bar works too.
+	pub fn show(self: *Workspaces, name: []const u8) void {
+		if (!safeName(name)) return;
+
+		const owned = self.allocator.dupe(u8, name) catch return;
+		const thread = std.Thread.spawn(.{}, showThread, .{ self, owned }) catch {
+			self.allocator.free(owned);
+			return;
+		};
+		thread.detach();
+	}
+
+	fn showThread(self: *Workspaces, name: []u8) void {
+		defer self.allocator.free(name);
+		var buffer: [128]u8 = undefined;
+
+		if (hypr.usingLua(self.io, self.allocator)) {
+			const script = std.fmt.bufPrint(&buffer, "hl.dispatch(hl.dsp.focus({{ workspace = \"{s}\" }}))", .{name}) catch return;
+			const result = hypr.ctl(self.io, self.allocator, &.{ "eval", script }) catch return;
+			result.deinit(self.allocator);
+			return;
+		}
+
+		const numeric = if (std.fmt.parseInt(i64, name, 10)) |_| true else |_| false;
+		const command = std.fmt.bufPrint(&buffer, "dispatch workspace {s}{s}", .{ if (numeric) "" else "name:", name }) catch return;
+		const answer = hypr.request(self.io, self.allocator, command) catch return;
+		self.allocator.free(answer);
+	}
+
 	fn seed(self: *Workspaces) void {
 		var arena = std.heap.ArenaAllocator.init(self.allocator);
 		defer arena.deinit();
 
 		const allocator = arena.allocator();
-		const path = std.fmt.allocPrint(allocator, "{s}/shell/cache/versions.json", .{proc.repo(self.io, allocator)}) catch return;
+		const path = std.fmt.allocPrint(allocator, "{s}/cache/.shell/versions.json", .{proc.repo(self.io, allocator)}) catch return;
 		const body = proc.readFile(self.io, allocator, path) catch return;
 
 		seedVersions(&self.versions, allocator, body);
@@ -252,4 +281,19 @@ test "saved versions keep their slots" {
 	try std.testing.expectEqual(@as(i64, 2), versions[3]);
 	try std.testing.expectEqual(@as(i64, 4), versions[9]);
 	try std.testing.expectEqual(@as(i64, 1), versions[1]);
+}
+
+/// A workspace name goes into a Lua string, so only plain names pass.
+fn safeName(name: []const u8) bool {
+	if (name.len == 0 or name.len > 64) return false;
+	for (name) |c| if (!std.ascii.isAlphanumeric(c) and c != '-' and c != '_' and c != '.') return false;
+	return true;
+}
+
+test "only plain workspace names reach hyprctl" {
+	try std.testing.expect(safeName("99"));
+	try std.testing.expect(safeName("3v2"));
+	try std.testing.expect(!safeName(""));
+	try std.testing.expect(!safeName("x\"}) os.exit() --"));
+	try std.testing.expect(!safeName("a b"));
 }

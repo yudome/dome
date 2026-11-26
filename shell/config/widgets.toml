@@ -5,16 +5,16 @@ cpuTooltipWidth = 240
 cpuGraphHeight = 64
 cpuBarsHeight = 32
 cpuDotPitch = 5
-cpuOverviewTitle = "Overview"  # hidden
-topProcessTitle = "Top processes"  # hidden
+cpuOverviewTitle = "Overview"
+topProcessTitle = "Top processes"
 procRowHeight = 22
 procsGap = 2
 procSearchPadding = 4
-procSearchHint = "f to type"  # hidden
+procSearchHint = "f to type"
 procSearchMinWidth = 140
-procKillSignal = "-9"  # hidden
-procHintKey = "f"  # hidden
-procKillKey = "q"  # hidden
+procKillSignal = "-9"
+procHintKey = "f"
+procKillKey = "q"
 
 # Memory
 [memory]
@@ -48,7 +48,7 @@ mediaRowGap = 6
 mediaButtonGlyphSize = 16
 mediaButtonGap = 18
 mediaLineGap = 2
-mediaEmpty = "Nothing playing"  # hidden
+mediaEmpty = "Nothing playing"
 
 # Network
 [network]
@@ -61,12 +61,12 @@ networkBarCount = 4
 networkBarWidth = 3
 networkBarGap = 2
 networkBarStep = 3
-networkSpeedCancelKey = "k"  # hidden
-networkSpeedNone = "Run a speed test"  # hidden
-networkSpeedAgain = "Enter to try again"  # hidden
-networkSpeedUnit = "Mbps"  # hidden
-networkSpeedTestingDown = "Testing download speed\u2026"  # hidden
-networkSpeedTestingUp = "Testing upload speed\u2026"  # hidden
+networkSpeedCancelKey = "k"
+networkSpeedNone = "Run a speed test"
+networkSpeedAgain = "Enter to try again"
+networkSpeedUnit = "Mbps"
+networkSpeedTestingDown = "Testing download speed\u2026"
+networkSpeedTestingUp = "Testing upload speed\u2026"
 speedGaugeSize = 160
 speedRingSegs = 44
 speedRingWidth = 9
@@ -79,9 +79,9 @@ speedNeedleBase = 40
 speedNeedleMs = 450
 speedNeedleLen = 22
 speedNeedleWidth = 2
-networkTitle = "Network"  # hidden
-networkWiredNothing = "No connection"  # hidden
-networkPasswordHint = "Password"  # hidden
+networkTitle = "Network"
+networkWiredNothing = "No connection"
+networkPasswordHint = "Password"
 
 # Weather
 [weather]
@@ -174,8 +174,8 @@ contribWeeks = 19  # 4..52
 contribCell = 10
 contribGap = 3
 contribTooltipWidth = 244
-contribRefreshHint = "r to refresh"  # hidden
-contribFetchHint = "r to fetch"  # hidden
+contribRefreshHint = "r to refresh"
+contribFetchHint = "r to fetch"
 contribAvatar = 24
 
 # Agent
@@ -192,28 +192,28 @@ agentRingWidth = 3
 agentRingGap = 12
 agentRingWarnPercent = 60
 agentRingAlarmPercent = 90
-agentIdleText = "Idle"  # hidden
-agentWorkingText = "Working"  # hidden
-agentBlockedText = "a session needs attention"  # hidden
-agentErrorText = "Error"  # hidden
-agentPanelTitle = "Agent"  # hidden
-agentNameFile = "cache/agent-name"  # hidden
-agentTasksTitle = "Tasks"  # hidden
-agentDoneTitle = "Done"  # hidden
-agentIconQuestion = "?"  # hidden
-agentPlanTitle = "Subscription"  # hidden
-agentPlanName = "OpenCode Go"  # hidden
+agentIdleText = "Idle"
+agentWorkingText = "Working"
+agentBlockedText = "a session needs attention"
+agentErrorText = "Error"
+agentPanelTitle = "Agent"
+agentNameFile = "cache/agent-name"
+agentTasksTitle = "Tasks"
+agentDoneTitle = "Done"
+agentIconQuestion = "?"
+agentPlanTitle = "Subscription"
+agentPlanName = "OpenCode Go"
 agentPlanIcon = "opencode"
 agentFinishedToast = false  # toast when an agent session finishes
 
 # Disk
 [disk]
 diskBubbleMs = 420
-diskScanHint = "Scan to build the map"  # hidden
-diskDeleteHint = "Are you sure you want to delete %1?"  # hidden
+diskScanHint = "Scan to build the map"
+diskDeleteHint = "Are you sure you want to delete %1?"
 
 # Virtual machines
 [vms]
-vmDestroyConfirm = "Confirm destroy"  # hidden
-vmDestroyHint = "destroy deletes the disk"  # hidden
+vmDestroyConfirm = "Confirm destroy"
+vmDestroyHint = "destroy deletes the disk"
 vmOverlayKey = "Ctrl+Alt+O"  # performance overlay in the vm viewer

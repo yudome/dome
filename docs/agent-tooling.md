@@ -12,10 +12,8 @@ yudae plugin list | build <id> | load <id> | unload <id> | theme <id> | add <url
 yudae vm <verb> ...                        # same verbs as the MCP tools
 yudae open <vm> [app]                      # open the viewer, or an app inside the guest
 yudae disk scan|view|search|stat|mark|unmark|trash|remove|move|copy|rename|packages|uninstall|clean-packages|caches|clean|watch [args...]
-yudae settings schema                      # pages, sections and keys as the app draws them
 yudae settings get [key]
 yudae settings set <key> <value>           # value is JSON when it parses, else a string
-yudae settings app [pane]
 yudae bar layout <file.json>
 ```
 
@@ -35,7 +33,7 @@ yudae bar layout <file.json>
 - state, providers, bench, parity
 - qs_log
 - plugin_list, plugin_build, plugin_load, plugin_unload, plugin_theme, plugin_add, plugin_update, plugin_reload
-- settings_schema, settings_get, settings_set, settings_app, bar_layout
+- settings_get, settings_set, bar_layout
 - disk_scan, disk_view, disk_search, disk_stat, disk_mark, disk_unmark, disk_trash, disk_delete, disk_move, disk_copy, disk_rename, disk_packages, disk_uninstall, disk_caches, disk_clean, disk_watch
 - vm_create, vm_list, vm_state, vm_exec, vm_push, vm_pull, vm_key, vm_type, vm_click, vm_move, vm_drag, vm_scroll, vm_gui, vm_config, vm_screenshot, vm_wait, vm_sleep, vm_wake, vm_park, vm_stop, vm_destroy, vm_snapshot, vm_restore, vm_fork, vm_view, vm_ui_tree, vm_run_scenario
 
@@ -73,6 +71,6 @@ Structured state first, pixels last:
 
 Agents install software with `yudae vm exec <vm> 'sudo pacman -S --noconfirm <pkg>'`; it lands in that VM's overlay only. A package every agent needs goes into `packages.conf`.
 
-Apps start from `shell/app-<name>.qml` (`settings`, `vms`, `disk`, `gallery`); `yudae app open <name>` opens one, and a new app needs only its `app-<name>.qml`. `xmake test shell-app/app` loads every app and the shell headless and fails on QML runtime errors. For a UI change, run `quickshell -p shell/app-gallery.qml` in your own VM and screenshot it at 480, 720, 960 and 1280 wide.
+Apps start from `shell/app-<name>.qml` (`vms`, `disk`, `gallery`); `yudae app open <name>` opens one, and a new app needs only its `app-<name>.qml`. `xmake test shell-app/app` loads every app and the shell headless and fails on QML runtime errors. For a UI change, run `quickshell -p shell/app-gallery.qml` in your own VM and screenshot it at 480, 720, 960 and 1280 wide.
 
 A human can watch and take over with `vm view <name>` (the Quickshell `vms` app on that VM, 2560x1440 at scale 1.6667) or from the launcher's Virtual machines entry, which opens the app gallery. The gallery shows gray last-viewed thumbnails and renders no VM until a card is clicked. While a human holds input, agent input fails with "human has control". Closing the window or `vm release <name>` returns the guest to 1536x864 at scale 1 for agents and captures a new thumbnail. `Ctrl+Alt+O` (`vmOverlayKey`) in the viewer toggles a performance overlay like conduit-viewer's: frames received and shown per second, frame time now, average, p99 and max, receive-to-screen latency, input events per second and the display path. On the Conduit path the backend stamps each frame with the guest's flip time, so it also shows flip-to-receive and flip-to-screen, and frame times come from the flips.

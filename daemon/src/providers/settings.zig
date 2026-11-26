@@ -66,7 +66,7 @@ pub const Settings = struct {
 	}
 
 	fn path(self: *Settings, allocator: Allocator) []const u8 {
-		return std.fmt.allocPrint(allocator, "{s}/dotfiles/shell/cache/display.lua", .{proc.home(self.io, allocator)}) catch "/nonexistent";
+		return std.fmt.allocPrint(allocator, "{s}/dotfiles/cache/.shell/display.lua", .{proc.home(self.io, allocator)}) catch "/nonexistent";
 	}
 
 	fn watchLoop(self: *Settings) void {
@@ -133,65 +133,6 @@ pub const Settings = struct {
 				}) catch continue;
 			}
 		}
-	}
-
-	pub fn setOutput(self: *Settings, name: []const u8, mode: ?[]const u8, scale: ?f64) void {
-		self.mutex.lockUncancelable(self.io);
-
-		var found = false;
-		for (self.outputs.items) |*entry| {
-			if (!std.mem.eql(u8, entry.name, name)) continue;
-
-			if (mode) |value| setStr(self.allocator, &entry.mode, value) catch {};
-			if (scale) |value| entry.scale = value;
-			found = true;
-			break;
-		}
-
-		if (!found) {
-			self.outputs.append(self.allocator, .{
-				.name = self.allocator.dupe(u8, name) catch {
-					self.mutex.unlock(self.io);
-					return;
-				},
-				.mode = self.allocator.dupe(u8, mode orelse "") catch {
-					self.mutex.unlock(self.io);
-					return;
-				},
-				.scale = scale orelse 1,
-			}) catch {
-				self.mutex.unlock(self.io);
-				return;
-			};
-		}
-
-		self.renderToFile();
-		self.mutex.unlock(self.io);
-
-		self.hub.publish();
-	}
-
-	fn renderToFile(self: *Settings) void {
-		var out: std.Io.Writer.Allocating = .init(self.allocator);
-		defer out.deinit();
-
-		out.writer.print("return {{\n\tfallback = {{ mode = \"{s}\", scale = {d:.6} }},\n\toutputs = {{\n", .{
-			self.fallback_mode,
-			self.fallback_scale,
-		}) catch return;
-
-		for (self.outputs.items) |entry| {
-			out.writer.print("\t\t[\"{s}\"] = {{ mode = \"{s}\", scale = {d:.6} }},\n", .{ entry.name, entry.mode, entry.scale }) catch return;
-		}
-
-		out.writer.print("\t}},\n}}\n", .{}) catch return;
-
-		setStr(self.allocator, &self.record, out.written()) catch {};
-
-		const file = self.path(self.allocator);
-		defer self.allocator.free(file);
-
-		proc.writeFileAtomic(self.io, self.allocator, file, out.written()) catch {};
 	}
 
 	fn render(self: *Settings, writer: *Writer) !void {

@@ -1,6 +1,11 @@
 const std = @import("std");
 
 test {
+	std.Io.Dir.cwd().access(std.testing.io, "daemon/src/tests.zig", .{}) catch return;
+	std.Io.Threaded.chdir("daemon") catch {};
+}
+
+test {
 	_ = @import("primitives/json.zig");
 	_ = @import("primitives/fmt.zig");
 	_ = @import("primitives/png.zig");
@@ -34,6 +39,7 @@ test {
 	_ = @import("providers/wallpaper.zig");
 	_ = @import("providers/ink.zig");
 	_ = @import("providers/stills.zig");
+	_ = @import("providers/lockscreen.zig");
 	_ = @import("providers/bar.zig");
 	_ = @import("providers/launcher.zig");
 	_ = @import("providers/files/index.zig");

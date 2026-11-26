@@ -7,7 +7,8 @@ windows are respected; with the repo's `no-shadow-on-tiled` rule that means
 floating windows.
 
 The built-in `decoration:shadow:enabled` is turned off while this plugin is
-enabled.
+enabled. Quickshell popups bake the same texture from the same options through
+the `ShadowTexture` native item.
 
 ## Options
 

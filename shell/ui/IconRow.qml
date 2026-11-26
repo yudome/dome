@@ -14,10 +14,22 @@ Item {
 	property real highlightSize: Config.windowsHighlightSize
 	property real labelSize: Config.windowsTitleSize
 	property string emptyMessage: ""
+	property bool labeled: true
+	property bool interactive: false
 
+	readonly property bool hovered: hit.containsMouse
 	readonly property int count: row.model ? row.model.length : 0
 	readonly property int active: row.count === 0 ? -1 : Calc.clamp(row.index, 0, row.count - 1)
 	readonly property real emptyWidth: row.count === 0 ? emptyLabel.implicitWidth : 0
+
+	signal hover(int index)
+	signal picked(int index)
+
+	function cellAt(x, y) {
+		const column = Calc.clamp(Math.floor(x / row.cell), 0, row.columns - 1);
+		const line = Math.floor(Math.min(y, grid.height - 1) / row.cell);
+		return Calc.clamp(line * row.columns + column, 0, Math.max(0, row.count - 1));
+	}
 
 	implicitWidth: Math.max(row.columns * row.cell, row.emptyWidth)
 	implicitHeight: Math.ceil(Math.max(row.count, 1) / row.columns) * row.cell + Config.windowsLabelGap + labelText.implicitHeight
@@ -97,6 +109,18 @@ Item {
 		font.family: Config.fontFamily
 		font.pixelSize: row.labelSize
 		color: Config.foreground
+		opacity: row.labeled ? 1 : 0
 		text: row.active >= 0 ? (row.model[row.active].name || "") : ""
+	}
+
+	MouseArea {
+		id: hit
+
+		anchors.fill: parent
+		enabled: row.interactive && row.count > 0
+		hoverEnabled: true
+		cursorShape: Qt.PointingHandCursor
+		onPositionChanged: mouse => row.hover(row.cellAt(mouse.x, mouse.y))
+		onClicked: mouse => row.picked(row.cellAt(mouse.x, mouse.y))
 	}
 }

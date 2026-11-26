@@ -37,38 +37,26 @@ A provider registers its commands by key. `yudae call <target> <method> [args...
 
 ## Settings
 
-The Settings app (`shell/app-settings.qml`, `features/settings/`) draws itself from `settings.schema`; it holds no list of settings. Every settings category is one file under `shell/config/`, and `general.toml` lists the pages:
-
-```toml
-settingsPages = [
-	{ name = "Display", glyph = "monitor", file = "display" },
-]
-```
-
-Adding a setting means adding a line to that category's file. A section is a `[section]` table; the comment line above it is the panel title. A key needs no registration: its type comes from its value, and its label is the key with the section prefix dropped (`barStatSpacing` in `[bar]` is "Stat Spacing"). A trailing comment adds the rest: `# 4..30` gives the slider range, `# icon | text` makes a choice, `hidden` keeps a key out of the app, any other sentence is the row's note. All font glyphs live in `icons.toml`; `settings.schema` collects every glyph key there and leaves glyphs out of the other pages.
+Every settings category is one file under `shell/config/`. Adding a setting means adding a line to that category's file; a key needs no registration, its type comes from its value. A trailing comment documents it: `# 4..30` is the range, `# icon | text` the choices. All font glyphs live in `icons.toml`.
 
 The files under `shell/config/` stay the only store. Edits are one line each, keeping indent, trailing comment and file order; the result is parsed before the atomic write, so a bad edit never lands.
 
-- `settings.schema` returns the pages, sections and keys with type, value, label, note, choices and slider steps; the app re-reads it whenever the config changes. Glyph keys are collected on the page named `Icons` and left out of every other page.
 - `settings.get {key?}` returns one value, or the whole flattened map without a key.
 - `settings.set {key, value}` finds the category file that owns the key, writes one line there and then the keys that copy or derive from it, in that file or another: `# same as <key>`, and arithmetic or `a ? b : c` comments that name the changed key (`notifyWidth` follows `notifyScale`, `barBorderWidth` follows `barFloating`). The value must have the key's current type: string, bool, integer (a whole float is accepted) or float (an integer is written as `N.0`). Non-ASCII text is written as `\uXXXX` / `\UXXXXXXXX`. Errors: `UnknownKey`, `WrongType`, `Unsupported` (arrays and tables), `NoKey`, `NoValue`.
 - `bar.layout {layout}` writes the whole `topbarlayout.json` document atomically after the same `normalize` the bar reader uses accepts it (`NoBar`, `NoLayout`). One widget per line, like the checked-in file.
-- `settings.app {pane?}` opens the app (`yudae app open settings [--pane <pane>]`), like `vms.app` and `disk.app`. The pane is a page name; Super+P opens the app on `display`.
-
-The bar preview in the app draws the real bar: `bar/BarBody.qml` is the rows, widget components and border that `Bar.qml` uses, so the preview and the live bar are one piece of code. In `manual` mode the app feeds pending values through `Config.overlay`. The display controls (scale, refresh, resolution) live only in the Display page; there is no display widget and no font size in the display panel, so `fontSize` in `[shell]` is the one font size everywhere.
 
 ## Wallpaper
 
 yudaemond draws the wallpaper itself; there is no awww. `src/c/wallrender.c` runs one render thread with its own Wayland connection: one wlr-layer-shell background surface per output (fractional scale + viewporter, hotplug), frames paced by `wl_surface.frame` so every animation runs at that output's Hz.
 
-- Decode: `src/c/imgdecode.c`, by magic bytes. jpg through TurboJPEG (scaled 1/2, 1/4, 1/8 while it still covers the output), png through wuffs (the `daemon-deps` xmake target fetches the pinned C file and the layer-shell XML into `daemon/.deps/` and runs wayland-scanner into `daemon/.deps/gen/`), webp through libwebp, everything else (avif, jxl, gif, tiff) through libav.
+- Decode: `src/c/imgdecode.c`, by magic bytes. jpg through TurboJPEG (scaled 1/2, 1/4, 1/8 while it still covers the output), png through wuffs (the `daemon-deps` xmake target fetches the pinned C file and the layer-shell XML into `build/deps/` and runs wayland-scanner into `build/deps/gen/`), webp through libwebp, everything else (avif, jxl, gif, tiff) through libav.
 - Draw: EGL + GLES 3. Cover scaling on the GPU, one readback into a `wl_shm` buffer per output, then the GL context, textures and decoder are freed. Idle is one buffer per output and no wakeups.
 - Transitions: `none`, built-in `fade` (`wallpaperTransitionMs`) and `transition` plugins (docs/plugins.md). `wallpaper.apply {path, transition?, output?, fade?}`; `wallpaperTransition` picks the default.
 - Ink: measured from the top band of the final frame before the transition starts and published when the eased progress reaches `ink_at`. Same luminance rule as awww's `ink.rs`. Each output keeps its own verdict; the `ink` snapshot and `bar-ink.json` keep their shape.
 - Video (mp4, webm, mkv, mov): `src/c/video.c` decodes through libav with VA-API when present; NVDEC frames reach GL without a copy (`EGL_EXT_image_dma_buf_import`, one NV12 `samplerExternalOES` image), otherwise planes are uploaded. A timerfd presents only when a new video frame is due. `wallpaperVideoLoop = false` plays once on apply and settles on the still frame; `true` loops.
 - Settle: the playback rate eases from 1x to 0 (`1-(1-u)^curve`) and lands on the still frame, on its next occurrence far enough ahead, looping forward. `wallpaper.play` ramps back up, `wallpaper.settle` stops, `wallpaper.pause true|false`, `wallpaper.frame {path?, t}` saves the still frame.
-- Still frame pick: `src/c/stillpick.c` decodes every frame at 160x90 once, at nice 19, scores motion decay, sharpness, contrast and light, skips frames near scene cuts, and derives the settle length (600-2500ms). `providers/stills.zig` caches it in `daemon/cache/wallpaper-videos.json` by mtime and size, with the user's `restFrame`.
-- Settings: `wallpaper.filmstrip {path}` writes keyframe-only thumbnails, `wallpaper.preview {path, t}` the exact frame; the Wallpaper page shows the Still frame row for videos.
+- Still frame pick: `src/c/stillpick.c` decodes every frame at 160x90 once, at nice 19, scores motion decay, sharpness, contrast and light, skips frames near scene cuts, and derives the settle length (600-2500ms). `providers/stills.zig` caches it in `cache/.shell/wallpaper-videos.json` by mtime and size, with the user's `restFrame`.
+- Still frame app: `yudae still [path]` opens `daemon/still.py` (GTK4) on the active wallpaper or `path`. It reads fps, duration and the current still from `wallpaper.filmstrip {path}`, shows frames through ffmpeg and saves with `wallpaper.frame {path, t}`.
 - Pause: socket2 events; `wallpaperPause = "fullscreen" | "any-window" | "never"`. Paused means no frames, no decode, audio faded and corked, GL freed.
 - Audio: `wallpaperAudio = false` by default, `wallpaperVolume`. When off the audio track is never opened and no PipeWire stream exists; `wr_audio_opens` is the one gate.
 - VMs: the host writes `$XDG_RUNTIME_DIR/yudae-state/state.json` (and `still.jpg` for videos); the VM control plane shares it read-only as virtiofs tag `yudae-state`, `vm/desktop` mounts it at `/run/yudae-state`, and the guest daemon shows that image with the host's ink. An explicit `wallpaper.apply` in a guest still draws, for tests.

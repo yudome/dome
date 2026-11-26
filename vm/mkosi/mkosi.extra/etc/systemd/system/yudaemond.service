@@ -10,7 +10,7 @@ Group=user
 Environment=HOME=/home/user
 Environment=XDG_RUNTIME_DIR=/run/user/1000
 ExecStartPre=+/bin/sh -c "echo yudaemond-start > /dev/ttyS0"
-ExecStart=/home/user/dotfiles/daemon/zig-out/bin/yudaemond run
+ExecStart=/home/user/dotfiles/build/bin/yudaemond run
 StandardOutput=journal+console
 StandardError=journal+console
 Restart=on-failure

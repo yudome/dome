@@ -22,12 +22,12 @@
     },
     {
       "do": "exec",
-      "cmd": "export XDG_RUNTIME_DIR=/run/user/1000; /home/user/dotfiles/daemon/zig-out/bin/yudaemond disk scan / >/dev/null || true",
+      "cmd": "export XDG_RUNTIME_DIR=/run/user/1000; /home/user/dotfiles/build/bin/yudaemond disk scan / >/dev/null || true",
       "code": 0
     },
     {
       "do": "wait",
-      "until": "exec:sh -c 'export XDG_RUNTIME_DIR=/run/user/1000; /home/user/dotfiles/daemon/zig-out/bin/yudaemond disk view --json > /tmp/disk-view.json; grep -q \"\\\"status\\\":\\\"failed\\\"\" /tmp/disk-view.json'",
+      "until": "exec:sh -c 'export XDG_RUNTIME_DIR=/run/user/1000; /home/user/dotfiles/build/bin/yudaemond disk view --json > /tmp/disk-view.json; grep -q \"\\\"status\\\":\\\"failed\\\"\" /tmp/disk-view.json'",
       "timeout": 60000
     },
     {

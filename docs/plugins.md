@@ -1,6 +1,6 @@
 # Plugins
 
-One standard to make, load and share anything that modifies the system: Hyprland plugins, themes, shell features and app configs. A theme is a plugin.
+One standard to make, load and share anything that modifies the system: Hyprland plugins, themes, shell features, app configs and terminal shell prompts. A theme is a plugin.
 
 ## A plugin is a folder
 
@@ -10,10 +10,11 @@ plugins/<id>/
   Makefile
   src/ ...
   hypr.lua        hypr only
+  prompt.zsh      zsh only, rendered by make
   theme.toml      theme source, rendered by make
 ```
 
-`templates/_template-hypr/`, `_template-theme/`, `_template-shell/`, `_template-app/`, `_template-daemon/` and `_template-transition/` are working examples. Copy one into `plugins/<id>` and rename every `_template-*` name.
+`templates/_template-hypr/`, `_template-theme/`, `_template-shell/`, `_template-app/`, `_template-zsh/`, `_template-daemon/` and `_template-transition/` are working examples. Copy one into `plugins/<id>` and rename every `_template-*` name.
 
 ### Manifest
 
@@ -31,7 +32,7 @@ hyprland = ">=0.50"
 | key | rule |
 | --- | --- |
 | `id` | folder name, `^_?[a-z][a-z0-9-]*$`; a leading `_` marks a template |
-| `kind` | `hypr`, `theme`, `shell`, `app`, `daemon` or `transition` |
+| `kind` | `hypr`, `theme`, `shell`, `app`, `zsh`, `daemon` or `transition` |
 | `version` | free string |
 | `requires` | optional; only `hyprland`, with `>=`, `<=`, `>`, `<` or `=` and a dotted version |
 | `build` | command run in the folder with `OUT` in the environment; `make` sees `OUT=<dir>` |
@@ -79,7 +80,7 @@ One adapter per kind in yudaemond. Plugins never touch the loader.
 ### theme
 
 - `provides` has `theme.toml`. It may use the same sections as the files under `shell/config/` (`[colors]`, `[weather]`, `[calendar]`, ...), so a key replaces the base value in its own section. Color keys must be color settings from `shell/services/Config.qml`; values are `#rrggbb` or `#aarrggbb`. Boolean switches are allowed too. Set `surfaceRaised`, `surfaceHover` and `rule` in `[colors]`: every app, card, row and menu draws from them.
-- A theme may carry `wallpaper.jpg|png` (the full-res image applied with the look) and `cover.jpg` (that wallpaper cropped to 16:9 with the top bar drawn in the theme's palette). The picker's look row shows the cover, and the strip previews the wallpaper full screen before applying. `xmake build theme-cover` then `daemon/zig-out/bin/theme-cover [id...] [--force]` generates `cover.png` from the theme palette when a theme has no cover yet.
+- A theme may carry `wallpaper.jpg|png` (the full-res image applied with the look) and `cover.jpg` (that wallpaper cropped to 16:9 with the top bar drawn in the theme's palette). The picker's look row shows the cover, and the strip previews the wallpaper full screen before applying. `xmake build theme-cover` then `build/bin/theme-cover [id...] [--force]` generates `cover.png` from the theme palette when a theme has no cover yet.
 - yudaemond merges themes in load order into `$XDG_STATE_HOME/yudae/theme.toml`.
 - `providers/config.zig` reads that file after the base files in `shell/config/`, so `Yudae.settings` retints live without a shell restart.
 
@@ -96,6 +97,14 @@ One adapter per kind in yudaemond. Plugins never touch the loader.
 - Nothing is installed into `~/.config`; the app reads the rendered file from the state dir.
 
 Example: `plugins/foot/theme.ini` renders to `~/.local/state/yudae/build/foot/theme.ini`.
+
+### zsh
+
+- `provides` includes the `.zsh` entry. The first `.zsh` in `provides` is sourced.
+- yudaemond writes `$XDG_STATE_HOME/yudae/plugins.zsh` after every reload with one `source` line per loaded zsh plugin, in load order.
+- `config/zsh/.zshrc` sources that generated file after oh-my-zsh when it exists, so a plugin change applies to the next interactive shell.
+- `plugins/minimal/prompt.zsh` is the full prompt: status, vi keymap, ssh, virtualenv, cwd, git branch, an info line and magic enter. `plugins/plain/prompt.zsh` is a compact single-line alternative; later zsh plugins in the load list win.
+- `plugins/complete/complete.zsh` binds Tab to accept the autosuggestion, then `fzf-completion`, then normal completion.
 
 ### daemon
 
@@ -145,14 +154,14 @@ yudae plugin reload
 - `build` forces one build, then reloads the generated Lua and live-loads Hyprland plugins.
 - `add` clones into `$XDG_DATA_HOME/yudae/plugins/<manifest id>`, records the commit in `$XDG_STATE_HOME/yudae/commits/<id>`, adds it to `load` and reloads. It prints kind, version, commit and path.
 - `update` pulls an installed plugin, records the commit and reloads. Repository plugins are not pulled.
-- `reload` re-reads the list, rebuilds stale plugins, rewrites `loaded.lua`, merges themes and applies shell/app plugins.
+- `reload` re-reads the list, rebuilds stale plugins, rewrites `loaded.lua`, `plugins.zsh`, merges themes and applies shell/app plugins.
 - `xmake plugin` rebuilds every repository plugin's Makefile into `$XDG_STATE_HOME/yudae/build/<id>`; it does not touch the load list.
 
 ## Tests
 
-- The `plugin-check` test (`xmake test plugin-check/plugins`) discovers every folder under `plugins/` and `templates/`, validates the manifest, rejects binaries, runs `make`, checks `provides`, lints shell QML, parses theme colors and builds app templates. Hypr plugins are skipped when `pkg-config hyprland` is missing.
-- Zig unit tests cover the load list, missing folder, broken TOML, unknown kind, duplicate id, requires mismatch, order, options, unload, source hash, theme layering and a real Hyprland template build.
-- VM scenarios `vm/scenarios/plugin-*.json` cover no list, load, unload, stale source, broken source, binary in folder, missing compiler, themes, theme layering, Lua themes, shell, app and Hyprland.
+- The `plugin-check` test (`xmake test plugin-check/plugins`) discovers every folder under `plugins/` and `templates/`, validates the manifest, rejects binaries, runs `make`, checks `provides`, lints shell QML, parses theme colors, syntax-checks zsh entries and builds app templates. Hypr plugins are skipped when `pkg-config hyprland` is missing.
+- Zig unit tests cover the load list, missing folder, broken TOML, unknown kind, duplicate id, requires mismatch, order, options, unload, source hash, theme layering, the zsh aggregate file and a real Hyprland template build.
+- VM scenarios `vm/scenarios/plugin-*.json` cover no list, load, unload, stale source, broken source, binary in folder, missing compiler, themes, theme layering, Lua themes, shell, app, zsh and Hyprland.
 
 Golden images can pin the Arch repos (`core`, `extra`, `multilib`) to an Arch Linux Archive date; CachyOS repos have no archive and stay current:
 

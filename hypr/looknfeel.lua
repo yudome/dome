@@ -1,22 +1,4 @@
 hl.config({
-    general = {
-        gaps_in  = 4,
-        gaps_out = 8,
-
-        border_size = 2,
-
-        col = {
-            active_border   = "rgba(ffffffee)",
-            inactive_border = "rgba(595959ff)",
-        },
-
-        resize_on_border = true,
-
-        allow_tearing = false,
-
-        layout = "dwindle",
-    },
-
     decoration = {
         rounding       = 0,
         rounding_power = 2,
@@ -40,49 +22,4 @@ hl.config({
 
         dim_special = 0.5,
     },
-
-    animations = {
-        enabled = true,
-    },
-
-    misc = {
-        force_default_wallpaper = 0,
-        disable_hyprland_logo   = true,
-        disable_splash_rendering = true,
-        background_color        = 0xff000000,
-    },
-
-    render = {
-        new_render_scheduling = true,
-        cm_auto_hdr           = 0,
-    },
-
-    quirks = {
-        skip_non_kms_dmabuf_formats = false,
-    },
-
-    ecosystem = {
-        no_update_news   = true,
-        no_donation_nag  = true,
-    },
 })
-
-hl.curve("quick", { type = "bezier", points = { {0.15, 0}, {0.1, 1} } })
-
-hl.animation({ leaf = "global",        enabled = true, speed = 1.5, bezier = "quick" })
-hl.animation({ leaf = "border",        enabled = false })
-hl.animation({ leaf = "windows",       enabled = true, speed = 2,   bezier = "quick" })
-hl.animation({ leaf = "windowsIn",     enabled = true, speed = 1.6, bezier = "quick", style = "popin 97%" })
-hl.animation({ leaf = "windowsOut",    enabled = true, speed = 1.2, bezier = "quick", style = "popin 97%" })
-hl.animation({ leaf = "fade",          enabled = true, speed = 1.5, bezier = "quick" })
-hl.animation({ leaf = "fadeIn",        enabled = true, speed = 1.2, bezier = "quick" })
-hl.animation({ leaf = "fadeOut",       enabled = true, speed = 1,   bezier = "quick" })
-hl.animation({ leaf = "layers",        enabled = true, speed = 1.5, bezier = "quick" })
-hl.animation({ leaf = "layersIn",      enabled = true, speed = 1.5, bezier = "quick", style = "fade" })
-hl.animation({ leaf = "layersOut",     enabled = true, speed = 1.2, bezier = "quick", style = "fade" })
-hl.animation({ leaf = "fadeLayersIn",  enabled = true, speed = 1.2, bezier = "quick" })
-hl.animation({ leaf = "fadeLayersOut", enabled = true, speed = 1,   bezier = "quick" })
-hl.animation({ leaf = "workspaces",    enabled = false })
-hl.animation({ leaf = "workspacesIn",  enabled = false })
-hl.animation({ leaf = "workspacesOut", enabled = false })
-

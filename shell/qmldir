@@ -1,3 +1,4 @@
+NativeShadow 1.0 NativeShadow.qml
 singleton Config 1.0 services/Config.qml
 Root 1.0 Root.qml
 PluginHost 1.0 PluginHost.qml

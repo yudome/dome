@@ -1,0 +1,5 @@
+id = "_template-zsh"
+kind = "zsh"
+version = "0.1.0"
+build = "make"
+provides = ["prompt.zsh"]

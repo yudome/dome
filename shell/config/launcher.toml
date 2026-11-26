@@ -11,7 +11,7 @@ launcherIconSlot = 24
 launcherTextGap = 10
 launcherHintShade = 1.5
 launcherMaxRows = 12  # 4..20
-launcherCopyHint = "click to copy to clipboard"  # hidden
+launcherCopyHint = "click to copy to clipboard"
 launcherClipTimeFormat = "h:mm AP"
 launcherSpotlight = true  # false = the box with the list under the field
 launcherSpotlightWidth = 560

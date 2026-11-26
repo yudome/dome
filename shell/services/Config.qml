@@ -9,12 +9,9 @@ QtObject {
 	id: root
 
 	property var local: ({})
-	property var overlay: ({})
 	readonly property var settings: {
 		const live = Yudae.settings || ({});
-		const base = Object.keys(live).length > 0 ? live : root.local;
-
-		return Object.keys(root.overlay).length > 0 ? Object.assign({}, base, root.overlay) : base;
+		return Object.keys(live).length > 0 ? live : root.local;
 	}
 
 	property FileView settingsFile: FileView {
@@ -300,9 +297,6 @@ QtObject {
 	readonly property var wallpaperAudio: settings.wallpaperAudio !== undefined ? settings.wallpaperAudio : false
 	readonly property var wallpaperVolume: settings.wallpaperVolume !== undefined ? settings.wallpaperVolume : 0.6
 	readonly property var wallpaperTransitionMs: settings.wallpaperTransitionMs !== undefined ? settings.wallpaperTransitionMs : 400
-	readonly property var wallpaperStillTitle: settings.wallpaperStillTitle !== undefined ? settings.wallpaperStillTitle : "Still frame"
-	readonly property var wallpaperStillStepHint: settings.wallpaperStillStepHint !== undefined ? settings.wallpaperStillStepHint : "←→ one frame"
-	readonly property var wallpaperStillSaveHint: settings.wallpaperStillSaveHint !== undefined ? settings.wallpaperStillSaveHint : "save"
 	readonly property var wallpaperEmpty: settings.wallpaperEmpty !== undefined ? settings.wallpaperEmpty : "No wallpapers found"
 	readonly property var wallpaperPickerWidth: settings.wallpaperPickerWidth !== undefined ? settings.wallpaperPickerWidth : 1100
 	readonly property var wallpaperPreviewRatio: settings.wallpaperPreviewRatio !== undefined ? settings.wallpaperPreviewRatio : 1.78
@@ -331,12 +325,7 @@ QtObject {
 	readonly property var vmDestroyConfirm: settings.vmDestroyConfirm !== undefined ? settings.vmDestroyConfirm : "Confirm destroy"
 	readonly property var vmDestroyHint: settings.vmDestroyHint !== undefined ? settings.vmDestroyHint : "destroy deletes the disk"
 	readonly property var vmOverlayKey: settings.vmOverlayKey !== undefined ? settings.vmOverlayKey : "Ctrl+Alt+O"
-	readonly property var settingsDaemonCommand: settings.settingsDaemonCommand !== undefined ? settings.settingsDaemonCommand : "yudae restart"
-	readonly property var settingsDaemonHint: settings.settingsDaemonHint !== undefined ? settings.settingsDaemonHint : "then retry"
 	readonly property var diskBubbleMs: settings.diskBubbleMs !== undefined ? settings.diskBubbleMs : 420
-
-	// settings app
-	readonly property var settingsPreviewBelow: settings.settingsPreviewBelow !== undefined ? settings.settingsPreviewBelow : 96
 
 	// window switcher
 	readonly property var windowsGridCell: settings.windowsGridCell !== undefined ? settings.windowsGridCell : 92
@@ -352,8 +341,8 @@ QtObject {
 		{ name: "Shut down", command: "systemctl poweroff", glyph: "\uf011" },
 		{ name: "Reboot", command: "systemctl reboot", glyph: "\uead2" },
 		{ name: "Suspend", command: "systemctl suspend", glyph: "\udb81\udcb2" },
-		{ name: "Lock", command: "\"$HOME/dotfiles/shell/scripts/lock\"", glyph: "\uf023" },
-		{ name: "Log out", command: "\"$HOME/dotfiles/daemon/zig-out/bin/yudaemond\" logout", glyph: "\uea6e" }
+		{ name: "Lock", command: "\"$HOME/dotfiles/build/bin/yudaemond\" lock", glyph: "\uf023" },
+		{ name: "Log out", command: "\"$HOME/dotfiles/build/bin/yudaemond\" logout", glyph: "\uea6e" }
 	]
 	readonly property var powerCellSize: settings.powerCellSize !== undefined ? settings.powerCellSize : 96
 	readonly property var powerIconSize: settings.powerIconSize !== undefined ? settings.powerIconSize : 48
@@ -384,29 +373,25 @@ QtObject {
 	// lock screen
 	readonly property var lockAfterMinutes: settings.lockAfterMinutes !== undefined ? settings.lockAfterMinutes : 10
 	readonly property var lockSleepAfterMinutes: settings.lockSleepAfterMinutes !== undefined ? settings.lockSleepAfterMinutes : 30
-	readonly property var lockFontSize: settings.lockFontSize !== undefined ? settings.lockFontSize : 15
+	readonly property var lockWallpaper: settings.lockWallpaper !== undefined ? settings.lockWallpaper : "desktop"
+	readonly property var greeterWallpaper: settings.greeterWallpaper !== undefined ? settings.greeterWallpaper : "lock"
+	readonly property var lockIdleSeconds: settings.lockIdleSeconds !== undefined ? settings.lockIdleSeconds : 15
 	readonly property var lockClockFormat: settings.lockClockFormat !== undefined ? settings.lockClockFormat : "h:mm AP"
-	readonly property var lockDigits: settings.lockDigits !== undefined ? settings.lockDigits : [
-		["0", "###", "# #", "# #", "# #", "###"],
-		["1", "  #", "  #", "  #", "  #", "  #"],
-		["2", "###", "  #", "###", "#  ", "###"],
-		["3", "###", "  #", "###", "  #", "###"],
-		["4", "# #", "# #", "###", "  #", "  #"],
-		["5", "###", "#  ", "###", "  #", "###"],
-		["6", "###", "#  ", "###", "# #", "###"],
-		["7", "###", "  #", "  #", "  #", "  #"],
-		["8", "###", "# #", "###", "# #", "###"],
-		["9", "###", "# #", "###", "  #", "###"],
-		[":", " ", "#", " ", "#", " "],
-		[" ", " ", " ", " ", " ", " "],
-		["A", "###", "# #", "###", "# #", "# #"],
-		["P", "###", "# #", "###", "#  ", "#  "],
-		["M", "#   #", "## ##", "# # #", "#   #", "#   #"]
-	]
+	readonly property var lockDateFormat: settings.lockDateFormat !== undefined ? settings.lockDateFormat : "dddd, MMMM d"
+	readonly property var lockClockSize: settings.lockClockSize !== undefined ? settings.lockClockSize : 56
+	readonly property var lockDateSize: settings.lockDateSize !== undefined ? settings.lockDateSize : 20
+	readonly property var lockCardWidth: settings.lockCardWidth !== undefined ? settings.lockCardWidth : 420
+	readonly property var lockFieldHeight: settings.lockFieldHeight !== undefined ? settings.lockFieldHeight : 40
+	readonly property var lockCellSize: settings.lockCellSize !== undefined ? settings.lockCellSize : 72
+	readonly property var lockMenuRowHeight: settings.lockMenuRowHeight !== undefined ? settings.lockMenuRowHeight : 56
+	readonly property var lockMenuTextSize: settings.lockMenuTextSize !== undefined ? settings.lockMenuTextSize : 22
+	readonly property var lockFadeMs: settings.lockFadeMs !== undefined ? settings.lockFadeMs : 450
 	readonly property var lockCooldownMs: settings.lockCooldownMs !== undefined ? settings.lockCooldownMs : 3000
 	readonly property var lockPamService: settings.lockPamService !== undefined ? settings.lockPamService : "quickshell"
 	readonly property var lockWrongText: settings.lockWrongText !== undefined ? settings.lockWrongText : "Wrong password"
 	readonly property var lockPamError: settings.lockPamError !== undefined ? settings.lockPamError : "Authentication unavailable"
+	readonly property var lockUnlockHint: settings.lockUnlockHint !== undefined ? settings.lockUnlockHint : "↵ unlock"
+	readonly property var lockCheckingText: settings.lockCheckingText !== undefined ? settings.lockCheckingText : "checking"
 
 	// calendar, meters and the life dial
 	readonly property var calendarCellWidth: settings.calendarCellWidth !== undefined ? settings.calendarCellWidth : 60
@@ -554,9 +539,6 @@ QtObject {
 	readonly property var stepBarGlyphTick: settings.stepBarGlyphTick !== undefined ? settings.stepBarGlyphTick : 80
 	readonly property var displayScaleMin: settings.displayScaleMin !== undefined ? settings.displayScaleMin : 1
 	readonly property var displayScaleMax: settings.displayScaleMax !== undefined ? settings.displayScaleMax : 2
-	readonly property var displayRefreshTitle: settings.displayRefreshTitle !== undefined ? settings.displayRefreshTitle : "Refresh"
-	readonly property var displayScaleTitle: settings.displayScaleTitle !== undefined ? settings.displayScaleTitle : "Scale"
-	readonly property var displayNothing: settings.displayNothing !== undefined ? settings.displayNothing : "No display found"
 	// network and speed test
 	readonly property var networkIdle: settings.networkIdle !== undefined ? settings.networkIdle : "#2f2f2f"
 	readonly property var networkHistory: settings.networkHistory !== undefined ? settings.networkHistory : 60

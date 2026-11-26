@@ -177,7 +177,7 @@ PanelWindow {
 
 		root.returnWorkspace = focused ? focused.name : "";
 		root.previewing = true;
-		Quickshell.execDetached(["/usr/bin/hyprctl", "dispatch", 'hl.dsp.focus({workspace = 99})']);
+		Yudae.cmd("workspaces", { show: "99" });
 	}
 
 	function showWindows() {
@@ -187,7 +187,7 @@ PanelWindow {
 		root.previewing = false;
 
 		if (root.returnWorkspace !== "")
-			Quickshell.execDetached(["/usr/bin/hyprctl", "dispatch", 'hl.dsp.focus({workspace = "' + root.returnWorkspace + '"})']);
+			Yudae.cmd("workspaces", { show: root.returnWorkspace });
 	}
 
 	Timer {
@@ -382,11 +382,8 @@ PanelWindow {
 						height: parent.height
 						opacity: 1
 
-						Behavior on opacity {
-							NumberAnimation {
-								duration: Config.wallpaperFadeMs
-								easing.type: Easing.OutCubic
-							}
+						Fade on opacity {
+							duration: Config.wallpaperFadeMs
 						}
 
 						Image {
@@ -536,11 +533,8 @@ PanelWindow {
 						height: parent.height
 						opacity: 1
 
-						Behavior on opacity {
-							NumberAnimation {
-								duration: Config.wallpaperFadeMs
-								easing.type: Easing.OutCubic
-							}
+						Fade on opacity {
+							duration: Config.wallpaperFadeMs
 						}
 
 						Image {
@@ -703,11 +697,8 @@ PanelWindow {
 						height: parent.height
 						opacity: 1
 
-						Behavior on opacity {
-							NumberAnimation {
-								duration: Config.wallpaperFadeMs
-								easing.type: Easing.OutCubic
-							}
+						Fade on opacity {
+							duration: Config.wallpaperFadeMs
 						}
 
 						Label {

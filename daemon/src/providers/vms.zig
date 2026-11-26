@@ -659,7 +659,7 @@ pub const Vms = struct {
 	}
 
 	fn wallpaperDir(self: *Vms, repo: []const u8) []const u8 {
-		const path = std.fs.path.join(self.allocator, &.{ repo, "shell", "cache", "settings.lua" }) catch return "";
+		const path = std.fs.path.join(self.allocator, &.{ repo, "cache", ".shell", "settings.lua" }) catch return "";
 		defer self.allocator.free(path);
 
 		const body = proc.readFile(self.io, self.allocator, path) catch return "";
@@ -1292,7 +1292,7 @@ pub const Vms = struct {
 
 		const repo = proc.repo(self.io, self.allocator);
 		const display_qmp = std.fs.path.join(self.allocator, &.{ vm.dir, "display.qmp" }) catch return;
-		const pump_path = std.fmt.allocPrint(self.allocator, "{s}/daemon/zig-out/bin/yudae-pump", .{repo}) catch return;
+		const pump_path = std.fmt.allocPrint(self.allocator, "{s}/build/bin/yudae-pump", .{repo}) catch return;
 		const pump_args = [_][]const u8{ "setsid", pump_path, "--qmp", display_qmp, "--width", "1536", "--height", "864" };
 
 		if (exec.spawn(self.io, .{ .argv = &pump_args, .stdin = .ignore, .stdout = .ignore, .stderr = .ignore })) |pump| {

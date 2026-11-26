@@ -14,10 +14,7 @@ Rectangle {
 	color: Config.surfaceHover
 	opacity: root.active ? 1 : 0
 
-	Behavior on opacity {
-		NumberAnimation {
-			duration: Math.round(Config.toggleMs / 2)
-			easing.type: Easing.OutCubic
-		}
+	Fade on opacity {
+		duration: Math.round(Config.toggleMs / 2)
 	}
 }

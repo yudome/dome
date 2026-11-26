@@ -7,7 +7,7 @@ const Allocator = std.mem.Allocator;
 const Io = std.Io;
 const Writer = std.Io.Writer;
 
-const cache_file = "dotfiles/daemon/cache/wallpaper-videos.json";
+const cache_file = "dotfiles/cache/.shell/wallpaper-videos.json";
 
 /// What a video settles on: the analysed pick, unless the user saved their own.
 pub const Entry = struct {
@@ -25,6 +25,11 @@ pub const Entry = struct {
 	}
 };
 
+pub const Hook = struct {
+	ctx: *anyopaque,
+	run: *const fn (ctx: *anyopaque) void,
+};
+
 /// Per-video still frame picks, analysed once in the background and cached by mtime and size.
 pub const Stills = struct {
 	allocator: Allocator,
@@ -34,6 +39,7 @@ pub const Stills = struct {
 	queue: std.ArrayListUnmanaged([]u8) = .empty,
 	working: bool = false,
 	active: ?[]u8 = null,
+	analysed: ?Hook = null,
 
 	pub fn create(allocator: Allocator, io: Io) !*Stills {
 		const self = try allocator.create(Stills);
@@ -149,6 +155,7 @@ pub const Stills = struct {
 
 		self.save();
 		if (follow) wayland.still(pick.frame);
+		if (self.analysed) |hook| hook.run(hook.ctx);
 	}
 
 	fn entryFor(self: *Stills, path: []const u8) ?*Entry {
@@ -195,7 +202,7 @@ pub const Stills = struct {
 		};
 		self.mutex.unlock(self.io);
 
-		const dir = std.fmt.allocPrint(allocator, "{s}/dotfiles/daemon/cache", .{proc.home(self.io, allocator)}) catch return;
+		const dir = std.fmt.allocPrint(allocator, "{s}/dotfiles/cache/.shell", .{proc.home(self.io, allocator)}) catch return;
 		std.Io.Dir.cwd().createDirPath(self.io, dir) catch {};
 		const path = std.fmt.allocPrint(allocator, "{s}/{s}", .{ proc.home(self.io, allocator), cache_file }) catch return;
 		proc.writeFileAtomic(self.io, self.allocator, path, buffer.written()) catch return;

@@ -1,0 +1,5 @@
+id = "minimal"
+kind = "zsh"
+version = "1.0.0"
+build = "make"
+provides = ["prompt.zsh"]

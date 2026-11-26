@@ -529,7 +529,7 @@ fn nowNs() i128 {
 }
 
 fn append(io: Io, allocator: Allocator, row: Row) !void {
-	const dir = try std.fmt.allocPrint(allocator, "{s}/dotfiles/daemon/bench", .{proc.home(io, allocator)});
+	const dir = try std.fmt.allocPrint(allocator, "{s}/dotfiles/.bench", .{proc.home(io, allocator)});
 	try std.Io.Dir.cwd().createDirPath(io, dir);
 	const path = try std.fmt.allocPrint(allocator, "{s}/disk.jsonl", .{dir});
 	const previous = proc.readFile(io, allocator, path) catch "";
