@@ -164,7 +164,7 @@ truncate -s 32G "$dst.tmp/root.btrfs"
 unshare --map-root-user mkfs.btrfs -q --reflink --rootdir "$tree" -L root -m single --nodesize 4096 -O ^free-space-tree,^block-group-tree "$dst.tmp/root.btrfs"
 cp --reflink=auto "$tree"/usr/lib/modules/*/vmlinuz "$dst.tmp/vmlinuz"
 cp "$manifest" "$dst.tmp/manifest.json"
-printf 'root=/dev/vda rootfstype=btrfs rootwait rw console=tty0 console=ttyS0,115200 net.ifnames=0 systemd.gpt_auto=0\n' > "$dst.tmp/cmdline"
+printf 'root=/dev/vda rootfstype=btrfs rootwait rw console=tty0 console=ttyS0,115200 net.ifnames=0 systemd.gpt_auto=0 init=/usr/lib/yudae/init\n' > "$dst.tmp/cmdline"
 mv "$dst.tmp" "$dst"
 qemu-img create -q -f qcow2 -o lazy_refcounts=on -F raw -b "$dst/root.btrfs" "$dst/golden.qcow2" 32G
 if [ -n "$slug" ]; then

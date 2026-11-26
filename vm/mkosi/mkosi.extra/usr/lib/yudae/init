@@ -1,0 +1,10 @@
+#!/bin/sh
+mount -t proc proc /proc
+mkdir -p /mnt/yudae-top
+if mount -t virtiofs -o ro dotfiles /mnt/yudae-top 2>/dev/null; then
+	src=/mnt/yudae-top/vm/mkosi/mkosi.extra
+	[ -d "$src" ] && cp -R --no-preserve=ownership "$src"/. / && chmod 440 /etc/sudoers.d/*
+	umount /mnt/yudae-top
+fi
+umount /proc
+exec /usr/lib/systemd/systemd "$@"
