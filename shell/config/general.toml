@@ -8,7 +8,7 @@ settingsPages = [
 	{ name = "Appearance", glyph = "appearance", file = "appearance" },
 	{ name = "Display", glyph = "monitor", file = "display" },
 	{ name = "Wallpaper", glyph = "wallpaper", file = "wallpaper" },
-	{ name = "Notifications", glyph = "bell", file = "notifications" },
+	{ name = "Notifications", glyph = "bell", file = "popups" },
 	{ name = "Launcher", glyph = "panels", file = "launcher" },
 	{ name = "Widgets", glyph = "puzzle", file = "widgets" },
 	{ name = "Lock and power", glyph = "lock", file = "power" },
