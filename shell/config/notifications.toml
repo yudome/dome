@@ -36,4 +36,4 @@ volumeOsdMs = 1500
 tooltipOffsetX = 0
 tooltipGap = 7
 tooltipGapRight = 3
-tooltipHang = 3
+tooltipHang = 8
