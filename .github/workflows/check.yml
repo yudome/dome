@@ -13,5 +13,8 @@ jobs:
       - run: ln -s "$GITHUB_WORKSPACE" "$HOME/dotfiles"
       - run: pacman -Syu --noconfirm base-devel zig xmake git pkgconf libsystemd polkit glib2 qt6-base qt6-declarative qt6-wayland mesa wayland wayland-protocols pipewire libjpeg-turbo libwebp ffmpeg
       - run: xmake
-      - run: xmake test daemon-tests -v
-      - run: xmake test -v
+      - run: xmake test plugin-check/plugins -v
+      - run: xmake test shell-checks/static -v
+      - run: xmake test shell-face/face -v
+      - run: xmake test shell-lint/qml -v
+      - run: xmake test shell-app/app -v
