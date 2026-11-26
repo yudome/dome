@@ -304,6 +304,9 @@ test "access follows the permission bits of every folder on the path" {
 
 test "serve reports the folder a new file appears in" {
 	if (linux.geteuid() != 0) return error.SkipZigTest;
+	const probe = linux.fanotify_init(.{ .CLOEXEC = true, .NONBLOCK = true, .CLASS = .NOTIF }, @bitCast(std.posix.O{ .ACCMODE = .RDONLY }));
+	if (linux.errno(probe) != .SUCCESS) return error.SkipZigTest;
+	_ = linux.close(@intCast(probe));
 	const io = std.testing.io;
 	const allocator = std.testing.allocator;
 	var tmp = std.testing.tmpDir(.{});
