@@ -1,4 +1,5 @@
 const std = @import("std");
+const sock = @import("../../primitives/sock.zig");
 const proc = @import("../../primitives/proc.zig");
 const exec = @import("../../primitives/exec.zig");
 
@@ -69,8 +70,21 @@ pub fn backendArgs(allocator: Allocator, dir: []const u8, backend: []const u8) !
 	try addPair(allocator, &list, "--display-socket", display);
 	try addPair(allocator, &list, "--console-vnc", console);
 	try addPair(allocator, &list, "--window-mib", "256");
+	try addPair(allocator, &list, "--power-socket", try std.fmt.allocPrint(allocator, "{s}/power.sock", .{dir}));
 	try list.append(allocator, "--allow-nearest-abi");
 	return list.toOwnedSlice(allocator);
+}
+
+/// One line to the backend's power socket (keep, hold MS, release), one line back.
+pub fn power(dir: []const u8, command: []const u8) bool {
+	var path_buffer: [256]u8 = undefined;
+	const path = std.fmt.bufPrint(&path_buffer, "{s}/power.sock", .{dir}) catch return false;
+	var buffer: [512]u8 = undefined;
+	var connection = sock.Connection.connect(path, &buffer) catch return false;
+	defer connection.close();
+	connection.writeLine(command) catch return false;
+	const line = (connection.readLine() catch return false) orelse return false;
+	return line.len > 0;
 }
 
 pub const Audio = enum { none, pa, alsa };

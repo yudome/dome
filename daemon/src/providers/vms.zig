@@ -17,6 +17,7 @@ const budget = @import("vms/budget.zig");
 const tiers = @import("vms/tiers.zig");
 const input = @import("vms/input.zig");
 const cgroup = @import("vms/cgroup.zig");
+const sleep_watch = @import("../primitives/sleep_watch.zig");
 const opencode = @import("opencode.zig");
 
 const Allocator = std.mem.Allocator;
@@ -114,6 +115,10 @@ pub const Vms = struct {
 	audio_since_ms: i64 = 0,
 	opencode: ?*opencode.Opencode = null,
 	limit: budget.Budget,
+	slept: std.ArrayList([]u8) = .empty,
+	sleep_watch: SleepWatch = undefined,
+
+	const SleepWatch = sleep_watch.Watch(Vms);
 
 	pub fn create(allocator: Allocator, io: Io, hub: *hubmod.Hub) !*Vms {
 		const self = try allocator.create(Vms);
@@ -131,6 +136,9 @@ pub const Vms = struct {
 		thread.detach();
 		const watch = try std.Thread.spawn(.{}, audioWatch, .{self});
 		watch.detach();
+		self.sleep_watch = .{ .context = self, .before = hostSleep, .after = hostWake };
+		const sleeper = try std.Thread.spawn(.{}, SleepWatch.run, .{&self.sleep_watch});
+		sleeper.detach();
 
 		return self;
 	}
@@ -322,6 +330,56 @@ pub const Vms = struct {
 		return state != 'Z' and state != 'X';
 	}
 
+	/// Conduit restarts its device on the next QMP cont and drops the guest's
+	/// GPU objects unless the backend was told to keep them (docs/SUSPEND.md).
+	fn pauseGuest(vm: *Vm, client: *qmp.Qmp) void {
+		if (vm.nvidia) _ = nvidia.power(vm.dir, "keep");
+		_ = client.execute(null, "stop", null) catch {};
+	}
+
+	/// Before the host sleeps: pause every running guest, and have each Conduit
+	/// backend drain its GPU work, so nothing runs across the host's suspend.
+	fn hostSleep(self: *Vms) void {
+		var held: std.ArrayList([]const u8) = .empty;
+		defer held.deinit(self.allocator);
+		self.mutex.lockUncancelable(self.io);
+		for (self.list.items) |vm| {
+			if (vm.tier != .hot) continue;
+			const client = vm.qmp orelse continue;
+			const name = self.allocator.dupe(u8, vm.name) catch continue;
+			self.slept.append(self.allocator, name) catch {
+				self.allocator.free(name);
+				continue;
+			};
+			pauseGuest(vm, client);
+			if (vm.nvidia) held.append(self.allocator, vm.dir) catch {};
+		}
+		self.mutex.unlock(self.io);
+		for (held.items) |dir| _ = nvidia.power(dir, "hold 2000");
+		std.debug.print("vms: host sleep, paused {d}\n", .{self.slept.items.len});
+	}
+
+	/// After the host wakes: let the backends serve again, continue exactly
+	/// the guests paused for the sleep and set their clocks.
+	fn hostWake(self: *Vms) void {
+		var cids: std.ArrayList(u32) = .empty;
+		defer cids.deinit(self.allocator);
+		self.mutex.lockUncancelable(self.io);
+		for (self.slept.items) |name| {
+			defer self.allocator.free(name);
+			const vm = self.findLocked(name) orelse continue;
+			if (vm.tier != .hot) continue;
+			const client = vm.qmp orelse continue;
+			if (vm.nvidia) _ = nvidia.power(vm.dir, "release");
+			_ = client.execute(null, "cont", null) catch {};
+			cids.append(self.allocator, vm.cid) catch {};
+		}
+		self.slept.clearRetainingCapacity();
+		self.mutex.unlock(self.io);
+		for (cids.items) |cid| self.syncGuestClock(cid);
+		std.debug.print("vms: host wake, continued {d}\n", .{cids.items.len});
+	}
+
 	fn syncGuestClock(self: *Vms, cid: u32) void {
 		var arena = std.heap.ArenaAllocator.init(self.allocator);
 		defer arena.deinit();
@@ -430,7 +488,7 @@ pub const Vms = struct {
 				changed = true;
 
 				if (vm.qmp) |client| {
-					_ = client.execute(null, "stop", null) catch {};
+					pauseGuest(vm, client);
 					var buffer: [128]u8 = undefined;
 					const body = std.fmt.bufPrint(&buffer, "{{\"value\":{d}}}", .{balloonBytes(vm.mem_mb)}) catch continue;
 					_ = client.execute(null, "balloon", body) catch {};
@@ -1349,7 +1407,7 @@ pub const Vms = struct {
 		};
 
 		if (vm.qmp) |client| {
-			_ = client.execute(null, "stop", null) catch {};
+			pauseGuest(vm, client);
 			var buffer: [128]u8 = undefined;
 			const body = std.fmt.bufPrint(&buffer, "{{\"value\":{d}}}", .{balloonBytes(vm.mem_mb)}) catch {
 				self.mutex.unlock(self.io);
@@ -1380,7 +1438,7 @@ pub const Vms = struct {
 		};
 
 		if (vm.qmp) |client| {
-			_ = client.execute(null, "stop", null) catch {};
+			pauseGuest(vm, client);
 			var buffer: [128]u8 = undefined;
 			const body = std.fmt.bufPrint(&buffer, "{{\"value\":{d}}}", .{balloonBytes(vm.mem_mb)}) catch {
 				self.mutex.unlock(self.io);

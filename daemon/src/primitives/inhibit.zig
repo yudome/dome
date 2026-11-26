@@ -14,9 +14,7 @@ const path: [*:0]const u8 = "/org/freedesktop/login1";
 const interface: [*:0]const u8 = "org.freedesktop.login1.Manager";
 const member: [*:0]const u8 = "Inhibit";
 const signature: [*:0]const u8 = "ssss";
-const what: [*:0]const u8 = "idle:sleep";
 const who: [*:0]const u8 = "yudae";
-const mode: [*:0]const u8 = "block";
 const read_signature: [*:0]const u8 = "h";
 
 extern fn sd_bus_open_system(bus: *?*Bus) c_int;
@@ -29,6 +27,10 @@ extern fn fcntl(fd: c_int, cmd: c_int, ...) c_int;
 extern fn close(fd: c_int) c_int;
 
 pub fn hold(why: [*:0]const u8) c_int {
+	return take("idle:sleep", why, "block");
+}
+
+pub fn take(what: [*:0]const u8, why: [*:0]const u8, mode: [*:0]const u8) c_int {
 	var bus: ?*Bus = null;
 	var reply: ?*Message = null;
 	var err: Error = .{};
