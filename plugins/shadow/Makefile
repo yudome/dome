@@ -13,7 +13,7 @@ TARGET   = $(OUT)/shadow.so
 
 all: $(TARGET)
 
-$(TARGET): src/main.cpp
+$(TARGET): src/main.cpp src/shadow_texture.h
 	mkdir -p $(OUT)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(EXTRA_FLAGS) src/main.cpp -o $(TARGET)
 
