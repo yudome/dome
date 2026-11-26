@@ -202,7 +202,7 @@ PanelWindow {
 	readonly property real baseRowHeight: root.spotlight
 		? (root.mode === "emoji" ? root.emojiRowHeight : root.iconSize + 12)
 		: (root.mode === "emoji" ? root.emojiRowHeight : Config.launcherRowHeight)
-	readonly property real rowHeight: root.fileRows ? Math.max(root.baseRowHeight, root.fileRowHeight) : root.baseRowHeight
+	readonly property real rowHeight: Math.max(root.baseRowHeight, root.fileRowHeight)
 	readonly property real emojiRowHeight: Math.round(root.iconSize + root.fontSize * 0.72 + 14)
 	readonly property real iconSlot: root.spotlight ? root.iconSize + 4 : Config.launcherIconSlot
 	readonly property real kaomojiSlot: Math.min(220, Math.max(120, Math.round(card.width * 0.36)))
