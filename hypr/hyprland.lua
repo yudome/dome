@@ -7,7 +7,7 @@ require("layouts")
 require("input")
 require("binds")
 require("rules")
-require("autostart")
+require("session")
 
 local state = (os.getenv("XDG_STATE_HOME") or ((os.getenv("HOME") or "") .. "/.local/state")) .. "/yudae"
 
