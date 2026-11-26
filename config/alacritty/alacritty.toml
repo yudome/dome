@@ -43,3 +43,23 @@ white = "#ffffff"
 key = "Return"
 mods = "Shift"
 chars = "\u001B\r"
+
+[[keyboard.bindings]]
+key = "Left"
+mods = "Alt"
+chars = "\u001Bb"
+
+[[keyboard.bindings]]
+key = "Right"
+mods = "Alt"
+chars = "\u001Bf"
+
+[[keyboard.bindings]]
+key = "Left"
+mods = "Control"
+chars = "\u0001"
+
+[[keyboard.bindings]]
+key = "Right"
+mods = "Control"
+chars = "\u0005"
