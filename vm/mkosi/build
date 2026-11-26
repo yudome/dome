@@ -148,7 +148,7 @@ grep -q '/virtio_blk.ko$' "$builtin" && grep -q '/btrfs.ko$' "$builtin" || { ech
 id=$(date +%Y%m%d-%H%M%S)
 dst=$IMAGES/$id
 mkdir -p "$dst.tmp"
-qemu-img convert -c -O qcow2 -o compression_type=zstd -m 16 -W "$WORK/out/guest.raw" "$dst.tmp/packages.qcow2"
+qemu-img convert -c -O qcow2 -m 16 -W "$WORK/out/guest.raw" "$dst.tmp/packages.qcow2"
 cp "$WORK/out/guest.vmlinuz" "$dst.tmp/vmlinuz"
 cp "$manifest" "$dst.tmp/manifest.json"
 printf 'root=/dev/vda1 rootfstype=btrfs rootwait rw console=tty0 console=ttyS0,115200 net.ifnames=0 systemd.gpt_auto=0\n' > "$dst.tmp/cmdline"
