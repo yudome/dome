@@ -28,11 +28,6 @@ mkdir -p "$WORK" "$IMAGES"
 exec 9>"$MKOSI/lock"
 flock 9
 
-for unit in systemd-nsresourced.socket systemd-mountfsd.socket; do systemctl is-active -q "$unit" || systemctl enable --now "$unit" || {
-		echo "mkosi needs $unit for a full uid range: sudo systemctl enable --now $unit" >&2
-		exit 1
-	}
-done
 
 pkgbase=$(cat "/usr/lib/modules/$(uname -r)/pkgbase")
 
@@ -97,7 +92,6 @@ cat > "$GEN/host.conf" <<EOF
 [Output]
 OutputDirectory=$WORK/out
 ManifestFormat=json
-SplitArtifacts=kernel
 
 [Content]
 Packages=$extra_packages
@@ -148,13 +142,14 @@ grep -q '/virtio_blk.ko$' "$builtin" && grep -q '/btrfs.ko$' "$builtin" || { ech
 id=$(date +%Y%m%d-%H%M%S)
 dst=$IMAGES/$id
 mkdir -p "$dst.tmp"
-qemu-img convert -c -O qcow2 -m 16 -W "$WORK/out/guest.raw" "$dst.tmp/packages.qcow2"
-cp "$WORK/out/guest.vmlinuz" "$dst.tmp/vmlinuz"
+tree=$WORK/out/guest
+truncate -s 32G "$dst.tmp/root.btrfs"
+unshare --map-root-user mkfs.btrfs -q --reflink --rootdir "$tree" -L root -m single --nodesize 4096 -O ^free-space-tree,^block-group-tree "$dst.tmp/root.btrfs"
+cp --reflink=auto "$tree"/usr/lib/modules/*/vmlinuz "$dst.tmp/vmlinuz"
 cp "$manifest" "$dst.tmp/manifest.json"
-printf 'root=/dev/vda1 rootfstype=btrfs rootwait rw console=tty0 console=ttyS0,115200 net.ifnames=0 systemd.gpt_auto=0\n' > "$dst.tmp/cmdline"
+printf 'root=/dev/vda rootfstype=btrfs rootwait rw console=tty0 console=ttyS0,115200 net.ifnames=0 systemd.gpt_auto=0\n' > "$dst.tmp/cmdline"
 mv "$dst.tmp" "$dst"
-qemu-img create -q -f qcow2 -o lazy_refcounts=on -F qcow2 -b "$dst/packages.qcow2" "$dst/golden.qcow2" 32G
-rm -f "$WORK/out/guest.raw"
+qemu-img create -q -f qcow2 -o lazy_refcounts=on -F raw -b "$dst/root.btrfs" "$dst/golden.qcow2" 32G
 if [ -n "$slug" ]; then
 	ln -sfn "images/$id/golden.qcow2" "$CACHE/golden-$slug.qcow2"
 else
