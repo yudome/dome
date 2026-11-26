@@ -32,8 +32,12 @@ function vm(dir, root)
 	import("core.base.option")
 	local args = table.wrap(option.get("args") or {})
 	if #args == 0 then
-		print("usage: xmake vm images|ensure|overlay|snapshot|restore|backup|list|bench [tag] (running VMs: yudae vm)")
+		print("usage: xmake vm images|conduit|ensure|overlay|snapshot|restore|backup|list|bench [tag] (running VMs: yudae vm)")
 		raise("missing vm verb")
+	end
+	if args[1] == "conduit" then
+		os.execv(path.join(dir, "conduit"), {}, { curdir = root })
+		return
 	end
 	if args[1] == "bench" then
 		bench_images(args[2])
@@ -97,9 +101,9 @@ function doctor(dir, root)
 		if os.isfile(supported) and known == 0 then
 			row("driver", "ok", driver, "")
 		elseif os.isfile(supported) then
-			row("driver", "fail", driver .. " has no ABI table", "run xmake vm abi, then rebuild conduit-backend")
+			row("driver", "fail", driver .. " has no ABI table", "run xmake vm conduit")
 		else
-			row("driver", "warn", driver .. ", Conduit not installed", "install Conduit and generate its ABI tables")
+			row("driver", "warn", driver .. ", Conduit not installed", "run xmake vm conduit")
 		end
 	else
 		row("driver", "warn", "not detected", "")
@@ -114,7 +118,7 @@ function doctor(dir, root)
 		if os.exists(pair[2]) then
 			row("conduit." .. pair[1], "ok", pair[2], "")
 		else
-			row("conduit." .. pair[1], "fail", "missing " .. pair[2], "install the Conduit package")
+			row("conduit." .. pair[1], "fail", "missing " .. pair[2], "run xmake vm conduit")
 		end
 	end
 	if os.exists(viewer) then

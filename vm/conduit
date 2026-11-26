@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SRC=${CONDUIT_SRC:-${XDG_DATA_HOME:-$HOME/.local/share}/dotfiles/conduit}
+URL=${CONDUIT_URL:-https://github.com/yumedots/conduit.git}
+PREFIX=${CONDUIT_PREFIX:-/opt/conduit}
+
+driver=$(cat /sys/module/nvidia/version 2>/dev/null) || { echo "no nvidia module loaded" >&2; exit 1; }
+
+if [ ! -d "$SRC/.git" ]; then
+	git clone --filter=blob:none "$URL" "$SRC"
+elif [ -z "$(git -C "$SRC" status --porcelain)" ]; then
+	git -C "$SRC" pull --ff-only
+fi
+
+mkdir -p "$SRC/target"
+make -C "$SRC" host-abi
+make -C "$SRC" backend
+
+bin=$SRC/host/backend/target/release
+sudo install -d "$PREFIX/bin" "$PREFIX/share/conduit"
+sudo install -m 0755 "$bin/conduit-backend" "$bin/conduit-userspace" "$PREFIX/bin/"
+"$SRC/packaging/supported-drivers.sh" | sudo tee "$PREFIX/share/conduit/supported-drivers.txt" >/dev/null
+echo "conduit backend installed in $PREFIX for driver $driver"

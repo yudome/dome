@@ -40,10 +40,35 @@ pub fn available(io: Io, allocator: Allocator) bool {
 	if (!proc.exists(io, p.qemu) or !proc.exists(io, p.backend)) return false;
 	if (!proc.exists(io, p.userspace)) return false;
 	if (!proc.exists(io, "/dev/nvidia0") or !proc.exists(io, "/dev/nvidiactl")) return false;
+	if (!driverSupported(io, allocator, p.backend)) return false;
 	const cache = std.fs.path.dirname(std.fs.path.dirname(p.share) orelse return false) orelse return false;
 	const manifest = std.fmt.allocPrint(allocator, "{s}/dotfiles/vm/images/current/manifest.json", .{cache}) catch return false;
 	const body = proc.readFile(io, allocator, manifest) catch return false;
 	return std.mem.indexOf(u8, body, "\"conduit-guest\"") != null;
+}
+
+/// The backend boots a guest without a GPU when its ABI tables miss the host
+/// driver, so a driver missing from its supported list means the GL backend.
+fn driverSupported(io: Io, allocator: Allocator, backend: []const u8) bool {
+	const prefix = std.fs.path.dirname(std.fs.path.dirname(backend) orelse return false) orelse return false;
+	const list_path = std.fmt.allocPrint(allocator, "{s}/share/conduit/supported-drivers.txt", .{prefix}) catch return false;
+	const list = proc.readFile(io, allocator, list_path) catch return false;
+	const version = proc.readFile(io, allocator, "/sys/module/nvidia/version") catch return false;
+	return listed(list, std.mem.trim(u8, version, " \t\r\n"));
+}
+
+fn listed(list: []const u8, version: []const u8) bool {
+	var lines = std.mem.tokenizeAny(u8, list, "\r\n");
+	while (lines.next()) |line| {
+		if (std.mem.eql(u8, std.mem.trim(u8, line, " \t"), version)) return true;
+	}
+	return false;
+}
+
+test "a driver counts only when its own release is listed" {
+	try std.testing.expect(listed("615.71.09\n620.73.04\n", "620.73.04"));
+	try std.testing.expect(!listed("620.70.06\n620.73.040\n", "620.73.04"));
+	try std.testing.expect(!listed("", "620.73.04"));
 }
 
 pub fn ensureShare(io: Io, allocator: Allocator) ![]const u8 {
