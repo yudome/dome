@@ -11,6 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: ln -s "$GITHUB_WORKSPACE" "$HOME/dotfiles"
-      - run: pacman -Syu --noconfirm base-devel zig xmake git pkgconf libsystemd polkit glib2 qt6-base qt6-declarative qt6-wayland mesa wayland wayland-protocols pipewire libjpeg-turbo libwebp ffmpeg
+      - run: pacman -Syu --noconfirm base-devel zig xmake git pkgconf libsystemd polkit glib2 qt6-base qt6-declarative qt6-wayland mesa wayland wayland-protocols pipewire libjpeg-turbo libwebp ffmpeg zsh
       - run: xmake
       - run: xmake test
