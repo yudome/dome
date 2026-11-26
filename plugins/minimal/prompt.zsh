@@ -1,109 +1,63 @@
-typeset -g YUDAE_PROMPT_CHAR='λ'
-typeset -g YUDAE_PROMPT_INSERT='›'
-typeset -g YUDAE_PROMPT_NORMAL='·'
-typeset -g YUDAE_PROMPT_OK=2
-typeset -g YUDAE_PROMPT_ERR=1
-typeset -g YUDAE_PROMPT_DIM=244
-typeset -g YUDAE_PROMPT_SEGMENTS=2
-typeset -g YUDAE_PROMPT_LENGTH=8
+typeset -g YUDAE_PROMPT_CHAR='λ' YUDAE_PROMPT_INSERT='›' YUDAE_PROMPT_NORMAL='·'
+typeset -g YUDAE_PROMPT_OK=2 YUDAE_PROMPT_ERR=1 YUDAE_PROMPT_DIM=244
 
-typeset -g _yudae_last_status=0
-typeset -g _yudae_status_color=$YUDAE_PROMPT_OK
+typeset -g _yudae_color=$YUDAE_PROMPT_OK _yudae_keymap=$YUDAE_PROMPT_INSERT
+typeset -g _yudae_git='' _yudae_jobs=0 _yudae_last=0
 
-function _yudae_status_line {
-	emulate -L zsh
-	local char=$YUDAE_PROMPT_CHAR style=''
-	[[ $EUID -eq 0 ]] && char='#'
-	[[ -n $(jobs -p) ]] && style='%B'
-	print -rn -- "${style}%F{$_yudae_status_color}${char}%f%b"
-}
-
-function _yudae_prefix {
-	emulate -L zsh
-	local out=''
-	[[ -n $SSH_CONNECTION ]] && out+="%F{$YUDAE_PROMPT_DIM}${HOST%%.*}%f "
-	[[ -n $VIRTUAL_ENV ]] && out+="%F{$YUDAE_PROMPT_DIM}${VIRTUAL_ENV:t}%f "
-	print -rn -- "$out"
-}
-
-function _yudae_keymap {
-	emulate -L zsh
-	if [[ $KEYMAP == vicmd ]]; then
-		print -rn -- "%F{$YUDAE_PROMPT_DIM}$YUDAE_PROMPT_NORMAL%f"
-	else
-		print -rn -- "%F{$YUDAE_PROMPT_DIM}$YUDAE_PROMPT_INSERT%f"
-	fi
-}
-
-function _yudae_cwd {
-	emulate -L zsh
-	local path="${PWD/#$HOME/~}"
-	local -a parts
-	parts=("${(@s:/:)path}")
-	local count=${1:-$YUDAE_PROMPT_SEGMENTS}
-	local width=${2:-$YUDAE_PROMPT_LENGTH}
-	(( count > 0 )) || count=${#parts}
-	(( count > ${#parts} )) && count=${#parts}
-	parts=("${(@)parts[-$count,-1]}")
-	local -a out
-	local part
-	for part in "${(@)parts}"; do
-		if (( width >= 4 && ${#part} > width )); then
-			local half=$(( width / 2 - 1 ))
-			part="${part[1,half]}..${part[-$half,-1]}"
-		fi
-		out+=("$part")
+function _yudae_git_scan {
+	local -a rows
+	rows=("${(@f)$(git status --porcelain=v2 --branch 2>/dev/null)}")
+	local row branch='' dirty=0
+	for row in "${rows[@]}"; do
+		if [[ $row == '# branch.head '* ]]; then branch=${row#\# branch.head }; continue; fi
+		[[ $row == '#'* ]] || dirty=1
 	done
-	print -rn -- "${(j:/:)out}"
+	_yudae_git=''
+	[[ -z $branch || $branch == '(detached)' ]] && return
+	_yudae_git=" %F{$(( dirty ? YUDAE_PROMPT_ERR : YUDAE_PROMPT_OK ))}${branch//\%/%%}%f"
 }
 
-function _yudae_git {
-	emulate -L zsh
-	local branch
-	branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || return 0
-	local color=$YUDAE_PROMPT_OK
-	[[ -n $(git status --porcelain 2>/dev/null) ]] && color=$YUDAE_PROMPT_ERR
-	print -rn -- "%F{$color}${branch}%f"
+function _yudae_prompt_build {
+	local prefix='' bold=''
+	[[ -n $SSH_CONNECTION ]] && prefix+="%F{$YUDAE_PROMPT_DIM}${HOST%%.*}%f "
+	[[ -n $VIRTUAL_ENV ]] && prefix+="%F{$YUDAE_PROMPT_DIM}${VIRTUAL_ENV:t}%f "
+	(( _yudae_jobs )) && bold='%B'
+	PROMPT="${prefix}${bold}%F{$_yudae_color}%(!.#.$YUDAE_PROMPT_CHAR)%f%b %F{$YUDAE_PROMPT_DIM}${_yudae_keymap}%f "
+	RPROMPT="%F{$YUDAE_PROMPT_DIM}%2~%f${_yudae_git}"
 }
 
-function _yudae_right {
-	emulate -L zsh
-	local out="%F{$YUDAE_PROMPT_DIM}$(_yudae_cwd)%f"
-	local git=$(_yudae_git)
-	[[ -n $git ]] && out+=" $git"
-	print -rn -- "$out"
-}
-
-function _yudae_info {
-	emulate -L zsh
-	local dim=$'\e[38;5;244m' err=$'\e[31m' reset=$'\e[0m'
-	(( _yudae_last_status )) && print -r -- "${err}status $_yudae_last_status${reset}"
-	local -a running
-	running=(${(f)"$(jobs -p)"})
-	(( ${#running} )) && print -r -- "${dim}jobs ${#running}${reset}"
-	print -r -- "${dim}${USER}@${HOST%%.*}:$(_yudae_cwd 0 0)${reset}"
-	local -a visible hidden
-	visible=(*(N))
-	hidden=(.*(N))
-	local files="${#visible}"
-	(( ${#hidden} )) && files+=" (${#hidden})"
-	print -r -- "${dim}files ${files}${reset}"
-}
-
-function _yudae_magic {
-	emulate -L zsh
-	local out=''
-	(( ${#dirstack} )) && out+="$(dirs -v)"$'\n'
-	out+="$(ls -CF --color=always --group-directories-first 2>/dev/null)"$'\n'
-	git rev-parse --is-inside-work-tree >/dev/null 2>&1 && out+="$(git -c color.status=always status -sb 2>/dev/null)"
-	[[ -n $out ]] && print -r -- "$out" | less -XFR
+function _yudae_keymap_scan {
+	if [[ $KEYMAP == vicmd ]]; then
+		_yudae_keymap=$YUDAE_PROMPT_NORMAL
+	else
+		_yudae_keymap=$YUDAE_PROMPT_INSERT
+	fi
 }
 
 function _yudae_precmd {
 	local last=$?
-	typeset -g _yudae_last_status=$last
-	typeset -g _yudae_status_color=$YUDAE_PROMPT_OK
-	(( last )) && typeset -g _yudae_status_color=$YUDAE_PROMPT_ERR
+	_yudae_last=$last
+	_yudae_color=$(( last ? YUDAE_PROMPT_ERR : YUDAE_PROMPT_OK ))
+	_yudae_jobs=$#jobstates
+	_yudae_keymap_scan
+	_yudae_git_scan
+	_yudae_prompt_build
+}
+
+function _yudae_info {
+	local dim=$'\e[38;5;244m' err=$'\e[31m' reset=$'\e[0m'
+	(( _yudae_last )) && print -r -- "${err}status $_yudae_last${reset}"
+	(( _yudae_jobs )) && print -r -- "${dim}jobs $_yudae_jobs${reset}"
+	local -a visible hidden
+	visible=(*(N)) hidden=(.*(N))
+	print -r -- "${dim}${USER}@${HOST%%.*}:${PWD/#$HOME/~} files ${#visible} (${#hidden})${reset}"
+}
+
+function _yudae_magic {
+	local listing
+	listing="$(dirs -v 2>/dev/null)"$'\n'"$(ls -CF --color=always --group-directories-first 2>/dev/null)"
+	git rev-parse --is-inside-work-tree >/dev/null 2>&1 && listing+=$'\n'"$(git status -sb 2>/dev/null)"
+	print -r -- "$listing" | less -XFR
 }
 
 function _yudae_accept {
@@ -117,13 +71,12 @@ function _yudae_accept {
 }
 
 function _yudae_keymap_select {
+	_yudae_keymap_scan
+	_yudae_prompt_build
 	zle reset-prompt
 }
 
-setopt prompt_subst
 precmd_functions=(${precmd_functions:#_yudae_precmd} _yudae_precmd)
-PROMPT='$(_yudae_prefix)$(_yudae_status_line) $(_yudae_keymap) '
-RPROMPT='$(_yudae_right)'
 
 if [[ -o interactive ]]; then
 	zle -N accept-line _yudae_accept

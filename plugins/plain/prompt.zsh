@@ -1,26 +1,18 @@
 typeset -g YUDAE_PLAIN_CHAR='❯'
-typeset -g _yudae_plain_color=2
-
-function _yudae_plain_git {
-	emulate -L zsh
-	local branch
-	branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || return 0
-	local color=2
-	[[ -n $(git status --porcelain 2>/dev/null) ]] && color=1
-	print -rn -- " %F{$color}${branch}%f"
-}
 
 function _yudae_plain_precmd {
-	local last=$?
-	typeset -g _yudae_plain_color=2
-	(( last )) && typeset -g _yudae_plain_color=1
+	local last=$? row
+	local -a rows
+	rows=("${(@f)$(git status --porcelain=v2 --branch 2>/dev/null)}")
+	local branch='' dirty=0
+	for row in "${rows[@]}"; do
+		if [[ $row == '# branch.head '* ]]; then branch=${row#\# branch.head }; continue; fi
+		[[ $row == '#'* ]] || dirty=1
+	done
+	local git=''
+	[[ -n $branch && $branch != '(detached)' ]] && git=" %F{$(( dirty ? 1 : 2 ))}${branch//\%/%%}%f"
+	PROMPT="%F{244}%2~%f${git} %F{$(( last ? 1 : 2 ))}$YUDAE_PLAIN_CHAR%f "
+	RPROMPT=''
 }
 
-function _yudae_plain_right {
-	print -rn -- "$(_yudae_plain_git)"
-}
-
-setopt prompt_subst
 precmd_functions=(${precmd_functions:#_yudae_plain_precmd} _yudae_plain_precmd)
-PROMPT='%F{244}%~%f$(_yudae_plain_right) %F{$_yudae_plain_color}$YUDAE_PLAIN_CHAR%f '
-RPROMPT=''
