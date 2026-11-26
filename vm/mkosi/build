@@ -58,13 +58,24 @@ find /etc/pacman.d/gnupg -maxdepth 1 -type f -readable -exec cp {} "$GEN/extra/e
 
 profiles=()
 extra_packages=$pkgbase
+skeleton=$GEN/skeleton
+masked=(60-depmod.hook texinfo-install.hook 10-glibc-locale-gen.hook)
 if [ -e /dev/nvidiactl ]; then
 	profiles=(--profile nvidia)
 	extra_packages="$pkgbase $pkgbase-headers"
 	mkdir -p "$MKOSI/conduit"
 	conduit=$MKOSI/conduit/$(basename "$CONDUIT")
 	[ -s "$conduit" ] || { curl -fsSL -o "$conduit.part" "$CONDUIT" && mv "$conduit.part" "$conduit"; }
+	modules=$MKOSI/modules/$pkgbase-$(pacman -Q "$pkgbase" | cut -d' ' -f2)-$(basename "$CONDUIT" .pkg.tar.zst).tar
+	if [ -s "$modules" ]; then
+		extra_packages=$pkgbase
+		masked+=(70-dkms-install.hook)
+		mkdir -p "$skeleton"
+		tar -xf "$modules" -C "$skeleton"
+	fi
 fi
+mkdir -p "$skeleton/etc/pacman.d/hooks"
+for hook in "${masked[@]}"; do ln -sfn /dev/null "$skeleton/etc/pacman.d/hooks/$hook"; done
 
 pinned_dir=$WORK/hostpkgs
 rm -rf "$pinned_dir"
@@ -112,6 +123,7 @@ ManifestFormat=json
 [Content]
 Packages=$extra_packages
 ExtraTrees=$GEN/extra
+SkeletonTrees=$skeleton
 PackageDirectories=$pinned_dir
 $([ ${#profiles[@]} -eq 0 ] || echo "PackageDirectories=$MKOSI/conduit")
 
@@ -167,6 +179,10 @@ id=$(date +%Y%m%d-%H%M%S)
 dst=$IMAGES/$id
 mkdir -p "$dst.tmp"
 tree=$WORK/out/guest
+if [ -n "${modules:-}" ] && [ ! -s "$modules" ]; then
+	mkdir -p "$(dirname "$modules")"
+	tar -C "$tree" -cf "$modules.part" $(cd "$tree" && echo usr/lib/modules/*/updates) && mv "$modules.part" "$modules"
+fi
 truncate -s 32G "$dst.tmp/root.btrfs"
 unshare --map-root-user mkfs.btrfs -q --reflink --rootdir "$tree" -L root -m single --nodesize 4096 -O ^free-space-tree,^block-group-tree "$dst.tmp/root.btrfs"
 cp --reflink=auto "$tree"/usr/lib/modules/*/vmlinuz "$dst.tmp/vmlinuz"

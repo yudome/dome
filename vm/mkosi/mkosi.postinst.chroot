@@ -22,3 +22,4 @@ systemctl mask systemd-nsresourced.socket systemd-nsresourced.service systemd-mo
 ldconfig
 journalctl --update-catalog
 /usr/lib/systemd/systemd-update-done
+find /etc/pacman.d/hooks -lname /dev/null -delete
