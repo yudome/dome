@@ -5,15 +5,14 @@ chmod 440 /etc/sudoers.d/user
 mkdir -p /home/user/dotfiles /home/user/.config /mnt/nvidia /mnt/hostpkg
 ln -sfn /home/user/dotfiles/hypr /home/user/.config/hypr
 {
-	for mtree in /var/lib/pacman/local/*/mtree; do
-		zcat "$mtree" | awk '
-			/^\/set / { for (i = 2; i <= NF; i++) { split($i, kv, "="); if (kv[1] == "uid") uid = kv[2]; if (kv[1] == "gid") gid = kv[2] } next }
-			/^\.\// {
-				u = uid; g = gid; link = 0
-				for (i = 2; i <= NF; i++) { split($i, kv, "="); if (kv[1] == "uid") u = kv[2]; if (kv[1] == "gid") g = kv[2]; if ($i == "type=link") link = 1 }
-				if (!link && (u != 0 || g != 0)) { p = substr($1, 2); gsub(/\\040/, " ", p); print "z " p " - " u " " g " -" }
-			}'
-	done
+	zcat /var/lib/pacman/local/*/mtree | awk '
+		/^#mtree/ { uid = 0; gid = 0; next }
+		/^\/set / { for (i = 2; i <= NF; i++) { split($i, kv, "="); if (kv[1] == "uid") uid = kv[2]; if (kv[1] == "gid") gid = kv[2] } next }
+		/^\.\// {
+			u = uid; g = gid; link = 0
+			for (i = 2; i <= NF; i++) { split($i, kv, "="); if (kv[1] == "uid") u = kv[2]; if (kv[1] == "gid") g = kv[2]; if ($i == "type=link") link = 1 }
+			if (!link && (u != 0 || g != 0)) { p = substr($1, 2); gsub(/\\040/, " ", p); print "z " p " - " u " " g " -" }
+		}'
 	find /home/user -path /home/user/dotfiles -prune -o ! -type l -printf 'z %p - user user -\n'
 } > /usr/lib/tmpfiles.d/yudae-owners.conf
 systemctl set-default graphical.target
