@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+socket=${1:?usage: vm/net <passt.sock>}
+dns=169.254.0.53
+
+v4="10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10"
+v6="fc00::/7, fe80::/10"
+while read -r family addr; do
+	if [ "$family" = inet ]; then v4="$v4, ${addr%/*}, $addr"; else v6="$v6, ${addr%/*}, $addr"; fi
+done < <(ip -o addr show scope global | awk '{print $3, $4}')
+
+rules="table inet yudae {
+	chain out {
+		type filter hook output priority 0; policy accept;
+		ip daddr $dns meta l4proto { tcp, udp } th dport 53 accept
+		ip daddr { $v4 } reject
+		ip6 daddr { $v6 } reject
+	}
+}"
+
+exec pasta --config-net --no-map-gw --quiet --foreground -t none -u none -T none -U none --dns-forward "$dns" -- \
+	sh -c 'printf "%s\n" "$1" | nft -f - && exec passt --foreground --one-off --quiet --no-map-gw --dns-forward 10.0.2.3 --dns 10.0.2.3 --dns-host "$2" --socket-path "$3"' \
+	_ "$rules" "$dns" "$socket"

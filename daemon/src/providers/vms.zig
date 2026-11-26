@@ -52,6 +52,8 @@ const Vm = struct {
 	backend_pid: i32 = 0,
 	nvfs_pid: i32 = 0,
 	audio_pid: i32 = 0,
+	net_pid: i32 = 0,
+	net_child: ?std.process.Child = null,
 	qmp: ?*qmp.Qmp = null,
 	qemu_child: ?std.process.Child = null,
 	vfs_child: ?std.process.Child = null,
@@ -440,31 +442,9 @@ pub const Vms = struct {
 				vm.tier = .off;
 				vm.used_ms = now;
 				changed = true;
-
-				if (vm.qmp) |client| {
-					_ = client.execute(null, "quit", null) catch {};
-					client.close();
-					vm.qmp = null;
-				}
-
-				if (vm.pid > 0) kill(vm.pid);
-				if (vm.vfs_pid > 0) kill(vm.vfs_pid);
-
-				if (vm.qemu_child) |*child| {
-					_ = child.wait(self.io) catch {};
-					vm.qemu_child = null;
-				}
-
-				if (vm.vfs_child) |*child| {
-					_ = child.wait(self.io) catch {};
-					vm.vfs_child = null;
-				}
-
+				self.haltVm(vm);
 				if (vm.cgroup) |group| group.destroy(self.io);
-
 				vm.cgroup = null;
-				vm.pid = 0;
-				vm.vfs_pid = 0;
 			}
 
 			if (idleDestroy(vm.destroy_ms, vm.used_ms, now)) {
@@ -769,18 +749,21 @@ pub const Vms = struct {
 		const socket = try std.fs.path.join(self.allocator, &.{ vm.dir, "passt.sock" });
 		defer self.allocator.free(socket);
 		std.Io.Dir.cwd().deleteFile(self.io, socket) catch {};
-		const socket_arg = try std.fmt.allocPrint(self.allocator, "--socket-path={s}", .{socket});
-		defer self.allocator.free(socket_arg);
-		const resolv = proc.readFile(self.io, self.allocator, "/etc/resolv.conf") catch try self.allocator.dupe(u8, "");
-		defer self.allocator.free(resolv);
-		var argv: std.ArrayList([]const u8) = .empty;
-		defer argv.deinit(self.allocator);
-		try argv.appendSlice(self.allocator, &.{ "passt", "--one-off", "--quiet", "--no-map-gw", "--dns-forward", "10.0.2.3", "--dns", "10.0.2.3", socket_arg });
-		if (firstNameserver(resolv)) |host| try argv.appendSlice(self.allocator, &.{ "--dns-host", host });
-		const result = exec.run(self.io, self.allocator, argv.items) catch return error.PasstFailed;
-		defer result.deinit(self.allocator);
-		if (result.code != 0) return error.PasstFailed;
+		const script = try std.fs.path.join(self.allocator, &.{ proc.repo(self.io, self.allocator), "vm", "net" });
+		defer self.allocator.free(script);
+		const child = exec.spawn(self.io, .{ .argv = &.{ "setsid", "bash", script, socket }, .stdin = .ignore, .stdout = .ignore, .stderr = .ignore }) catch return error.PasstFailed;
+		vm.net_pid = child.id orelse 0;
+		vm.net_child = child;
 		if (!try waitFile(self.io, socket, 5000)) return error.PasstSocket;
+	}
+
+	fn stopNet(self: *Vms, vm: *Vm) void {
+		if (vm.net_pid > 0) killGroup(vm.net_pid);
+		if (vm.net_child) |*child| {
+			_ = child.wait(self.io) catch {};
+			vm.net_child = null;
+		}
+		vm.net_pid = 0;
 	}
 
 	fn startWall(self: *Vms, vm: *Vm, wall_dir: []const u8) !bool {
@@ -1136,6 +1119,7 @@ pub const Vms = struct {
 		self.stopWall(vm);
 		self.stopState(vm);
 		self.stopPump(vm);
+		self.stopNet(vm);
 
 		if (vm.qemu_child) |*child| {
 			_ = child.wait(self.io) catch {};
@@ -1239,7 +1223,9 @@ pub const Vms = struct {
 		if (vm.pid > 0) kill(vm.pid);
 		if (vm.vfs_pid > 0) kill(vm.vfs_pid);
 		self.stopWall(vm);
+		self.stopState(vm);
 		self.stopPump(vm);
+		self.stopNet(vm);
 
 		if (vm.qemu_child) |*child| {
 			_ = child.wait(self.io) catch {};
@@ -2538,22 +2524,6 @@ fn destroyIdleOf(args: json.Value) i64 {
 
 fn idleDestroy(destroy_ms: i64, used_ms: i64, now: i64) bool {
 	return destroy_ms > 0 and now - used_ms > destroy_ms;
-}
-
-fn firstNameserver(resolv: []const u8) ?[]const u8 {
-	var lines = std.mem.splitScalar(u8, resolv, '\n');
-	while (lines.next()) |line| {
-		var words = std.mem.tokenizeAny(u8, line, " \t\r");
-		const key = words.next() orelse continue;
-		if (!std.mem.eql(u8, key, "nameserver")) continue;
-		return words.next();
-	}
-	return null;
-}
-
-test "the first nameserver line wins and comments are skipped" {
-	try std.testing.expectEqualStrings("127.0.0.53", firstNameserver("# nameserver 1.1.1.1\nnameserver 127.0.0.53\nnameserver 75.75.75.75\n").?);
-	try std.testing.expect(firstNameserver("search lan\n") == null);
 }
 
 fn waitFile(io: Io, path: []const u8, timeout_ms: i64) !bool {
