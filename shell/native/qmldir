@@ -2,5 +2,6 @@ module Yudae.Native
 plugin YudaeNative
 classname YudaeNativePlugin
 typeinfo plugin.qmltypes
+ShadowTexture 1.0 ShadowTexture
 VmDisplay 1.0 VmDisplay
 WallVideo 1.0 WallVideo

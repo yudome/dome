@@ -69,6 +69,7 @@ Item {
 		shadowEnabled: root.shadowEnabled
 		topReach: root.shadowTopReach
 		bottomReach: root.shadowBottomReach
+		scale: root.scale
 	}
 
 	Item {

@@ -119,6 +119,18 @@ const ShadowOut = struct {
 	color: []const u8,
 	offsetX: f64,
 	offsetY: f64,
+	alpha: f64,
+	contact: f64,
+};
+
+const Shadow = struct {
+	enabled: bool,
+	range: i64,
+	color: []const u8,
+	offset_x: f64,
+	offset_y: f64,
+	alpha: f64,
+	contact: f64,
 };
 
 const Out = struct {
@@ -160,6 +172,8 @@ pub const Screen = struct {
 	shadow_color: []u8 = &.{},
 	shadow_offset_x: f64 = 0,
 	shadow_offset_y: f64 = 2,
+	shadow_alpha: f64 = 1,
+	shadow_contact: f64 = 0,
 	border_tick: usize = 0,
 
 	pub fn create(allocator: Allocator, io: Io, hub: *Hub) !*Screen {
@@ -383,44 +397,72 @@ pub const Screen = struct {
 		if (!same) self.hub.publish();
 	}
 
+	fn optionValue(self: *Screen, arena: Allocator, name: []const u8) ?json.Value {
+		const command = std.fmt.allocPrint(arena, "j/getoption {s}", .{name}) catch return null;
+		const body = hypr.request(self.io, self.allocator, command) catch return null;
+		defer self.allocator.free(body);
+
+		const parsed = json.parse(arena, body) catch return null;
+
+		return parsed.value;
+	}
+
+	fn pluginShadow(self: *Screen, arena: Allocator) ?Shadow {
+		const enabled = self.optionValue(arena, "plugin:shadow:enabled") orelse return null;
+		if (!json.flag(enabled, "bool")) return null;
+
+		const range = self.optionValue(arena, "plugin:shadow:range") orelse return null;
+		const offset = self.optionValue(arena, "plugin:shadow:offset") orelse return null;
+		const alpha = self.optionValue(arena, "plugin:shadow:alpha") orelse return null;
+		const contact_value = self.optionValue(arena, "plugin:shadow:contact");
+		const contact = if (contact_value) |value| json.number(json.field(value, "float")) else 0;
+		return .{
+			.enabled = true,
+			.range = @intFromFloat(@round(json.number(json.field(range, "float")))),
+			.color = "rgba(000000ff)",
+			.offset_x = 0,
+			.offset_y = json.number(json.field(offset, "float")),
+			.alpha = std.math.clamp(json.number(json.field(alpha, "float")), 0, 1),
+			.contact = std.math.clamp(contact, 0, 1),
+		};
+	}
+
+	fn decorationShadow(self: *Screen, arena: Allocator) ?Shadow {
+		const enabled = self.optionValue(arena, "decoration:shadow:enabled") orelse return null;
+		const range = self.optionValue(arena, "decoration:shadow:range") orelse return null;
+		const color = self.optionValue(arena, "decoration:shadow:color") orelse return null;
+		const offset = self.optionValue(arena, "decoration:shadow:offset") orelse return null;
+		const parts = json.listAt(offset, "vec2");
+
+		return .{
+			.enabled = json.flag(enabled, "bool"),
+			.range = json.integer(json.field(range, "int")),
+			.color = gradientColor(arena, json.textAt(color, "gradient")) orelse "rgba(00000070)",
+			.offset_x = if (parts.len > 0) json.number(parts[0]) else 0,
+			.offset_y = if (parts.len > 1) json.number(parts[1]) else 0,
+			.alpha = 1,
+			.contact = 0,
+		};
+	}
+
 	fn pollShadow(self: *Screen) void {
-		const enabled = hypr.request(self.io, self.allocator, "j/getoption decoration:shadow:enabled") catch return;
-		defer self.allocator.free(enabled);
-
-		const range = hypr.request(self.io, self.allocator, "j/getoption decoration:shadow:range") catch return;
-		defer self.allocator.free(range);
-
-		const color = hypr.request(self.io, self.allocator, "j/getoption decoration:shadow:color") catch return;
-		defer self.allocator.free(color);
-
-		const offset = hypr.request(self.io, self.allocator, "j/getoption decoration:shadow:offset") catch return;
-		defer self.allocator.free(offset);
-
 		var arena = std.heap.ArenaAllocator.init(self.allocator);
 		defer arena.deinit();
 
-		const enabled_value = json.parse(arena.allocator(), enabled) catch return;
-		const range_value = json.parse(arena.allocator(), range) catch return;
-		const color_value = json.parse(arena.allocator(), color) catch return;
-		const offset_value = json.parse(arena.allocator(), offset) catch return;
-		const enabled_setting = json.flag(enabled_value.value, "bool");
-		const range_setting = json.integer(json.field(range_value.value, "int"));
-		const custom_color = json.textAt(color_value.value, "custom");
-		const color_setting = if (custom_color.len > 0) custom_color else json.textAt(color_value.value, "str");
-		const offset_parts = json.listAt(offset_value.value, "vec2");
-		const offset_x: f64 = if (offset_parts.len > 0) json.number(offset_parts[0]) else 0;
-		const offset_y: f64 = if (offset_parts.len > 1) json.number(offset_parts[1]) else 0;
+		const shadow = self.pluginShadow(arena.allocator()) orelse self.decorationShadow(arena.allocator()) orelse return;
 
 		self.mutex.lockUncancelable(self.io);
-		const same = self.shadow_enabled == enabled_setting and self.shadow_range == range_setting and self.shadow_offset_x == offset_x and self.shadow_offset_y == offset_y and std.mem.eql(u8, self.shadow_color, color_setting);
+		const same = self.shadow_enabled == shadow.enabled and self.shadow_range == shadow.range and self.shadow_offset_x == shadow.offset_x and self.shadow_offset_y == shadow.offset_y and self.shadow_alpha == shadow.alpha and self.shadow_contact == shadow.contact and std.mem.eql(u8, self.shadow_color, shadow.color);
 
 		if (!same) {
 			self.allocator.free(self.shadow_color);
-			self.shadow_color = self.allocator.dupe(u8, color_setting) catch &.{};
-			self.shadow_enabled = enabled_setting;
-			self.shadow_range = range_setting;
-			self.shadow_offset_x = offset_x;
-			self.shadow_offset_y = offset_y;
+			self.shadow_color = self.allocator.dupe(u8, shadow.color) catch &.{};
+			self.shadow_enabled = shadow.enabled;
+			self.shadow_range = shadow.range;
+			self.shadow_offset_x = shadow.offset_x;
+			self.shadow_offset_y = shadow.offset_y;
+			self.shadow_alpha = shadow.alpha;
+			self.shadow_contact = shadow.contact;
 		}
 		self.mutex.unlock(self.io);
 
@@ -1045,7 +1087,7 @@ pub const Screen = struct {
 		const stops = parseStops(arena, self.border_text);
 		const strip = StripOut{ .color = if (self.strip_color.len > 0) self.strip_color else "#ff000000", .width = self.strip_width };
 		const border = BorderOut{ .colors = stops.colors, .angle = stops.angle, .width = self.border_width, .strip = strip };
-		const shadow = ShadowOut{ .enabled = self.shadow_enabled, .range = self.shadow_range, .color = if (self.shadow_color.len > 0) self.shadow_color else "rgba(00000070)", .offsetX = self.shadow_offset_x, .offsetY = self.shadow_offset_y };
+		const shadow = ShadowOut{ .enabled = self.shadow_enabled, .range = self.shadow_range, .color = if (self.shadow_color.len > 0) self.shadow_color else "rgba(00000070)", .offsetX = self.shadow_offset_x, .offsetY = self.shadow_offset_y, .alpha = self.shadow_alpha, .contact = self.shadow_contact };
 
 		const out = Out{ .border = border, .shadow = shadow, .primary = primary, .monitors = monitors.items, .panel = panel, .raw = self.raw };
 		try writer.print("{f}", .{std.json.fmt(out, .{})});
@@ -1120,12 +1162,28 @@ fn parseStops(arena: Allocator, text: []const u8) Stops {
 	return .{ .colors = colors.items, .angle = angle };
 }
 
+fn gradientColor(arena: Allocator, text: []const u8) ?[]const u8 {
+	var tokens = std.mem.tokenizeScalar(u8, text, ' ');
+	const token = tokens.next() orelse return null;
+	if (token.len != 8 or !isHex(token)) return null;
+
+	return std.fmt.allocPrint(arena, "rgba({s}{s})", .{ token[2..8], token[0..2] }) catch null;
+}
+
 fn isHex(text: []const u8) bool {
 	for (text) |byte| {
 		if (!std.ascii.isHex(byte)) return false;
 	}
 
 	return true;
+}
+
+test "gradient colors turn into hypr rgba text" {
+	var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+	defer arena.deinit();
+
+	try std.testing.expectEqualStrings("rgba(00000070)", gradientColor(arena.allocator(), "70000000 0deg").?);
+	try std.testing.expect(gradientColor(arena.allocator(), "nope") == null);
 }
 
 fn parseMode(label: []const u8) ?Mode {
