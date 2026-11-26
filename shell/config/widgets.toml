@@ -216,3 +216,4 @@ diskDeleteHint = "Are you sure you want to delete %1?"  # hidden
 [vms]
 vmDestroyConfirm = "Confirm destroy"  # hidden
 vmDestroyHint = "destroy deletes the disk"  # hidden
+vmOverlayKey = "Ctrl+Alt+O"  # performance overlay in the vm viewer

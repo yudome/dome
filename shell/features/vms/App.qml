@@ -13,6 +13,7 @@ AppWindow {
 	property bool hardwareOpen: false
 	property Item menuAnchor: null
 	property string menuVm: ""
+	property bool overlayShown: false
 
 	readonly property bool focusMode: win.fullscreen && vms.live.length > 0
 
@@ -45,6 +46,12 @@ AppWindow {
 
 	Store {
 		id: vms
+	}
+
+	Shortcut {
+		sequence: Config.vmOverlayKey
+		context: Qt.ApplicationShortcut
+		onActivated: win.overlayShown = !win.overlayShown
 	}
 
 	AppAction {
@@ -213,10 +220,20 @@ AppWindow {
 							id: displayComponent
 
 							VmDisplay {
+								id: display
+
 								anchors.fill: parent
 								qmp: vms.displayQmp
 								broker: vms.displayBroker
+								overlay: win.overlayShown
 								onErrorChanged: if (error.length > 0) console.warn("VmDisplay:", error)
+
+								PerfOverlay {
+									x: Metrics.gapSmall * 2
+									y: Metrics.gapSmall * 2
+									visible: win.overlayShown
+									stats: display.stats
+								}
 							}
 						}
 					}

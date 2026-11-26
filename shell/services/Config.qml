@@ -330,6 +330,7 @@ QtObject {
 	readonly property var diskDeleteHint: settings.diskDeleteHint !== undefined ? settings.diskDeleteHint : "Are you sure you want to delete %1?"
 	readonly property var vmDestroyConfirm: settings.vmDestroyConfirm !== undefined ? settings.vmDestroyConfirm : "Confirm destroy"
 	readonly property var vmDestroyHint: settings.vmDestroyHint !== undefined ? settings.vmDestroyHint : "destroy deletes the disk"
+	readonly property var vmOverlayKey: settings.vmOverlayKey !== undefined ? settings.vmOverlayKey : "Ctrl+Alt+O"
 	readonly property var settingsDaemonCommand: settings.settingsDaemonCommand !== undefined ? settings.settingsDaemonCommand : "yudae restart"
 	readonly property var settingsDaemonHint: settings.settingsDaemonHint !== undefined ? settings.settingsDaemonHint : "then retry"
 	readonly property var diskBubbleMs: settings.diskBubbleMs !== undefined ? settings.diskBubbleMs : 420

@@ -30,6 +30,7 @@ public:
 	void setWindowActive(bool active);
 	void sendPointer(bool inside);
 	QmpDisplay::Frame takeFrame();
+	int64_t lastFlipNs() const;
 
 signals:
 	void frameReady();

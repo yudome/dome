@@ -3,6 +3,7 @@
 #include <QtQml/qqmlregistration.h>
 #include <QQuickItem>
 #include <QString>
+#include <QVariantMap>
 
 class QmpDisplay;
 class QTimer;
@@ -16,6 +17,8 @@ class VmDisplay : public QQuickItem {
 	Q_PROPERTY(int guestWidth READ guestWidth NOTIFY guestSizeChanged)
 	Q_PROPERTY(int guestHeight READ guestHeight NOTIFY guestSizeChanged)
 	Q_PROPERTY(QString error READ error NOTIFY errorChanged)
+	Q_PROPERTY(bool overlay READ overlay WRITE setOverlay NOTIFY overlayChanged)
+	Q_PROPERTY(QVariantMap stats READ stats NOTIFY statsChanged)
 
 public:
 	explicit VmDisplay(QQuickItem *parent = nullptr);
@@ -29,6 +32,9 @@ public:
 	int guestWidth() const { return m_guestWidth; }
 	int guestHeight() const { return m_guestHeight; }
 	QString error() const { return m_error; }
+	bool overlay() const { return m_overlay; }
+	void setOverlay(bool on);
+	QVariantMap stats() const { return m_stats; }
 
 	QSGNode *updatePaintNode(QSGNode *node, UpdatePaintNodeData *) override;
 
@@ -38,6 +44,8 @@ signals:
 	void runningChanged();
 	void guestSizeChanged();
 	void errorChanged();
+	void overlayChanged();
+	void statsChanged();
 
 protected:
 	void geometryChange(const QRectF &next, const QRectF &prev) override;
@@ -62,6 +70,8 @@ private:
 	void sendPosition(const QPointF &pos);
 	void sendMouse(const QPointF &pos, Qt::MouseButton button, bool down);
 	void applyCursor();
+	void frameArrived(qint64 at = 0);
+	void rollStats();
 
 	struct Private;
 	Private *d = nullptr;
@@ -72,4 +82,6 @@ private:
 	int m_guestWidth = 0;
 	int m_guestHeight = 0;
 	QString m_error;
+	bool m_overlay = false;
+	QVariantMap m_stats;
 };

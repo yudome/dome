@@ -10,6 +10,12 @@
 #include <QOpenGLContext>
 #include <QDebug>
 #include <QTimer>
+
+#include <algorithm>
+#include <atomic>
+#include <mutex>
+#include <chrono>
+#include <vector>
 #include <QOpenGLFunctions>
 #include <QQuickWindow>
 #include <QScreen>
@@ -190,7 +196,25 @@ struct VmDisplay::Private {
 	bool pointerInside = false;
 	int lastX = -1;
 	int lastY = -1;
+	QTimer *statsTimer = nullptr;
+	std::mutex arrivalsMutex;
+	std::vector<qint64> arrivals;
+	std::atomic<bool> counting{false};
+	qint64 inputs = 0;
+	std::atomic<qint64> unshown{0};
+	std::atomic<qint64> shown{0};
+	std::atomic<qint64> latencySum{0};
+	std::atomic<qint64> latencyN{0};
+	std::atomic<qint64> unshownFlip{0};
+	qint64 flipRecvSum = 0;
+	qint64 flipRecvN = 0;
+	std::atomic<qint64> flipScreenSum{0};
+	std::atomic<qint64> flipScreenN{0};
 };
+
+static qint64 nowNs() {
+	return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 
 VmDisplay::VmDisplay(QQuickItem *parent) : QQuickItem(parent), d(new Private) {
 	setFlag(ItemHasContents, true);
@@ -198,9 +222,15 @@ VmDisplay::VmDisplay(QQuickItem *parent) : QQuickItem(parent), d(new Private) {
 	setAcceptHoverEvents(true);
 	d->display = new QmpDisplay(this);
 	d->broker = new BrokerDisplay(this);
+	d->statsTimer = new QTimer(this);
+	d->statsTimer->setInterval(250);
+	connect(d->statsTimer, &QTimer::timeout, this, [this]() { rollStats(); });
+	connect(d->display, &QmpDisplay::frameReady, this, [this]() { frameArrived(); }, Qt::DirectConnection);
 	connect(d->display, &QmpDisplay::frameReady, this, [this]() { update(); });
 	connect(d->display, &QmpDisplay::mapReady, this, [this]() { update(); });
+	connect(d->display, &QmpDisplay::pixmapReady, this, [this]() { frameArrived(); }, Qt::DirectConnection);
 	connect(d->display, &QmpDisplay::pixmapReady, this, [this]() { update(); });
+	connect(d->display, &QmpDisplay::updated, this, [this]() { frameArrived(); }, Qt::DirectConnection);
 	connect(d->display, &QmpDisplay::updated, this, [this](int x, int y, int w, int h) {
 		if (d->mapMode) {
 			if (!d->updatePending) {
@@ -234,6 +264,18 @@ VmDisplay::VmDisplay(QQuickItem *parent) : QQuickItem(parent), d(new Private) {
 		emit runningChanged();
 		QTimer::singleShot(1000, this, [this]() { maybeStart(); });
 	});
+	connect(d->broker, &BrokerDisplay::frameReady, this, [this]() {
+		const qint64 flip = d->broker->lastFlipNs();
+		frameArrived(flip);
+		if (!d->counting || flip <= 0) return;
+		const qint64 now = nowNs();
+		if (now > flip) {
+			d->flipRecvSum += now - flip;
+			d->flipRecvN++;
+		}
+		qint64 none = 0;
+		d->unshownFlip.compare_exchange_strong(none, flip);
+	}, Qt::DirectConnection);
 	connect(d->broker, &BrokerDisplay::frameReady, this, [this]() { update(); });
 	connect(d->broker, &BrokerDisplay::failed, this, [this](const QString &message) {
 		m_error = message;
@@ -277,6 +319,81 @@ void VmDisplay::setQmp(const QString &value) {
 	d->cursorVisible = true;
 	applyCursor();
 	maybeStart();
+}
+
+void VmDisplay::setOverlay(bool on) {
+	if (on == m_overlay) return;
+	m_overlay = on;
+	d->counting = on;
+	{
+		std::lock_guard<std::mutex> lock(d->arrivalsMutex);
+		d->arrivals.clear();
+	}
+	d->inputs = 0;
+	d->shown = 0;
+	d->latencySum = 0;
+	d->latencyN = 0;
+	d->flipRecvSum = 0;
+	d->flipRecvN = 0;
+	d->flipScreenSum = 0;
+	d->flipScreenN = 0;
+	if (on) d->statsTimer->start();
+	else d->statsTimer->stop();
+	emit overlayChanged();
+	rollStats();
+}
+
+void VmDisplay::frameArrived(qint64 at) {
+	if (!d->counting) return;
+	const qint64 now = at > 0 ? at : nowNs();
+	{
+		std::lock_guard<std::mutex> lock(d->arrivalsMutex);
+		d->arrivals.push_back(now);
+	}
+	qint64 none = 0;
+	d->unshown.compare_exchange_strong(none, now);
+}
+
+void VmDisplay::rollStats() {
+	const qint64 now = nowNs();
+	const qint64 since = now - 1000000000LL;
+	std::vector<qint64> a;
+	{
+		std::lock_guard<std::mutex> lock(d->arrivalsMutex);
+		d->arrivals.erase(d->arrivals.begin(), std::lower_bound(d->arrivals.begin(), d->arrivals.end(), since));
+		a = d->arrivals;
+	}
+	std::vector<double> gaps;
+	for (size_t i = 1; i < a.size(); i++) gaps.push_back((a[i] - a[i - 1]) / 1e6);
+	QVariantMap next;
+	next[QStringLiteral("fps")] = int(a.size());
+	if (!gaps.empty()) {
+		double sum = 0;
+		for (double g : gaps) sum += g;
+		next[QStringLiteral("frameNow")] = gaps.back();
+		next[QStringLiteral("frameAvg")] = sum / gaps.size();
+		std::sort(gaps.begin(), gaps.end());
+		next[QStringLiteral("frameP99")] = gaps[std::min(gaps.size() - 1, gaps.size() * 99 / 100)];
+		next[QStringLiteral("frameMax")] = gaps.back();
+	}
+	const double secs = d->statsTimer->interval() / 1000.0;
+	next[QStringLiteral("shownFps")] = int(d->shown.exchange(0) / secs);
+	const qint64 n = d->latencyN.exchange(0);
+	const qint64 total = d->latencySum.exchange(0);
+	if (n > 0) next[QStringLiteral("latency")] = total / double(n) / 1e6;
+	if (d->flipRecvN > 0) next[QStringLiteral("flipRecv")] = d->flipRecvSum / double(d->flipRecvN) / 1e6;
+	d->flipRecvSum = 0;
+	d->flipRecvN = 0;
+	const qint64 fsn = d->flipScreenN.exchange(0);
+	const qint64 fss = d->flipScreenSum.exchange(0);
+	if (fsn > 0) next[QStringLiteral("flipScreen")] = fss / double(fsn) / 1e6;
+	next[QStringLiteral("inputPs")] = int(d->inputs / secs);
+	d->inputs = 0;
+	next[QStringLiteral("path")] = !m_broker.isEmpty() ? QStringLiteral("conduit broker, dma-buf") : d->mapMode ? QStringLiteral("qemu dbus, shared map") : d->textureW > 0 ? QStringLiteral("qemu dbus, dma-buf") : QStringLiteral("qemu dbus");
+	next[QStringLiteral("width")] = m_guestWidth > 0 ? m_guestWidth : d->textureW;
+	next[QStringLiteral("height")] = m_guestHeight > 0 ? m_guestHeight : d->textureH;
+	m_stats = next;
+	emit statsChanged();
 }
 
 void VmDisplay::applyCursor() {
@@ -385,6 +502,7 @@ void VmDisplay::itemChange(ItemChange change, const ItemChangeData &value) {
 }
 
 void VmDisplay::mousePressEvent(QMouseEvent *event) {
+	d->inputs++;
 	d->pointerInside = insideImage(event->position());
 	if (d->broker) d->broker->sendPointer(d->pointerInside);
 	updateInhibitor();
@@ -394,16 +512,19 @@ void VmDisplay::mousePressEvent(QMouseEvent *event) {
 }
 
 void VmDisplay::mouseReleaseEvent(QMouseEvent *event) {
+	d->inputs++;
 	sendMouse(event->position(), event->button(), false);
 	event->accept();
 }
 
 void VmDisplay::mouseMoveEvent(QMouseEvent *event) {
+	d->inputs++;
 	sendPosition(event->position());
 	event->accept();
 }
 
 void VmDisplay::wheelEvent(QWheelEvent *event) {
+	d->inputs++;
 	const int steps = event->angleDelta().y() / 120;
 	const int horizontal = event->angleDelta().x() / 120;
 	if (!m_broker.isEmpty() && d->broker) {
@@ -471,6 +592,7 @@ void VmDisplay::sendMouse(const QPointF &pos, Qt::MouseButton button, bool down)
 }
 
 void VmDisplay::keyPressEvent(QKeyEvent *event) {
+	d->inputs++;
 	if (event->isAutoRepeat()) {
 		event->accept();
 		return;
@@ -494,6 +616,7 @@ void VmDisplay::keyPressEvent(QKeyEvent *event) {
 }
 
 void VmDisplay::keyReleaseEvent(QKeyEvent *event) {
+	d->inputs++;
 	if (event->isAutoRepeat()) {
 		event->accept();
 		return;
@@ -576,6 +699,7 @@ void VmDisplay::hoverEnterEvent(QHoverEvent *event) {
 }
 
 void VmDisplay::hoverMoveEvent(QHoverEvent *event) {
+	d->inputs++;
 	sendPosition(event->position());
 	const bool inside = insideImage(event->position());
 	if (inside != d->pointerInside) {
@@ -603,6 +727,16 @@ QSGNode *VmDisplay::updatePaintNode(QSGNode *node, UpdatePaintNodeData *) {
 	d->eglDisplay = egl->display();
 	loadEgl();
 	if (!createImage || !imageTarget) return nullptr;
+	if (const qint64 arrived = d->unshown.exchange(0)) {
+		const qint64 now = nowNs();
+		d->shown++;
+		d->latencySum += now - arrived;
+		d->latencyN++;
+		if (const qint64 flip = d->unshownFlip.exchange(0); flip > 0 && now > flip) {
+			d->flipScreenSum += now - flip;
+			d->flipScreenN++;
+		}
+	}
 
 	QmpDisplay::Frame frame;
 	const bool brokerFrame = !m_broker.isEmpty() && d->broker;

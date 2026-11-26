@@ -1,5 +1,7 @@
 #include "brokerdisplay.h"
 
+#include <ctime>
+
 #include <QClipboard>
 #include <QDebug>
 #include <QGuiApplication>
@@ -21,6 +23,8 @@ namespace {
 constexpr uint16_t CMD_ATTACH = 1;
 constexpr uint16_t CMD_COMMIT = 2;
 constexpr uint16_t CMD_CLIPBOARD = 4;
+constexpr uint16_t CMD_CAPS = 5;
+constexpr uint32_t CLIENT_SEQ_USEC = 1u << 1;
 constexpr uint16_t CMD_QUERY_FORMAT = 6;
 
 constexpr uint16_t EV_HELLO = 1;
@@ -152,6 +156,8 @@ struct BrokerDisplay::Impl {
 	uint32_t attachedH = 0;
 	uint32_t attachedStride = 0;
 	uint32_t attachedOffset = 0;
+	bool seqUsec = false;
+	int64_t flipNs = 0;
 	BrokerDisplay *q = nullptr;
 
 	void packet(uint16_t type, int32_t x = 0, int32_t y = 0, uint32_t w0 = 0, uint32_t w1 = 0) {
@@ -279,6 +285,15 @@ struct BrokerDisplay::Impl {
 		qInfo() << "broker client attached" << path;
 	}
 
+	static int64_t flipTime(uint32_t seq) {
+		timespec now{};
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		const uint64_t nowUs = uint64_t(now.tv_sec) * 1000000u + uint64_t(now.tv_nsec) / 1000u;
+		const uint32_t back = uint32_t(nowUs) - seq;
+		if (back > 1000000u) return 0;
+		return int64_t(nowUs - back) * 1000;
+	}
+
 	void command(const Cmd &cmd, int incomingFd) {
 		switch (cmd.type) {
 		case CMD_ATTACH:
@@ -292,7 +307,11 @@ struct BrokerDisplay::Impl {
 			attachedStride = cmd.stride;
 			attachedOffset = cmd.offset;
 			return;
+		case CMD_CAPS:
+			seqUsec = (cmd.width & CLIENT_SEQ_USEC) != 0;
+			return;
 		case CMD_COMMIT:
+			flipNs = seqUsec ? flipTime(cmd.seq) : 0;
 			if (attachedFd < 0 || attachedW == 0 || attachedH == 0) {
 				closeAttached();
 				return;
@@ -520,6 +539,10 @@ void BrokerDisplay::sendPointer(bool inside) {
 	if (d->pointer == inside) return;
 	d->pointer = inside;
 	d->packet(EV_POINTER, inside ? 1 : 0);
+}
+
+int64_t BrokerDisplay::lastFlipNs() const {
+	return d->flipNs;
 }
 
 QmpDisplay::Frame BrokerDisplay::takeFrame() {
