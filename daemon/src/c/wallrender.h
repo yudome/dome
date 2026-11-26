@@ -38,8 +38,6 @@ void wr_play(void);
 void wr_settle(void);
 void wr_pause(int paused);
 void wr_still(double seconds);
-double wr_settle_pos(double u, double curve);
-double wr_settle_target(double now, double still, double dur, double travel);
 
 double wr_bezier(const float p[4], double x);
 double wr_band_luma(const uint8_t *rgba, int width, int rows);

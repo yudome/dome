@@ -49,6 +49,7 @@ pub const Ink = struct {
 	inks: std.StringHashMapUnmanaged([]u8) = .empty,
 	wallpaper: ?*wallpaper.Wallpaper = null,
 	stills: ?*stills.Stills = null,
+	changed: ?stills.Hook = null,
 	running: bool = false,
 	paused: bool = false,
 	guest: bool = false,
@@ -252,6 +253,7 @@ pub const Ink = struct {
 
 		const target = if (path.len > 0) path else if (self.wallpaper) |source| source.activePath(arena.allocator()) orelse return else return;
 		if (self.stills) |store| store.setRest(target, t);
+		if (self.changed) |hook| hook.run(hook.ctx);
 
 		const active = if (self.wallpaper) |source| source.activePath(arena.allocator()) else null;
 		if (active) |shown| {
@@ -316,7 +318,10 @@ pub const Ink = struct {
 				self.share();
 			},
 			.gone => self.forget(name),
-			.shown => self.share(),
+			.shown => {
+				self.share();
+				if (self.changed) |hook| hook.run(hook.ctx);
+			},
 			else => {},
 		}
 	}

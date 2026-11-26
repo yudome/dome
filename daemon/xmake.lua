@@ -51,6 +51,7 @@ local c_sources = {
 	c("imgdecode.c"),
 	c("wallrender.c"),
 	c("video.c"),
+	c("settle.c"),
 	c("stillpick.c"),
 	c("audio.c", "-std=gnu11"),
 }

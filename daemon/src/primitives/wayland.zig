@@ -34,6 +34,7 @@ extern fn wr_pause(paused: c_int) void;
 extern fn wr_still(seconds: f64) void;
 extern fn wr_settle_pos(u: f64, curve: f64) f64;
 extern fn wr_settle_target(now: f64, still: f64, dur: f64, travel: f64) f64;
+extern fn wr_settle_time(wall: f64, end: f64, settle: f64, curve: f64) f64;
 extern fn wr_bezier(p: *const [4]f32, x: f64) f64;
 extern fn wr_band_luma(rgba: [*]const u8, width: c_int, rows: c_int) f64;
 extern fn wr_is_black(luma: f64) c_int;
@@ -204,6 +205,17 @@ test "the settle target is the next still frame far enough ahead, looping forwar
 	try std.testing.expectEqual(@as(f64, 24), wr_settle_target(13.9, 4, 10, 0.4));
 	try std.testing.expectEqual(@as(f64, 4), wr_settle_target(0, 4, 10, 4));
 	try std.testing.expect(wr_settle_target(7, 4, 10, 0.4) >= 7.4);
+}
+
+test "a lock video plays at real speed, then eases and lands on its still frame" {
+	const end = wr_settle_target(0, 4, 10, 1.2 / 3.0);
+	try std.testing.expectEqual(@as(f64, 4), end);
+	const at = end - 1.2 / 3.0;
+	try std.testing.expectEqual(@as(f64, 2), wr_settle_time(2, end, 1.2, 3));
+	try std.testing.expectApproxEqAbs(at, wr_settle_time(at, end, 1.2, 3), 1e-9);
+	try std.testing.expect(wr_settle_time(at + 0.6, end, 1.2, 3) < end);
+	try std.testing.expectEqual(end, wr_settle_time(at + 1.2, end, 1.2, 3));
+	try std.testing.expectEqual(end, wr_settle_time(at + 5, end, 1.2, 3));
 }
 
 extern fn wr_thumb(path: [*:0]const u8, seconds: f64, px: c_int, quality: c_int, dest: [*:0]const u8) c_int;

@@ -3,6 +3,7 @@
 #include "imgdecode.h"
 #include "video.h"
 #include "audio.h"
+#include "settle.h"
 
 #include <dirent.h>
 #include <errno.h>
@@ -665,20 +666,6 @@ static void frame_done(void *data, struct wl_callback *cb, uint32_t t) {
 static GLuint upload_image(wr_image *img, int *iw, int *ih);
 static int render_cover(GLuint img_tex, int iw, int ih, struct out *o, GLuint *keep_tex);
 static double measure(struct out *o, struct shm *s);
-
-double wr_settle_pos(double u, double curve) {
-	if (u <= 0) return 0;
-	if (u >= 1) return 1;
-	return 1 - pow(1 - u, curve);
-}
-
-double wr_settle_target(double now, double still, double dur, double travel) {
-	double want = now + travel;
-	if (dur <= 0) return still >= want ? still : want;
-	double n = ceil((want - still) / dur - 1e-9);
-	if (n < 0) n = 0;
-	return still + n * dur;
-}
 
 
 static double travel(void) {

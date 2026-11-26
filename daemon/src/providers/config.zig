@@ -4,6 +4,7 @@ const configmod = @import("../primitives/config.zig");
 const proc = @import("../primitives/proc.zig");
 const watch = @import("../primitives/watch.zig");
 const json = @import("../primitives/json.zig");
+const stills = @import("stills.zig");
 const exec = @import("../primitives/exec.zig");
 const calc = @import("../primitives/calc.zig");
 
@@ -18,6 +19,7 @@ pub const Config = struct {
 	hub: *Hub,
 	mutex: std.Io.Mutex = .init,
 	state: configmod.Config,
+	changed: ?stills.Hook = null,
 
 	pub fn create(allocator: Allocator, io: Io, hub: *Hub) !*Config {
 		const self = try allocator.create(Config);
@@ -115,6 +117,7 @@ pub const Config = struct {
 		self.writeCache();
 
 		self.hub.publish();
+		if (self.changed) |hook| hook.run(hook.ctx);
 	}
 
 	fn writeCache(self: *Config) void {

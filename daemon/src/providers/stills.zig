@@ -25,6 +25,11 @@ pub const Entry = struct {
 	}
 };
 
+pub const Hook = struct {
+	ctx: *anyopaque,
+	run: *const fn (ctx: *anyopaque) void,
+};
+
 /// Per-video still frame picks, analysed once in the background and cached by mtime and size.
 pub const Stills = struct {
 	allocator: Allocator,
@@ -34,6 +39,7 @@ pub const Stills = struct {
 	queue: std.ArrayListUnmanaged([]u8) = .empty,
 	working: bool = false,
 	active: ?[]u8 = null,
+	analysed: ?Hook = null,
 
 	pub fn create(allocator: Allocator, io: Io) !*Stills {
 		const self = try allocator.create(Stills);
@@ -149,6 +155,7 @@ pub const Stills = struct {
 
 		self.save();
 		if (follow) wayland.still(pick.frame);
+		if (self.analysed) |hook| hook.run(hook.ctx);
 	}
 
 	fn entryFor(self: *Stills, path: []const u8) ?*Entry {
