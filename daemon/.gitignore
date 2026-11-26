@@ -1,8 +1,0 @@
-.zig-cache
-zig-out
-bench/build.jsonl
-bench/disk.jsonl
-bench/files.jsonl
-cache
-assets/launcher-index.bin.gz
-bench/widgets/
