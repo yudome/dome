@@ -74,7 +74,7 @@ if [ -z "$SNAPSHOT" ]; then
 		ver=$(pacman -Q "$pkg" 2>/dev/null | cut -d' ' -f2) || continue
 		file=$(compgen -G "/var/cache/pacman/pkg/$pkg-$ver-*.pkg.tar.zst" | head -1 || true)
 		if [ -n "$file" ]; then
-			cp --reflink=auto "$file" "$pinned_dir/"
+			cp --reflink=auto --preserve=timestamps "$file" "$pinned_dir/"
 		else
 			echo "warning: $pkg $ver is not in the pacman cache, the guest takes the repo version" >&2
 		fi
