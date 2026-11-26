@@ -14,7 +14,7 @@ dotfiles/
     ui/              generic primitives: icons, text, controls, rows, overlays, data visuals, scroll
     appkit/          app chrome: AppWindow, AppScaffold, AppHeader, AppSidebar, AppPage, Metrics, Motion
     panelkit/        widget popup chrome: PanelPage, PanelHeader, PanelRow, PanelFooter, ProcessPanel
-    app-<name>.qml   one entry per app (settings, vms, disk, gallery); `yudae app open <name>` runs it
+    app-<name>.qml   one entry per app (vms, disk, gallery); `yudae app open <name>` runs it
     native/          Yudae.Native C++ QML module (VmDisplay, WallVideo) + yudae-pump
     lockscreen ->    symlink to ../lockscreen so its QML resolves `qs`
     config/          one TOML per settings category; icons.toml holds every glyph
