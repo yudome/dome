@@ -128,7 +128,10 @@ PanelWindow {
 			index: root.index
 			interactive: true
 			onHover: index => root.index = index
-			onPicked: root.execute()
+			onPicked: index => {
+				root.index = index;
+				root.execute();
+			}
 		}
 	}
 }
