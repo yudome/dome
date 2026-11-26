@@ -25,7 +25,7 @@ Item {
 	signal hover(int index)
 	signal picked(int index)
 
-	function at(x, y) {
+	function cellAt(x, y) {
 		const column = Calc.clamp(Math.floor(x / row.cell), 0, row.columns - 1);
 		const line = Math.floor(Math.min(y, grid.height - 1) / row.cell);
 		return Calc.clamp(line * row.columns + column, 0, Math.max(0, row.count - 1));
@@ -120,7 +120,7 @@ Item {
 		enabled: row.interactive && row.count > 0
 		hoverEnabled: true
 		cursorShape: Qt.PointingHandCursor
-		onPositionChanged: mouse => row.hover(row.at(mouse.x, mouse.y))
-		onClicked: mouse => row.picked(row.at(mouse.x, mouse.y))
+		onPositionChanged: mouse => row.hover(row.cellAt(mouse.x, mouse.y))
+		onClicked: mouse => row.picked(row.cellAt(mouse.x, mouse.y))
 	}
 }
