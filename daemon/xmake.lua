@@ -172,14 +172,26 @@ local function daemon_target(name, source, with_c, link_yudae, deps)
 		before_build(function (target_)
 			started[target_:name()] = os.mclock()
 		end)
-		on_build(function (target_)
+		local function build(target_)
 			local binary = path.join(out, name)
 			built[target_:name()] = binary
 			local argv = zig_argv(path.join(dir, source), binary)
 			if with_c then add_c(argv) end
 			os.execv("zig", argv)
-		end)
+		end
+		on_build(build)
 		after_build(log_build)
+		before_install(function (target_)
+			local binary = path.join(out, name)
+			local stamp = os.isfile(binary) and os.mtime(binary) or 0
+			for _, file in ipairs(os.files(path.join(dir, "src", "**"))) do
+				if os.mtime(file) > stamp then
+					print("rebuilding stale " .. name)
+					build(target_)
+					return
+				end
+			end
+		end)
 		after_install(function (target_)
 			local bindir = target_:installdir("bin")
 			local link = path.join(bindir, "yudae")
