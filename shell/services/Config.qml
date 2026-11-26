@@ -397,8 +397,6 @@ QtObject {
 	readonly property var lockMenuRowHeight: settings.lockMenuRowHeight !== undefined ? settings.lockMenuRowHeight : 56
 	readonly property var lockMenuTextSize: settings.lockMenuTextSize !== undefined ? settings.lockMenuTextSize : 22
 	readonly property var lockFadeMs: settings.lockFadeMs !== undefined ? settings.lockFadeMs : 450
-	readonly property var lockCardGrow: settings.lockCardGrow !== undefined ? settings.lockCardGrow : 64
-	readonly property var lockFoldMs: settings.lockFoldMs !== undefined ? settings.lockFoldMs : 1600
 	readonly property var lockCooldownMs: settings.lockCooldownMs !== undefined ? settings.lockCooldownMs : 3000
 	readonly property var lockPamService: settings.lockPamService !== undefined ? settings.lockPamService : "quickshell"
 	readonly property var lockWrongText: settings.lockWrongText !== undefined ? settings.lockWrongText : "Wrong password"
