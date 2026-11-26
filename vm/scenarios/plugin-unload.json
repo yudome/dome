@@ -5,10 +5,10 @@
     { "do": "wait", "until": "exec:pgrep -x yudaemond", "timeout": 60000 },
     { "do": "wait", "until": "exec:pgrep -x quickshell", "timeout": 60000 },
     { "do": "exec", "cmd": "mkdir -p /home/user/.local/share/yudae/plugins && cp -r /home/user/dotfiles/templates/_template-hypr /home/user/.local/share/yudae/plugins/ && mkdir -p /home/user/.local/state/yudae && printf 'load = [\"_template-hypr\"]\\n' > /home/user/.local/state/yudae/plugins.toml", "code": 0 },
-    { "do": "exec", "cmd": "/home/user/dotfiles/daemon/zig-out/bin/yudaemond plugin reload", "code": 0 },
+    { "do": "exec", "cmd": "/home/user/dotfiles/build/bin/yudaemond plugin reload", "code": 0 },
     { "do": "wait", "until": "exec:export XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-1 HYPRLAND_INSTANCE_SIGNATURE=$(ls /run/user/1000/hypr | head -1); hyprctl plugin list | grep -q template-hypr", "timeout": 30000 },
-    { "do": "exec", "cmd": "/home/user/dotfiles/daemon/zig-out/bin/yudaemond plugin unload _template-hypr", "code": 0 },
-    { "do": "exec", "cmd": "/home/user/dotfiles/daemon/zig-out/bin/yudaemond plugin reload", "code": 0 },
+    { "do": "exec", "cmd": "/home/user/dotfiles/build/bin/yudaemond plugin unload _template-hypr", "code": 0 },
+    { "do": "exec", "cmd": "/home/user/dotfiles/build/bin/yudaemond plugin reload", "code": 0 },
     { "do": "wait", "until": "exec:! grep -q _template-hypr /home/user/.local/state/yudae/loaded.lua && ! grep -q _template-hypr /home/user/.local/state/yudae/plugins.toml", "timeout": 30000 },
     { "do": "exec", "cmd": "export XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-1 HYPRLAND_INSTANCE_SIGNATURE=$(ls /run/user/1000/hypr | head -1); hyprctl plugin list | grep -q template-hypr", "code": 0 },
     { "do": "screenshot" }

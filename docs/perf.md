@@ -17,7 +17,7 @@ The gates are measured on the headless daemon, `xmake f --headless=y && xmake bu
 
 ## Tools
 
-- `xmake` prints build time and binary size, records `daemon/bench/build.jsonl` from `after_build`, and prunes `daemon/.zig-cache` over `YUDA_BUILD_CACHE_MB` (300MB).
+- `xmake` prints build time and binary size, records `.bench/build.jsonl` from `after_build`, and prunes `build/zig-cache` over `YUDA_BUILD_CACHE_MB` (300MB).
 - `xmake bench files` runs `yudaemond bench files`: it builds the synthetic file index, rebuilds it with the unchanged-folder reuse path, runs the folder stat scan, mmaps the index, and times name queries. `home` adds the real disk index build. It appends `bench/files.jsonl` and gates the synthetic throughput against `bench/baseline.json` (`files`).
 - `yudaemond bench` records binary size, start time, idle RSS, idle CPU over 60s, shell total RSS, and the top RAM/CPU hoggers with deltas against `bench/baseline.json`.
 - `xmake build` and `xmake bench` call the same tools and report the same numbers. Compilation is not reimplemented in Lua.
@@ -136,7 +136,7 @@ The native viewer does receive 150 `UpdateDMABUF` frames/s on the animation, so 
 
 1. The guest cycles dmabuf scanouts. QEMU exports them with `ScanoutDMABUF2`, fourcc ``A B G R 8 8 8 8``/``X B G R``, modifier `0x0300000000e08014`. The viewer imports with `EGL_LINUX_DMA_BUF_EXT` and draws a `QSGSimpleTextureNode`.
 2. QEMU caches the export by texture id; repeat scanouts become `UpdateDMABUF`.
-3. `/home/user/dotfiles/daemon/zig-out/bin/yudae-pump` keeps an agent VM presenting with no viewer, at 1536x864 scale 1.
+3. `/home/user/dotfiles/build/bin/yudae-pump` keeps an agent VM presenting with no viewer, at 1536x864 scale 1.
 4. `yudae vm view` stops the pump, sets 2560x1440 scale 1.6667 in the guest and opens `shell/app-vms.qml`; `vm release` restores 1536x864 and restarts the pump. No VM restart.
 5. The native plugin is copied into `~/.local/lib/yudae/qml` by `vm/desktop`, `shell/shell-guest.qml` imports it, and its `registerTypes` calls `QQuickWindow::setDefaultAlphaBuffer(true)`. The guest overlay alpha is fixed: `quirks:skip_non_kms_dmabuf_formats = false` makes Hyprland advertise non-KMS ARGB formats, system Mesa exposes 25 ARGB8888 configs and the launcher shows the wallpaper. Proof: `vm/runs/demo/proof/launcher-alpha-hyprland-quirk.png`.
 
@@ -198,7 +198,7 @@ The headless daemon still passes 3.6MB idle RSS and 9.1s cold build against 8MB/
 
 ## Disk scanner, measured 2026-11-11
 
-`xmake bench disk` builds a seeded synthetic tree, runs V0 sequential, V1 threaded and V2 io_uring batched statx at 1/2/4/8/16/nproc, plus V3 btrfs `TREE_SEARCH_V2`, keeps only exact versions, and writes every measured variant to `daemon/bench/disk.jsonl`. The first accurate run seeds the `disk` block in `daemon/bench/baseline.json`; later runs fail when the winner drops under 80% of that baseline or the cache grows past twice its baseline. `--files=N` changes the tiny-file count, `--real` adds `$HOME`, and `--cold` drops the page cache through `yudae-fsd` (`org.yudae.fs.bench`) or directly when the benchmark itself runs as root.
+`xmake bench disk` builds a seeded synthetic tree, runs V0 sequential, V1 threaded and V2 io_uring batched statx at 1/2/4/8/16/nproc, plus V3 btrfs `TREE_SEARCH_V2`, keeps only exact versions, and writes every measured variant to `.bench/disk.jsonl`. The first accurate run seeds the `disk` block in `daemon/bench/baseline.json`; later runs fail when the winner drops under 80% of that baseline or the cache grows past twice its baseline. `--files=N` changes the tiny-file count, `--real` adds `$HOME`, and `--cold` drops the page cache through `yudae-fsd` (`org.yudae.fs.bench`) or directly when the benchmark itself runs as root.
 
 Measured in the VM, kernel 7.2.11, Zig 0.17.1, 20k tiny files:
 

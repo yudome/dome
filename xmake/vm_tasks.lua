@@ -67,7 +67,7 @@ function doctor(dir, root)
 		for _, path_ in ipairs({ "/usr/lib/virtiofsd", "/usr/bin/passt", "/dev/kvm", "/dev/vhost-vsock", "/dev/dri/renderD128" }) do
 			mark(os.exists(path_), path_)
 		end
-		mark(os.isfile(path.join(root, "daemon", "zig-out", "bin", "yudaemond")), "daemon binary")
+		mark(os.isfile(path.join(root, "build", "bin", "yudaemond")), "daemon binary")
 		mark(os.execv("systemctl", { "--user", "is-enabled", "yudaemond" }, { try = true, stdout = "/dev/null", stderr = "/dev/null" }) == 0, "yudaemond.service")
 		print("")
 	end

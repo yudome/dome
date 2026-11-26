@@ -6,8 +6,8 @@
     { "do": "wait", "until": "exec:pgrep -x quickshell", "timeout": 60000 },
     { "do": "exec", "cmd": "d=/home/user/.local/share/yudae/plugins/broken; mkdir -p $d; printf 'id = \"broken\"\\nkind = \"app\"\\nversion = \"1\"\\nbuild = \"false\"\\nprovides = [\"x\"]\\n' > $d/plugin.toml", "code": 0 },
     { "do": "exec", "cmd": "mkdir -p /home/user/.local/state/yudae && printf 'load = [\"broken\"]\\n' > /home/user/.local/state/yudae/plugins.toml", "code": 0 },
-    { "do": "exec", "cmd": "/home/user/dotfiles/daemon/zig-out/bin/yudaemond plugin reload", "code": 0 },
-    { "do": "wait", "until": "exec:/home/user/dotfiles/daemon/zig-out/bin/yudaemond plugin list --json | grep -q 'BuildFailed'", "timeout": 30000 },
+    { "do": "exec", "cmd": "/home/user/dotfiles/build/bin/yudaemond plugin reload", "code": 0 },
+    { "do": "wait", "until": "exec:/home/user/dotfiles/build/bin/yudaemond plugin list --json | grep -q 'BuildFailed'", "timeout": 30000 },
     { "do": "exec", "cmd": "pgrep -x quickshell && pgrep -x Hyprland", "code": 0 },
     { "do": "screenshot" }
   ],

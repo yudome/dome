@@ -692,7 +692,7 @@ pub fn run(io: Io, args: []const []const u8) !void {
 	};
 
 	const body = try std.fmt.allocPrint(allocator, "{f}\n", .{std.json.fmt(payload, .{ .whitespace = .indent_2 })});
-	const dir = try std.fmt.allocPrint(allocator, "{s}/dotfiles/daemon/bench/widgets", .{proc.home(io, allocator)});
+	const dir = try std.fmt.allocPrint(allocator, "{s}/dotfiles/.bench/widgets", .{proc.home(io, allocator)});
 	std.Io.Dir.cwd().createDirPath(io, dir) catch {};
 	const path = try std.fmt.allocPrint(allocator, "{s}/{s}.json", .{ dir, stamp });
 	proc.writeFileAtomic(io, allocator, path, body) catch {};

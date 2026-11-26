@@ -241,8 +241,8 @@ sections.still = function (ctx)
 	check("preview", preview and preview.thumb and os.isfile(preview.thumb), "exact frame at 2.5s")
 	cmd("wallpaper", "frame", { path = ctx.f.video, t = 2.5 })
 	os.sleep(500)
-	local cache = io.readfile(path.join(os.getenv("HOME"), "dotfiles", "daemon", "cache", "wallpaper-videos.json")) or ""
-	check("still saved", cache:find(ctx.f.video, 1, true) ~= nil and cache:find('"restFrame":2.5', 1, true) ~= nil, "restFrame 2.5 in daemon/cache/wallpaper-videos.json")
+	local cache = io.readfile(path.join(os.getenv("HOME"), "dotfiles", "build", "cache", "wallpaper-videos.json")) or ""
+	check("still saved", cache:find(ctx.f.video, 1, true) ~= nil and cache:find('"restFrame":2.5', 1, true) ~= nil, "restFrame 2.5 in build/cache/wallpaper-videos.json")
 	local bench = sh_all("yudae bench wallpaper '" .. ctx.f.video .. "'")
 	print(bench)
 	if not ctx.guest then

@@ -5,8 +5,8 @@
     { "do": "wait", "until": "exec:pgrep -x yudaemond", "timeout": 60000 },
     { "do": "wait", "until": "exec:pgrep -x quickshell", "timeout": 60000 },
     { "do": "exec", "cmd": "mkdir -p /home/user/.local/state/yudae && printf 'load = [\"tokyo\"]\\n' > /home/user/.local/state/yudae/plugins.toml", "code": 0 },
-    { "do": "exec", "cmd": "/home/user/dotfiles/daemon/zig-out/bin/yudaemond plugin reload", "code": 0 },
-    { "do": "wait", "until": "exec:grep -q '1a1b26' /home/user/.local/state/yudae/theme.toml && /home/user/dotfiles/daemon/zig-out/bin/yudaemond state --json | grep -q '1a1b26'", "timeout": 30000 },
+    { "do": "exec", "cmd": "/home/user/dotfiles/build/bin/yudaemond plugin reload", "code": 0 },
+    { "do": "wait", "until": "exec:grep -q '1a1b26' /home/user/.local/state/yudae/theme.toml && /home/user/dotfiles/build/bin/yudaemond state --json | grep -q '1a1b26'", "timeout": 30000 },
     { "do": "sleep", "ms": 500 },
     { "do": "screenshot" }
   ],

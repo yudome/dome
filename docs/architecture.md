@@ -67,6 +67,6 @@ xmake orchestrates, it does not replace the real builders.
 | `xmake vm ...` | VM images and the image build bench; running VMs are `yudae vm` |
 | `xmake doctor` | host and VM checks, `--json` for machines |
 
-`xmake` drives Zig directly for the daemon, the launcher index and the cover tool, and the system `make` for hypr plugins. The build time, binary size and cache size go to `daemon/bench/build.jsonl` in `after_build`, and the daemon cache is pruned over `YUDA_BUILD_CACHE_MB` (300). `xmake f --headless=y` builds `yudaemond-headless`, the minimal control-plane daemon that carries the performance gates.
+`xmake` drives Zig directly for the daemon, the launcher index and the cover tool, and the system `make` for hypr plugins. The build time, binary size and cache size go to `.bench/build.jsonl` in `after_build`, and the daemon cache is pruned over `YUDA_BUILD_CACHE_MB` (300). `xmake f --headless=y` builds `yudaemond-headless`, the minimal control-plane daemon that carries the performance gates.
 
 There is no wrapper: `/usr/bin/xmake` runs the real thing. `shell/native` builds the Quickshell app window and the VM display, including the in-process Conduit broker client; the daemon runs `qemu-system-x86_64` from `PATH`, or the NVIDIA path (`~/qemu-linux/install`, Conduit) when `backend=auto` selects it. `YUDAE_QEMU` and `YUDAE_NVIDIA_QEMU` override both.

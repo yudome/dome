@@ -32,7 +32,7 @@
     },
     {
       "do": "exec",
-      "cmd": "~/dotfiles/daemon/zig-out/bin/yudaemond lock",
+      "cmd": "~/dotfiles/build/bin/yudaemond lock",
       "code": 0
     },
     {
@@ -127,7 +127,7 @@
     },
     {
       "do": "exec",
-      "cmd": "sudo pacman -S --noconfirm --needed greetd >/dev/null && rm -rf /tmp/dotfiles && mkdir -p /tmp/dotfiles && tar -C ~/dotfiles --exclude=.git --exclude=.zig-cache --exclude=.zig-cache-headless --exclude=zig-out --exclude=cache --exclude=runs -cf - . | tar -C /tmp/dotfiles -xf - && sudo xmake install --root -P /tmp/dotfiles -y greeter >/dev/null && grep -q initial_session /etc/greetd/config.toml && sudo loginctl enable-linger user && sudo systemctl disable --now yudae-desktop && rm -rf /run/user/1000/hypr/* /run/user/1000/yudae-* && sudo systemctl start greetd",
+      "cmd": "sudo pacman -S --noconfirm --needed greetd >/dev/null && rm -rf /tmp/dotfiles && mkdir -p /tmp/dotfiles && tar -C ~/dotfiles --exclude=.git --exclude=build --exclude=.bench --exclude=runs -cf - . | tar -C /tmp/dotfiles -xf - && sudo xmake install --root -P /tmp/dotfiles -y greeter >/dev/null && grep -q initial_session /etc/greetd/config.toml && sudo loginctl enable-linger user && sudo systemctl disable --now yudae-desktop && rm -rf /run/user/1000/hypr/* /run/user/1000/yudae-* && sudo systemctl start greetd",
       "code": 0,
       "timeout": 300000
     },

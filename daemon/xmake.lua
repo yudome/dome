@@ -1,12 +1,15 @@
 -- yudaemond, headless daemon, zig tests, index and cover tools
 
 local dir = os.scriptdir()
-local out = path.join(dir, "zig-out", "bin")
-local cache = path.join(dir, has_config("headless") and ".zig-cache-headless" or ".zig-cache")
+local root = path.directory(dir)
+local build = path.join(root, "build")
+local bench = path.join(root, ".bench")
+local out = path.join(build, "bin")
+local cache = path.join(build, has_config("headless") and "zig-cache-headless" or "zig-cache")
 local cap = tonumber(os.getenv("YUDA_BUILD_CACHE_MB") or "300")
-local bench_log = path.join(dir, "bench", "build.jsonl")
+local bench_log = path.join(bench, "build.jsonl")
 
-local deps = path.join(dir, ".deps")
+local deps = path.join(build, "deps")
 local gen = path.join(deps, "gen")
 
 local includes = {
@@ -26,7 +29,7 @@ local links = {
 	"-lavformat", "-lavcodec", "-lavutil", "-lswscale", "-lswresample", "-lpipewire-0.3",
 }
 
--- pinned sources the daemon compiles: fetched once into .deps (gitignored)
+-- pinned sources the daemon compiles: fetched once into build/deps (gitignored)
 local fetched = {
 	{ "wuffs-v0.4.c", "https://raw.githubusercontent.com/google/wuffs/v0.4.0-alpha.12/release/c/wuffs-v0.4.c", "458066457347bd6d9bc3c906aa8292bea4488577727569ddd9436fdd89d5f04d" },
 	{ "wlr-layer-shell-unstable-v1.xml", "https://gitlab.freedesktop.org/wlroots/wlr-protocols/-/raw/a741f0ac5d655338a5100fc34bc8cec87d237346/unstable/wlr-layer-shell-unstable-v1.xml", "87e0b9c837aecd6977f76f3c47d73088b7159871f5d979dc1840f6cadb5e2ed8" },
@@ -129,7 +132,7 @@ target("launcher-index")
 	set_kind("phony")
 	set_default(false)
 	on_build(function ()
-		local asset = path.join(dir, "assets", "launcher-index.bin.gz")
+		local asset = path.join(build, "assets", "launcher-index.bin.gz")
 		if os.isfile(asset) then return end
 		local tool = path.join(out, "build-index")
 		os.execv("zig", { "build-exe", optimize(), "--cache-dir", cache, "-femit-bin=" .. tool, path.join(dir, "src", "build_index.zig") })
@@ -153,8 +156,8 @@ local function log_build(target)
 	local ms = os.mclock() - start
 	local size = os.filesize(binary) or 0
 	local line = string.format('{"at":%d,"ms":%d,"binary":%d,"cache_mb":%d,"out_mb":%d,"global_mb":%d}\n',
-		os.time(), ms, size, cache_mb, size_mb(path.join(dir, "zig-out")), size_mb(path.join(os.getenv("HOME") or "", ".cache", "zig")))
-	os.mkdir(path.join(dir, "bench"))
+		os.time(), ms, size, cache_mb, size_mb(out), size_mb(path.join(os.getenv("HOME") or "", ".cache", "zig")))
+	os.mkdir(bench)
 	io.writefile(bench_log, (os.isfile(bench_log) and io.readfile(bench_log) or "") .. line)
 	print(string.format("build %dms  binary %dB  cache %dMB", ms, size, cache_mb))
 	if cache_mb > cap then

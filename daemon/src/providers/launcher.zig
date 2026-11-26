@@ -2051,12 +2051,12 @@ const index_entry = 33;
 
 fn indexPath(io: Io, allocator: Allocator) ![]u8 {
 	const home = proc.home(io, allocator);
-	const path = try std.fmt.allocPrint(allocator, "{s}/dotfiles/daemon/assets/launcher-index.bin.gz", .{home});
+	const path = try std.fmt.allocPrint(allocator, "{s}/dotfiles/build/assets/launcher-index.bin.gz", .{home});
 
 	if (proc.exists(io, path)) return path;
 
 	allocator.free(path);
-	return allocator.dupe(u8, "assets/launcher-index.bin.gz");
+	return allocator.dupe(u8, "build/assets/launcher-index.bin.gz");
 }
 
 fn readU32(bytes: []const u8, at: usize) u32 {

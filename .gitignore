@@ -7,19 +7,12 @@ trashrc
 .xmake/
 /vm/runs/
 /daemon/.zig-cache/
-/daemon/.zig-cache-headless/
-/daemon/zig-out/
-/daemon/cache/
-/daemon/bench/build.jsonl
-/daemon/bench/disk.jsonl
-/daemon/bench/files.jsonl
-/daemon/bench/widgets/
-/daemon/assets/launcher-index.bin.gz
 vm/hostbin
 vm/hostwall
 vm/hoststate
 shell/native/qml
 /build/
+.bench/
 config/zsh/.zcompdump-*
 config/zsh/.zsh_history
 /bench/images.jsonl
@@ -27,4 +20,3 @@ config/zsh/.zsh_history
 /config/kconf_updaterc
 /PLANS.md
 /plans.md
-/daemon/.deps/

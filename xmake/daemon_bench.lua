@@ -24,7 +24,7 @@ function run(root, dir, out)
 	end
 	local full_idle = field("idleRssKb")
 	os.execv("sh", { "-c", "xmake f --headless=y -y >/dev/null" }, { curdir = root })
-	os.rm(path.join(dir, ".zig-cache-headless"))
+	os.rm(path.join(path.directory(out), "zig-cache-headless"))
 	local started = os.mclock()
 	os.execv("xmake", { "build", "yudaemond-headless" }, { curdir = root })
 	local cold_ms = os.mclock() - started
