@@ -63,8 +63,12 @@ pub const Access = struct {
 
 pub fn serve(allocator: Allocator, client: i32, access: Access, roots: []const []const u8, mounts: []const []const u8) !void {
 	const init_flags: linux.fanotify.InitFlags = .{ .CLOEXEC = true, .NONBLOCK = true, .CLASS = .NOTIF, .REPORT_DIR_FID = true, .REPORT_NAME = true };
-	var fan: i32 = @intCast(linux.fanotify_init(init_flags, @bitCast(std.posix.O{ .ACCMODE = .RDONLY })));
-	if (fan < 0) return error.FanotifyUnavailable;
+	var fan: i32 = undefined;
+	{
+		const fd = linux.fanotify_init(init_flags, @bitCast(std.posix.O{ .ACCMODE = .RDONLY }));
+		if (linux.errno(fd) != .SUCCESS) return error.FanotifyUnavailable;
+		fan = @intCast(fd);
+	}
 	defer _ = linux.close(fan);
 
 	var mount_fds: [16]i32 = undefined;
@@ -86,8 +90,9 @@ pub fn serve(allocator: Allocator, client: i32, access: Access, roots: []const [
 	var partial = false;
 	if (marked == 0) {
 		_ = linux.close(fan);
-		fan = @intCast(linux.fanotify_init(.{ .CLOEXEC = true, .NONBLOCK = true, .CLASS = .NOTIF }, @bitCast(std.posix.O{ .ACCMODE = .RDONLY })));
-		if (fan < 0) return error.FanotifyUnavailable;
+		const retry = linux.fanotify_init(.{ .CLOEXEC = true, .NONBLOCK = true, .CLASS = .NOTIF }, @bitCast(std.posix.O{ .ACCMODE = .RDONLY }));
+		if (linux.errno(retry) != .SUCCESS) return error.FanotifyUnavailable;
+		fan = @intCast(retry);
 		const fallback: linux.fanotify.MarkMask = .{ .CLOSE_WRITE = true };
 		for (mounts) |mount| {
 			if (marked == mount_fds.len) break;
@@ -299,6 +304,9 @@ test "access follows the permission bits of every folder on the path" {
 
 test "serve reports the folder a new file appears in" {
 	if (linux.geteuid() != 0) return error.SkipZigTest;
+	const probe = linux.fanotify_init(.{ .CLOEXEC = true, .NONBLOCK = true, .CLASS = .NOTIF }, @bitCast(std.posix.O{ .ACCMODE = .RDONLY }));
+	if (linux.errno(probe) != .SUCCESS) return error.SkipZigTest;
+	_ = linux.close(@intCast(probe));
 	const io = std.testing.io;
 	const allocator = std.testing.allocator;
 	var tmp = std.testing.tmpDir(.{});

@@ -103,7 +103,7 @@ function run(root)
 	local hypr_version
 	local function hyprland_version()
 		if hypr_version ~= nil then return hypr_version end
-		local out = os.iorunv("sh", { "-c", "pkg-config --modversion hyprland 2>/dev/null" })
+		local out = os.iorunv("sh", { "-c", "pkg-config --modversion hyprland 2>/dev/null || true" })
 		hypr_version = trim(out or "")
 		return hypr_version
 	end

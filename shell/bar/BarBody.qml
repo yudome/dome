@@ -131,9 +131,11 @@ Item {
 				if (item.bar !== undefined)
 					item.bar = body.host;
 				if (item.slotWidth !== undefined)
-					item.slotWidth = Qt.binding(function () {
-						return body.iconSlot;
-					});
+					try {
+						item.slotWidth = Qt.binding(function () {
+							return body.iconSlot;
+						});
+					} catch (error) {}
 				if (item.frozen !== undefined)
 					item.frozen = body.sample;
 				if (item.sampleOnly !== undefined)
