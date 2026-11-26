@@ -134,6 +134,7 @@ pub fn writeFile(io: Io, path: []const u8, body: []const u8) !void {
 }
 
 pub fn writeFileAtomic(io: Io, allocator: Allocator, path: []const u8, body: []const u8) !void {
+	try std.Io.Dir.cwd().createDirPath(io, std.fs.path.dirname(path) orelse ".");
 	const temp = try std.fmt.allocPrint(allocator, "{s}.tmp", .{path});
 	defer allocator.free(temp);
 

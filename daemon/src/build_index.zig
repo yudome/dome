@@ -230,7 +230,9 @@ pub fn main() !void {
 		var found: ?[]u8 = null;
 		while (try iterator.next()) |file| {
 			if (file.kind == .file and std.mem.eql(u8, file.name, "package/data/kaomoji.jsonl.gz")) {
-				found = try iterator.reader.readAllocAll(allocator, @intCast(file.size));
+				var collecting: std.Io.Writer.Allocating = .init(allocator);
+				try iterator.streamRemaining(file, &collecting.writer);
+				found = try collecting.toOwnedSlice();
 			}
 		}
 		const body = found orelse return error.MissingKaomoji;
