@@ -56,7 +56,20 @@ Structured state first, pixels last:
 
 `vm_create` with no name uses the caller's session id as the VM name, so each agent session gets its own VM and a second create reuses it. Never pass another agent's name or a shared name such as `ui`. The budget is half the host RAM and all host cores; a VM takes one core unless `cores` is given. Idle VMs step down hot to warm at 5 minutes, warm to parked at 15, parked to off at 60 with the disk kept. A VM idle past `YUDAE_VM_IDLE_DESTROY_MS` (default 24h, `0` disables) is destroyed with its disk; `destroyIdleMs` on create overrides it per VM. A scenario destroys its VM when it passes and keeps screenshots in `vm/runs/shots/<name>/`; `"keep": true` in the scenario context keeps the VM for debugging.
 
-`yudae vm scenario shell-ready` is the UI smoke: boot, Hyprland, Quickshell, screenshot.
+`yudae vm scenario shell-ready` is the UI smoke: boot, Hyprland, Quickshell, screenshot. `yudae vm scenario <vm> <scenario> --from <tag>` runs it on another golden. `pull` steps take a repo-relative `to`.
+
+## Guest image
+
+`xmake vm images` (`vm/mkosi/build`) builds the guest with mkosi from `vm/mkosi/`, on the host, with no provisioning VM:
+
+- `mkosi.conf.d/packages.conf` is the package list; `pins.conf` takes `name=version` pins; `mkosi.extra/` holds the units, scripts, fstab, presets and sudoers; `mkosi.postinst.chroot` creates the `user` account.
+- Repos, mirrors, the public keyring and the kernel package are read from the host at build time (`/etc/pacman.conf` and its includes, `/etc/pacman.d/gnupg`, the `pkgbase` of the running kernel). The host's sync databases fix the versions, so the guest gets the exact builds the host has; packages the host has cached are reflinked, not downloaded.
+- The build fails when the guest's kernel package, hyprland, aquamarine, quickshell or qt6-base differ from the host, unless `pins.conf` pins them. `--snapshot YYYY/MM/DD` pins the Arch repos to the archive and tags the image `golden-YYYY-MM-DD`.
+- The package tree is cached until the package list, pins, repos or host databases change; an edit under `mkosi.extra/` only redoes the disk.
+- Each build lands in `~/.cache/dotfiles/vm/images/<id>/` (`packages.qcow2`, a thin `golden.qcow2`, `vmlinuz`, `cmdline`, `manifest.json`) and moves `images/current`. Old ids stay while a VM's backing chain uses them.
+- File owners other than root are applied at guest boot by `systemd-tmpfiles` from the pacman mtree data, because unprivileged mkosi builds store every file as root. The build turns on `systemd-nsresourced.socket` and `systemd-mountfsd.socket` (polkit asks) when they are off.
+
+Agents install software with `yudae vm exec <vm> 'sudo pacman -S --noconfirm <pkg>'`; it lands in that VM's overlay only. A package every agent needs goes into `packages.conf`.
 
 Apps start from `shell/app-<name>.qml` (`settings`, `vms`, `disk`, `gallery`); `yudae app open <name>` opens one, and a new app needs only its `app-<name>.qml`. `xmake test shell-app/app` loads every app and the shell headless and fails on QML runtime errors. For a UI change, run `quickshell -p shell/app-gallery.qml` in your own VM and screenshot it at 480, 720, 960 and 1280 wide.
 

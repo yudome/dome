@@ -10,3 +10,4 @@ description: Use when working with the QEMU VM control plane, guest scenarios, t
 - If the daemon lacks the action, ask the user before adding it to yudaemond.
 - The viewer app runs on the host. Test guest UI with `yudae vm start/exec/screenshot` or a scenario; watch it with `yudae open <vm> <app>`.
 - Read `docs/agent-tooling.md` and `docs/daemon.md` before changing VM behavior.
+- Guest image changes go in `vm/mkosi/` (packages, pins, `mkosi.extra/`, postinst), then `xmake vm images`. Agents install extra packages per VM with `sudo pacman -S`; the host pacman cache is shared read-only.

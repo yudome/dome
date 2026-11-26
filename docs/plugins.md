@@ -154,12 +154,11 @@ yudae plugin reload
 - Zig unit tests cover the load list, missing folder, broken TOML, unknown kind, duplicate id, requires mismatch, order, options, unload, source hash, theme layering and a real Hyprland template build.
 - VM scenarios `vm/scenarios/plugin-*.json` cover no list, load, unload, stale source, broken source, binary in folder, missing compiler, themes, theme layering, Lua themes, shell, app and Hyprland.
 
-Golden images can be pinned to an Arch Linux Archive date:
+Golden images can pin the Arch repos (`core`, `extra`, `multilib`) to an Arch Linux Archive date; CachyOS repos have no archive and stay current:
 
 ```
-xmake vm packages --snapshot 2026/10/28
-xmake vm golden --snapshot 2026/10/28
+xmake vm images --snapshot 2026/10/28
 yudae vm create old --from 2026-10-28
 ```
 
-`--from` accepts a VM name (clone its disk) or a golden tag built by `vm/images`.
+`--from` accepts a VM name (clone its disk) or a golden tag built by `vm/images`. `plugin-upgrade` and `plugin-downgrade` swap only `hyprland` for the 2026-10-28 archive build with `pacman -Sdd`, because a wider downgrade pulls libraries the guest daemon (built on the host) no longer links.

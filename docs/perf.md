@@ -157,56 +157,23 @@ Superseded by a one-line Hyprland quirk. The guest compositor filtered ARGB out 
 
 ### VM image build
 
-`xmake vm bench [tag]` times `fetch`, `packages`, `golden` and appends one JSON line to `bench/images.jsonl` (gitignored). It uses `~/.cache/yudae-vm-bench`; `DOTFILES_VM_BENCH` moves the logs, `DOTFILES_VM_BENCH_CACHE` the cache.
+`xmake vm bench [tag]` runs `vm/images build --force` in `~/.cache/yudae-vm-bench` (`DOTFILES_VM_BENCH` moves it, `DOTFILES_VM_BENCH_CACHE` the cache) and appends one JSON line to `bench/images.jsonl` (gitignored).
 
-| run | packages | golden | total |
-| --- | --- | --- | --- |
-| before | 4m29s | 49s | 5m18s |
-| after | 3m41s | 49s | 4m32s |
-| trimmed | 2m58s | 49s | 3m47s |
-| folded | 2m44s | 0.09s | 2m44s |
-| thin | 2m21s | 0.09s | 2m21s |
-| fast | 54.8s | 0.09s | 54.8s |
-| base | 53.9s | 0.09s | 53.9s |
-| restore | 0.05s | 0.04s | 0.09s |
-| materialized | 8.05s | 0.04s | 8.10s |
-| cached | 0.37s | 0.04s | 0.42s |
+mkosi image against the old `vm/images` script (cloud image plus a provisioning VM), both with the NVIDIA bits (`conduit-guest`, headers, dkms), on this host:
 
-The thin cut also drops KDE and GNOME file managers and their dependency trees, Noto/CJK and extra fonts, printing and network daemons, and the desktop portals. It keeps the shell font, Meslo, DejaVu, emoji, Qt, Hyprland, audio, NetworkManager and the plugin toolchain. Result: 735MB download, 2.97G layer, 719 packages, shell screenshot and an in-guest `agent-cursor` build verified. `golden_setup` now runs `passwd -d root`; the guest reports `root NP`.
+| run | time | image on disk |
+| --- | --- | --- |
+| old, package store warm | 95.4s | 3308MB packages layer |
+| old, cold | fails: the pinned cloud image is gone from the mirrors (404) | - |
+| mkosi, host cache seeded | 98.5s | 1470MB |
+| mkosi, nothing cached, every package downloaded | 109.6s | 1470MB |
+| mkosi, edit under `mkosi.extra/` (cached packages) | 39-44s | 1470MB |
+| mkosi without the NVIDIA profile, host cache seeded | 66s | 1236MB |
+| edit to `vm/guest/yudae-session` | no rebuild, read from the repo share at boot | - |
 
-Cloud Hypervisor is not installed and is not a drop-in: it needs a direct kernel and initrd and has no dbus/GL path for the viewer. Installing it needs host root, which is unavailable by design.
+Of a cached rebuild, about 22s is `mkfs.btrfs --rootdir` copying the tree into the disk and 7s is `qemu-img convert -c`. Filesystem compression cost 10s more than leaving it to qcow2. `mkfs.btrfs --reflink` would remove the copy, but mkosi does not pass the environment to systemd-repart.
 
-The folded run makes the packages image bootable: the same provisioning boot writes the user units, fstab, enables them and sets the graphical target. `golden` is now an empty qcow2 overlay on packages, so it costs 0.09s instead of a second boot.
-
-The trimmed run excludes firmware, QEMU, virtiofsd, VLC, tesseract, Firefox, qBittorrent, Prism Launcher, Rust, Zig, Clang, LLVM, CMake, Ninja, Docker, Podman, libvirt and the existing CachyOS/NVIDIA/Steam-only packages. It keeps gcc, make and pkg-config for plugin builds. The package layer drops from 6.5G to 4.2G and the guest has 946 packages instead of 1011; the shell, Hyprland and a scenario screenshot were verified on it. Its 1m20s fetch was a one-time cloud image download and is not in the total.
-
-The second optimized run took 4m54s, so network variance is about 20s. Changes: one `pacman -Syu --needed` transaction instead of upgrade then install, `ParallelDownloads = 12`, `cache=unsafe`, `lazy_refcounts=on`, and `pacman -Scc` before poweroff. The 16G host package cache stays on 9p; virtiofs failed on the system QEMU with `vhost_set_vring_kick`.
-
-`packages` and `golden` skip when their stamp still matches the host package list and user data (`packages.sha`, `golden.sha` in the cache); `--force` materializes the disk from the cached compiled image; a changed package list falls back to the pacman delta. A cached `packages` is 0.01s, a cached `golden` is 0.01s. Both refuse to rebuild while any `vm/runs/*/disk.qcow2` exists, because that disk chain backs onto the layer being replaced; destroy those VMs first.
-
-When the list changed, `packages` boots the existing layer and applies only the delta: installs the new explicit packages, removes packages dropped from the list, prunes orphans, clears the cache and runs `fstrim`. A qcow2 snapshot rolls back a failed or interrupted delta; the VM has a 20 minute watchdog. Above `DOTFILES_VM_PACKAGES_CAP_MB` (default 8192) the layer is rewritten with `qemu-img convert`. Measured on the isolated cache: full 2m44s, add one package 58s, remove it 57s, compaction 1m01s, golden 0.09s. `DOTFILES_VM_PACKAGES` points at a package list file instead of `pacman -Qqen`, for tests.
-
-A host-side build was measured and rejected: pacman inside `unshare -r` installed 150 host packages (953MB) in 2m24s, slower than the guest, and unprivileged `/proc` and `/dev` mounts are denied. A from-scratch build under 60s is not reachable with pacman; the 58s delta is the practical floor, and the 2m44s figure is only for `--force` or a cold cache.
-
-Direct kernel boot with a custom initramfs is used for provisioning. The pacman path execs systemd because scriptlets and first boot assume PID 1. The parallel builder uses the same initramfs in bash mode (`dotfiles.parallel=1`) because it skips package scriptlets and runs explicit fixups; the earlier bash-init pacman attempt failed at D-Bus/logind.
-
-With a warmed package cache and the multi-mirror prefetcher, a forced packages build is **54.8s** (54.1s on the previous run) with 13-19MB left to download. The prefetcher reads `urls.txt` from the previous build, takes the missing packages across four mirrors, and the guest copies new packages back into the cache. The kernel upgrade is ignored so the cloud kernel stays. A cold first build is 1m38s; the 54s figure is a rebuild with the cache present.
-
-The one-time base is a parallel install into a separate raw target disk. Inputs live in `~/.local/share/dotfiles/vm-inputs`: the cloud image, the package store, a btrfs package-store image, a pre-grown 32G raw target base, the 32G GPT disk head, the direct initramfs and a compressed copy of the compiled root image. The builder boots under the bash init (`dotfiles.parallel=1`), mounts the package image on virtio, extracts 341 packages with 16 `bsdtar` workers into the target, installs the pacman DB from the precomputed tar, and writes the user, units and fstab with direct symlinks. Font cache, schemas, ca-trust and depmod run in a one-shot first-boot unit. The target is unmounted and the host slices partition 3 into `root.btrfs` with `vm/dcopy`. With the input compiled image also removed this extraction path measures **9.0s total** (`dotfiles: parallel done`; 8.33s to poweroff; 6s extraction).
-
-The packaged-input path removes `vm-base`, `vm-rootfs` and the output `vm-rootfs.img.zst`; the compiled-image input `~/.local/share/dotfiles/vm-inputs/rootfs.img.zst` (1.3G) is still present. It restores the image in **8.57s total** (`root image restored`), and the next build is **0.133s**:
-
-```
-noartifact total=8568ms
-root image restored
-next=133ms
-```
-
-`xmake vm bench final` from an empty bench cache is **0.45s** (`fetch 0.008s, packages 0.405s, golden 0.037s`). The boot check reports 493 packages, `pacman -Dk` clean, 2 users, `sudo 4755`, and `yudaemond`/`yudae-desktop`/`dotfiles-firstboot` enabled.
-
-Agent VM check: the default cache was cleared and regenerated from the durable image (`packages` 0.42s, `golden` 0.04s), and `yudae vm create <session>` (no `--from`) booted it. `vm exec` reports uid 1000, 493 packages, `pacman -Dk` clean, and all three user units enabled. Hyprland and quickshell are running (`quickshell` layer 0 0 1536 33). `eth0` is up via DHCP at 10.0.2.15, `/etc/pacman.d/gnupg` is populated, and `pacman -S tree` installs to 494 inside the VM without touching the base or golden. `vm create` prints a `yudae: NotFound` warning but creates and boots the VM.
-
-`vm/images backup` refreshes both the output and input compressed images after a package change. The rootfs directory and `mkfs.btrfs -r` remain as a 6.37s fallback when the input image is missing but the rootfs is present; the pacman build remains the final fallback when the store has no transaction/DB artifacts. `btrfs restore` was rejected because it loses setuid/setgid bits; the image slice and restore preserve them.
+Boot to a mapped shell (`shell-ready`, two runs each): old image 17.4-17.5s (guest reachable after 12.5s), mkosi image 13.0-13.2s (guest reachable after 8.0-8.3s). The mkosi image boots the host's kernel directly, with no bootloader and no initrd.
 
 ### Clock
 

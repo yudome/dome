@@ -87,7 +87,11 @@ host yudaemond --QMP unix socket--> qemu per VM (screendump, input, stop/cont, b
 
 Provider code lives in `src/providers/vms/`: `qmp.zig`, `vsock.zig`, `budget.zig`, `tiers.zig`, `cgroup.zig`, `images.zig`. The snapshot has a `vms` section that QML renders like any other provider. Agents never talk to QEMU or the guest directly.
 
-Guest networking is passt, one `--one-off` process per VM that exits with its QEMU. The guest gets the internet but not the host's loopback services (`--no-map-gw`); DNS sent to `10.0.2.3` goes to the host's first nameserver from `/etc/resolv.conf`, so the guest resolves like the host. Shares (repo, wallpaper, state, nvidia) are `virtiofsd --readonly`.
+Guest networking is `vm/net`: one unprivileged network namespace per VM made by `pasta --config-net --no-map-gw`, nft rules inside it, and `passt --one-off` behind QEMU. The rules are built from the host's live addresses at VM start and drop the host's own addresses and prefixes, `10/8`, `172.16/12`, `192.168/16`, `169.254/16`, `100.64/10`, `fc00::/7` and `fe80::/10`. The guest gets the internet but not the host, its LAN or its loopback services; DNS sent to `10.0.2.3` goes through pasta to the host resolver. The host's nft ruleset is never touched. The daemon kills the namespace with the VM, also when a start fails.
+
+Shares (repo, wallpaper, state, nvidia, host pacman cache) are `virtiofsd --readonly`. The pacman cache share is the first `CacheDir` of the host (`pacman-conf CacheDir`), mounted at `/mnt/hostpkg` and listed first in the guest's `CacheDir`, so guest installs take the host's exact builds and download the rest into the guest's own cache.
+
+Images come from `vm/mkosi/build` (see `docs/agent-tooling.md`). When the base of a disk's backing chain sits next to a `vmlinuz` and `cmdline`, the daemon boots that kernel directly (`-kernel`/`-append`); older images without them boot from their own disk.
 
 A governor loop every 5s steps idle VMs hot to warm (5 min), warm to parked (15 min), parked to off (60 min, disk kept). Past the idle destroy budget (default 24h, `YUDAE_VM_IDLE_DESTROY_MS`) it removes the VM and deletes its run dir. Scenario runs delete their VM on success and keep their screenshots.
 

@@ -20,7 +20,7 @@ dotfiles/
     config/          one TOML per settings category; icons.toml holds every glyph
   daemon/            yudaemond (Zig); src/providers/<name>.zig pairs with features/<name>
   systemd/           user units and the root fsd helper units
-  vm/                images, overlays, guest setup, scenarios; xmake vm, bench and doctor
+  vm/                mkosi/ guest image, images (overlays), net (per-VM netns), scenarios; xmake vm, bench and doctor
   docs/              reference: how the system is shaped
   .agents/skills/    task guides: how to do X
   xmake.lua + one xmake.lua per dir

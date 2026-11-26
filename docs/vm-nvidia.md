@@ -40,15 +40,18 @@ table when an exact release table is not available.
 
 ## Golden image
 
-`vm/packages.txt` is the explicit guest manifest. Build:
+`vm/mkosi/build` turns on the `nvidia` profile (`vm/mkosi/mkosi.profiles/nvidia.conf`)
+when the host has `/dev/nvidiactl`. It adds `conduit-guest` (the release package,
+downloaded once into the mkosi cache), `dkms` and the headers of the host's
+kernel package. The NVIDIA mount, the GBM link and `yudae-session` are in every
+image. Build:
 
 ```bash
-xmake vm packages --snapshot 2026/11/01 --force
-xmake vm golden --snapshot 2026/11/01
+xmake vm images
 ```
 
-The golden setup installs `conduit-guest`, matching headers, the NVIDIA mount,
-the GBM link and `yudae-session`.
+The daemon only picks the NVIDIA backend when the current image manifest lists
+`conduit-guest`.
 
 ## Display
 
