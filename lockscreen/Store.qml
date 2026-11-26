@@ -8,6 +8,7 @@ Item {
 
 	property var auth: null
 	property bool greeter: false
+	property bool dry: false
 	property string user: ""
 
 	property string password: ""
@@ -28,6 +29,8 @@ Item {
 	signal shook()
 
 	function power(verb) {
+		if (store.dry)
+			return;
 		if (Yudae.connected)
 			Yudae.cmd("lockscreen", { power: verb });
 		else
