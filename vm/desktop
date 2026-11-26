@@ -31,10 +31,10 @@ settings=$ROOT/shell/cache/settings.lua
 wall=$(sed -n 's/^[[:space:]]*wallpaper[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' "$settings" 2>/dev/null | head -1)
 wall_dir=$(dirname "$wall")
 
-if [ -n "$wall" ] && [ -d "$wall_dir" ]; then
+if [ -n "$wall" ]; then
 	sudo mkdir -p "$wall_dir"
 	grep -q "wallpaper $wall_dir virtiofs" /etc/fstab || echo "wallpaper $wall_dir virtiofs ro,nofail,defaults 0 0" | sudo tee -a /etc/fstab >/dev/null
-	mountpoint -q "$wall_dir" || sudo mount -t virtiofs wallpaper "$wall_dir" 2>/dev/null || true
+	mountpoint -q "$wall_dir" || sudo mount -t virtiofs -o ro wallpaper "$wall_dir" 2>/dev/null || true
 fi
 
 sudo mkdir -p /run/yudae-state
