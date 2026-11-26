@@ -18,6 +18,7 @@ const http = @import("../primitives/http.zig");
 const config = @import("../primitives/config.zig");
 const environ = @import("../primitives/environ.zig");
 const proc = @import("../primitives/proc.zig");
+const hypr = @import("../primitives/hypr.zig");
 const fmt = @import("../primitives/fmt.zig");
 const mimemod = @import("../primitives/mime.zig");
 
@@ -843,6 +844,18 @@ pub const Launcher = struct {
 			return;
 		};
 		thread.detach();
+	}
+
+	/// Window dragging is off while the launcher is open so a drag can move the launcher instead.
+	pub fn drag(self: *Launcher, open: bool) void {
+		const thread = std.Thread.spawn(.{}, dragThread, .{ self, open }) catch return;
+		thread.detach();
+	}
+
+	fn dragThread(self: *Launcher, open: bool) void {
+		const script = if (open) "require('binds').launcherDrag(true)" else "require('binds').launcherDrag(false)";
+		const result = hypr.ctl(self.io, self.allocator, &.{ "eval", script }) catch return;
+		result.deinit(self.allocator);
 	}
 
 	fn runDetached(self: *Launcher, command: []u8) void {

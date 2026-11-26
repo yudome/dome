@@ -367,7 +367,7 @@ PanelWindow {
 	}
 
 	function applyWindowDrag() {
-		Quickshell.execDetached(["hyprctl", "eval", "require('binds').launcherDrag(" + (root.dragHold ? "true" : "false") + ")"]);
+		Yudae.cmd("launcher", { drag: root.dragHold });
 	}
 
 	function open(mode) {

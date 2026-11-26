@@ -238,6 +238,8 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 
 		if (json.flag(l_cmd, "filesMore")) context.launcher.moreFiles();
 
+		if (json.field(l_cmd, "drag") != null) context.launcher.drag(json.flag(l_cmd, "drag"));
+
 		const power = json.integer(json.field(l_cmd, "power"));
 		if (json.field(l_cmd, "power") != null and power >= 0) context.launcher.power(@intCast(power));
 
@@ -265,6 +267,9 @@ fn commandThunk(ctx: *anyopaque, value: json.Value) void {
 	if (json.field(value, "workspaces")) |ws_cmd| {
 		const focus = json.integer(json.field(ws_cmd, "focus"));
 		if (focus > 0) context.workspaces.focus(focus);
+
+		const show = json.textAt(ws_cmd, "show");
+		if (show.len > 0) context.workspaces.show(show);
 
 		return;
 	}

@@ -177,7 +177,7 @@ PanelWindow {
 
 		root.returnWorkspace = focused ? focused.name : "";
 		root.previewing = true;
-		Quickshell.execDetached(["/usr/bin/hyprctl", "dispatch", 'hl.dsp.focus({workspace = 99})']);
+		Yudae.cmd("workspaces", { show: "99" });
 	}
 
 	function showWindows() {
@@ -187,7 +187,7 @@ PanelWindow {
 		root.previewing = false;
 
 		if (root.returnWorkspace !== "")
-			Quickshell.execDetached(["/usr/bin/hyprctl", "dispatch", 'hl.dsp.focus({workspace = "' + root.returnWorkspace + '"})']);
+			Yudae.cmd("workspaces", { show: root.returnWorkspace });
 	}
 
 	Timer {
