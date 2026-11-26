@@ -159,23 +159,24 @@ Superseded by a one-line Hyprland quirk. The guest compositor filtered ARGB out 
 
 `xmake vm bench [tag]` runs `vm/images build --force` in `~/.cache/yudae-vm-bench` (`DOTFILES_VM_BENCH` moves it, `DOTFILES_VM_BENCH_CACHE` the cache) and appends one JSON line to `bench/images.jsonl` (gitignored).
 
-mkosi image against the old `vm/images` script (cloud image plus a provisioning VM), both with the NVIDIA bits (`conduit-guest`, headers, dkms), on this host:
+Old `vm/images` script (cloud image plus a provisioning VM) against the mkosi pipeline, with the NVIDIA bits (`conduit-guest`, headers, dkms), on this host:
 
-| run | time | image on disk |
-| --- | --- | --- |
-| old, package store warm | 95.4s | 3308MB packages layer |
-| old, cold | fails: the pinned cloud image is gone from the mirrors (404) | - |
-| mkosi, host cache seeded | 98.5s | 1470MB (1555MB with zlib, the current setting) |
-| mkosi, nothing cached, every package downloaded | 109.6s | 1470MB |
-| mkosi, edit under `mkosi.extra/` (cached packages) | 39-44s | 1470MB |
-| mkosi without the NVIDIA profile, host cache seeded | 66s | 1236MB |
-| edit to `vm/guest/yudae-session` | no rebuild, read from the repo share at boot | - |
+| run | old script | mkosi, first cut | mkosi now |
+| --- | --- | --- | --- |
+| full build, host package cache seeded | 95.4s | 98.5s | 68-77s |
+| full build, every package downloaded (489) | fails: cloud image gone (404) | 109.6s | 89.9s |
+| edit under `mkosi.extra/` | full rebuild | 39-47s | 20-23s |
+| edit to `vm/guest/*` | full rebuild | none, read from the repo share | none |
+| image on disk | 3308MB | 1555MB (zlib qcow2) | 238MB own, the rest reflinked from the mkosi cache |
+| files in the image | - | 110k | 80k |
+| guest boot (`systemd-analyze`) | - | 8.8s | 5.0s |
+| create to Quickshell running | 17.5s | 12.7-13.2s | 8.8-9.0s |
 
-Of a cached rebuild, about 22s is `mkfs.btrfs --rootdir` copying the tree into the disk and 7s is `qemu-img convert -c`. Filesystem compression cost 10s more than leaving it to qcow2. `mkfs.btrfs --reflink` would remove the copy, but mkosi does not pass the environment to systemd-repart.
+Where the edit rebuild went: mkosi's `Format=disk` ran `mkfs.btrfs --rootdir` through systemd-repart (24s, a full copy, and mkosi does not pass `SYSTEMD_REPART_MKFS_OPTIONS_BTRFS` on) and the qcow2 conversion took 14s. Now mkosi stops at a directory (11s) and the build runs `mkfs.btrfs --reflink --nodesize 4096 -O ^free-space-tree,^block-group-tree` itself: 6s with a warm page cache, about 10s right after mkosi; the default node size and features took 9-11s. Boot lost `ldconfig.service` (1.2s on the critical path), the update units and `systemd-nsresourced` (2.4s). `vm/images overlay` is 31ms, 27 of them `qemu-img create`.
 
 Viewer overlay (`Ctrl+Alt+O`) with a terminal printing every 2ms, viewer open at 2560x1440 on a 280Hz host: old image 240 fps received / 132 shown, mkosi image 260 / 128, about 4ms average frame on both; Conduit path 158 / 148.
 
-Boot to a mapped shell (`shell-ready`, two runs each): old image 17.4-17.5s (guest reachable after 12.5s), mkosi image 13.0-13.2s (guest reachable after 8.0-8.3s). The mkosi image boots the host's kernel directly, with no bootloader and no initrd.
+The mkosi image boots the host's kernel directly, with no bootloader and no initrd.
 
 ### Clock
 
