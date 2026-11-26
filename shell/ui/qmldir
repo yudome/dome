@@ -56,3 +56,4 @@ Badge 1.0 Badge.qml
 ProgressBar 1.0 ProgressBar.qml
 EmptyState 1.0 EmptyState.qml
 Hint 1.0 Hint.qml
+Fade 1.0 Fade.qml

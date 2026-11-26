@@ -382,11 +382,8 @@ PanelWindow {
 						height: parent.height
 						opacity: 1
 
-						Behavior on opacity {
-							NumberAnimation {
-								duration: Config.wallpaperFadeMs
-								easing.type: Easing.OutCubic
-							}
+						Fade on opacity {
+							duration: Config.wallpaperFadeMs
 						}
 
 						Image {
@@ -536,11 +533,8 @@ PanelWindow {
 						height: parent.height
 						opacity: 1
 
-						Behavior on opacity {
-							NumberAnimation {
-								duration: Config.wallpaperFadeMs
-								easing.type: Easing.OutCubic
-							}
+						Fade on opacity {
+							duration: Config.wallpaperFadeMs
 						}
 
 						Image {
@@ -703,11 +697,8 @@ PanelWindow {
 						height: parent.height
 						opacity: 1
 
-						Behavior on opacity {
-							NumberAnimation {
-								duration: Config.wallpaperFadeMs
-								easing.type: Easing.OutCubic
-							}
+						Fade on opacity {
+							duration: Config.wallpaperFadeMs
 						}
 
 						Label {

@@ -236,9 +236,7 @@ PanelWindow {
 			NumberAnimation { duration: Config.popupFadeMs; easing.type: Easing.InOutCubic }
 		}
 
-		Behavior on opacity {
-			NumberAnimation { duration: Config.popupFadeMs; easing.type: Easing.OutCubic }
-		}
+		Fade on opacity {}
 
 		HyprBorder {
 			id: border

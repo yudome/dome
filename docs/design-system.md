@@ -74,13 +74,14 @@ Every glyph is `iconX` in `config/icons.toml`, mirrored as `Config.iconX`, plus 
 | Buttons | `Button`, `Chip` | Kinds `primary`, `secondary`, `ghost`, `danger`; `busy`; `confirm` arms in danger, a second activation runs. Takes an `AppAction`. |
 | Inputs | `TextField`, `SearchField`, `Switch`, `PillSwitch`, `Select`, `ColorField`, `FocusRing`, `InlineEdit` | `PillSwitch` is the segmented control; `Select` is a dropdown over `MenuList`; `InlineEdit` is the text backend. |
 | Slider | `Slider`, `SliderTrack`, `GlyphScale`, `StepBar` | `Slider` owns value, stops, steps, drag, wheel, keys; renderers are visual only and get `value`, `normalized`, `dragging`, `hovered`, `orientation`, `stops`. |
-| Rows | `ListRow`, `FormRow`, `Selector`, `StepList`, `IconRow`, `NotificationRow` | `ListRow`: leading, content, trailing slots. `FormRow`: label, note, pending dot, control slot. |
+| Rows | `ListRow`, `FormRow`, `Selector`, `StepList`, `IconRow`, `NotificationRow` | `ListRow`: leading, content, trailing slots. `FormRow`: label, note, pending dot, control slot. `IconRow` with `interactive` owns hover and click: `hover(index)`, `picked(index)`, `hovered`. |
 | Surfaces | `Card`, `Tooltip`, `Separator`, `Highlight`, `Drawer`, `HyprBorder`, `HyprShadow` | `Tooltip` is every popup. |
 | Navigation | `NavItem`, `Tabs`, `Breadcrumb` | `Breadcrumb` separates with the `right` glyph. |
 | Feedback | `Badge`, `ProgressBar`, `Braille`, `EmptyState`, `Hint` | Empty and error states are a glyph plus a short noun line, with an optional `Hint` under it. `Hint` is the only way to draw a shortcut or instruction; `shell-checks` rejects hint text anywhere else. |
 | Overlays | `MenuRow`, `MenuList`, `ContextMenu` | Menu entries with `confirm: true` arm first. |
 | Scroll | `Scrollbar` | Low level: right border, no track, fades in on scroll or hover, draggable. Features use `AppScroll`. |
 | Data visuals | `CellGrid`, `DotGraph`, `SignalBars`, `SpeedGauge`, `PowerFlow`, `DayDial`, `Figures` | Stay in `ui` or their feature, never in a kit. |
+| Motion | `Fade` | `Fade on opacity {}`: OutCubic fade, `duration` defaults to `popupFadeMs`. Use it instead of a hand-built opacity `Behavior`. |
 | Singletons | `Input`, `Handoff` | key map, focus handoff |
 
 ### `shell/appkit`

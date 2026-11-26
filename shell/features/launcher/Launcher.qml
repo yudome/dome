@@ -993,10 +993,8 @@ PanelWindow {
 		onWidthChanged: root.clampPlace()
 		onHeightChanged: root.clampPlace()
 
-		Behavior on opacity {
+		Fade on opacity {
 			enabled: !root.instant
-
-			NumberAnimation { duration: Config.popupFadeMs; easing.type: Easing.OutCubic }
 		}
 		focus: true
 
