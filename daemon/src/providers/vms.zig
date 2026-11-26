@@ -2635,7 +2635,7 @@ fn waitFile(io: Io, path: []const u8, timeout_ms: i64) !bool {
 
 	while (fmt.nowMs(io) - start < timeout_ms) {
 		if (proc.exists(io, path)) return true;
-		sleep.ms(20);
+		sleep.ms(2);
 	}
 
 	return false;
