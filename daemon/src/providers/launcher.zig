@@ -2225,6 +2225,7 @@ fn groupOf(id: []const u8) ?Group {
 fn emptyOf(mode: []const u8) []const u8 {
 	if (std.mem.eql(u8, mode, "clipboard")) return "Nothing copied yet";
 	if (std.mem.eql(u8, mode, "vms")) return "No virtual machines";
+	if (std.mem.eql(u8, mode, "procs")) return "";
 
 	return "Nothing matches";
 }

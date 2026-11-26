@@ -219,6 +219,7 @@ PanelWindow {
 	}
 	readonly property int rows: root.spotlight && !root.isClipboard ? Calc.clamp(root.results.length, 1, root.maxRows) : root.maxRows
 	readonly property int listHeight: root.grid ? appGrid.implicitHeight : root.spotlight ? root.rows * root.rowHeight + (root.rows - 1) * root.rowGap : Config.launcherMaxRows * root.rowHeight
+	readonly property bool blank: root.results.length === 0 && root.empty === ""
 	readonly property bool configured: root.screen !== null && root.width === root.screen.width && root.height > 1
 
 	anchors.top: true
@@ -983,7 +984,7 @@ PanelWindow {
 		      : root.spotlight ? Config.launcherSpotlightWidth
 		      : root.isClipboard ? Config.launcherWidth * 2 + Config.launcherGap + card.inset * 2
 		      : Config.launcherWidth
-		height: root.windows ? windowsGrid.implicitHeight + card.inset * 2 : column.implicitHeight + card.inset * 2 - (root.spotlight && root.revealed ? Config.launcherPadding : 0)
+		height: root.windows ? windowsGrid.implicitHeight + card.inset * 2 : column.implicitHeight + card.inset * 2 - (root.spotlight && root.revealed && !root.blank ? Config.launcherPadding : 0)
 		padding: Config.launcherPadding
 		backgroundColor: Config.surfaceTranslucent
 		opacity: root.shown && root.settled ? 1 : 0
@@ -1057,7 +1058,7 @@ PanelWindow {
 			// ── results pane: clipboard preview + list ────────────────────
 			Item {
 				width: parent.width
-				height: root.listHeight
+				height: root.blank ? 0 : root.listHeight
 				visible: root.revealed
 
 				// right pane: clipboard text preview, nothing else
@@ -1436,7 +1437,7 @@ PanelWindow {
 					Item {
 						width: parent.width
 						height: root.listHeight
-						visible: root.results.length === 0
+						visible: root.results.length === 0 && !root.blank
 
 						Label {
 							anchors.left: parent.left
