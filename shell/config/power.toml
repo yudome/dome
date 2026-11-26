@@ -16,11 +16,11 @@ lockMenuRowHeight = 56
 lockMenuTextSize = 22
 lockFadeMs = 450
 lockCooldownMs = 3000
-lockPamService = "quickshell"  # hidden
-lockWrongText = "Wrong password"  # hidden
-lockPamError = "Authentication unavailable"  # hidden
-lockUnlockHint = "↵ unlock"  # hidden
-lockCheckingText = "checking"  # hidden
+lockPamService = "quickshell"
+lockWrongText = "Wrong password"
+lockPamError = "Authentication unavailable"
+lockUnlockHint = "↵ unlock"
+lockCheckingText = "checking"
 
 # Power
 [power]
@@ -38,7 +38,7 @@ powerLabelSize = 12
 powerTooltipWidth = 240  # same as cpuTooltipWidth
 powerDemo = false  # fake battery on a desktop, for testing the flow
 powerFlowHeight = 40
-powerGovernorTitle = "Governor"  # hidden
-powerAwakeOff = "Off"  # hidden
-powerAwakeAuto = "While working"  # hidden
-powerAwakeOn = "Always on"  # hidden
+powerGovernorTitle = "Governor"
+powerAwakeOff = "Off"
+powerAwakeAuto = "While working"
+powerAwakeOn = "Always on"

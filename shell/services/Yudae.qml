@@ -240,17 +240,12 @@ QtObject {
 	readonly property var screenState: root.snapshot.screen || ({})
 	readonly property var screenBorder: root.screenState.border || ({})
 	readonly property var screenShadow: root.screenState.shadow || ({ enabled: true, range: 48, color: "rgba(00000070)", offsetX: 0, offsetY: 14, alpha: 1, contact: 0 })
-	readonly property var screenMonitors: root.screenState.monitors || []
-	readonly property int screenPrimary: root.screenState.primary || 0
-	readonly property var screenActive: root.screenMonitors[root.screenPrimary] || null
 	readonly property var networkState: root.snapshot.network || ({})
 	readonly property var network: root.networkState
 
 	readonly property var settings: root.snapshot.settings || ({})
 	readonly property var displayState: root.snapshot.display || ({})
 
-	readonly property var screenPanel: root.screenState.panel || ({})
-	readonly property var screenGroups: root.screenPanel.groups || []
 	readonly property string screenRaw: root.screenState.raw || ""
 
 	readonly property var icons: root.snapshot.icons || ({})

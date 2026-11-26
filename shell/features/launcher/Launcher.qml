@@ -833,12 +833,6 @@ PanelWindow {
 				return;
 			}
 
-			if (entry.mode === "settings") {
-				root.close();
-				Yudae.request("settings", "app", {});
-				return;
-			}
-
 			root.group = "";
 			root.forced = entry.mode;
 			root.query = "";

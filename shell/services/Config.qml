@@ -9,12 +9,9 @@ QtObject {
 	id: root
 
 	property var local: ({})
-	property var overlay: ({})
 	readonly property var settings: {
 		const live = Yudae.settings || ({});
-		const base = Object.keys(live).length > 0 ? live : root.local;
-
-		return Object.keys(root.overlay).length > 0 ? Object.assign({}, base, root.overlay) : base;
+		return Object.keys(live).length > 0 ? live : root.local;
 	}
 
 	property FileView settingsFile: FileView {
@@ -300,9 +297,6 @@ QtObject {
 	readonly property var wallpaperAudio: settings.wallpaperAudio !== undefined ? settings.wallpaperAudio : false
 	readonly property var wallpaperVolume: settings.wallpaperVolume !== undefined ? settings.wallpaperVolume : 0.6
 	readonly property var wallpaperTransitionMs: settings.wallpaperTransitionMs !== undefined ? settings.wallpaperTransitionMs : 400
-	readonly property var wallpaperStillTitle: settings.wallpaperStillTitle !== undefined ? settings.wallpaperStillTitle : "Still frame"
-	readonly property var wallpaperStillStepHint: settings.wallpaperStillStepHint !== undefined ? settings.wallpaperStillStepHint : "←→ one frame"
-	readonly property var wallpaperStillSaveHint: settings.wallpaperStillSaveHint !== undefined ? settings.wallpaperStillSaveHint : "save"
 	readonly property var wallpaperEmpty: settings.wallpaperEmpty !== undefined ? settings.wallpaperEmpty : "No wallpapers found"
 	readonly property var wallpaperPickerWidth: settings.wallpaperPickerWidth !== undefined ? settings.wallpaperPickerWidth : 1100
 	readonly property var wallpaperPreviewRatio: settings.wallpaperPreviewRatio !== undefined ? settings.wallpaperPreviewRatio : 1.78
@@ -331,12 +325,7 @@ QtObject {
 	readonly property var vmDestroyConfirm: settings.vmDestroyConfirm !== undefined ? settings.vmDestroyConfirm : "Confirm destroy"
 	readonly property var vmDestroyHint: settings.vmDestroyHint !== undefined ? settings.vmDestroyHint : "destroy deletes the disk"
 	readonly property var vmOverlayKey: settings.vmOverlayKey !== undefined ? settings.vmOverlayKey : "Ctrl+Alt+O"
-	readonly property var settingsDaemonCommand: settings.settingsDaemonCommand !== undefined ? settings.settingsDaemonCommand : "yudae restart"
-	readonly property var settingsDaemonHint: settings.settingsDaemonHint !== undefined ? settings.settingsDaemonHint : "then retry"
 	readonly property var diskBubbleMs: settings.diskBubbleMs !== undefined ? settings.diskBubbleMs : 420
-
-	// settings app
-	readonly property var settingsPreviewBelow: settings.settingsPreviewBelow !== undefined ? settings.settingsPreviewBelow : 96
 
 	// window switcher
 	readonly property var windowsGridCell: settings.windowsGridCell !== undefined ? settings.windowsGridCell : 92
@@ -550,9 +539,6 @@ QtObject {
 	readonly property var stepBarGlyphTick: settings.stepBarGlyphTick !== undefined ? settings.stepBarGlyphTick : 80
 	readonly property var displayScaleMin: settings.displayScaleMin !== undefined ? settings.displayScaleMin : 1
 	readonly property var displayScaleMax: settings.displayScaleMax !== undefined ? settings.displayScaleMax : 2
-	readonly property var displayRefreshTitle: settings.displayRefreshTitle !== undefined ? settings.displayRefreshTitle : "Refresh"
-	readonly property var displayScaleTitle: settings.displayScaleTitle !== undefined ? settings.displayScaleTitle : "Scale"
-	readonly property var displayNothing: settings.displayNothing !== undefined ? settings.displayNothing : "No display found"
 	// network and speed test
 	readonly property var networkIdle: settings.networkIdle !== undefined ? settings.networkIdle : "#2f2f2f"
 	readonly property var networkHistory: settings.networkHistory !== undefined ? settings.networkHistory : 60

@@ -13,6 +13,3 @@ stepBarGlyphFill = 0.09
 stepBarGlyphTick = 80
 displayScaleMin = 1
 displayScaleMax = 2
-displayRefreshTitle = "Refresh"  # hidden
-displayScaleTitle = "Scale"  # hidden
-displayNothing = "No display found"  # hidden

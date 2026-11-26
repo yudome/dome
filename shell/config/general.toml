@@ -1,20 +1,3 @@
-# Settings
-[settings]
-settingsApply = "instant"  # instant | manual
-settingsDaemonCommand = "yudae restart"  # hidden
-settingsDaemonHint = "then retry"  # hidden
-settingsPages = [
-	{ name = "General", glyph = "settings", file = "general" },
-	{ name = "Appearance", glyph = "appearance", file = "appearance" },
-	{ name = "Display", glyph = "monitor", file = "display" },
-	{ name = "Wallpaper", glyph = "wallpaper", file = "wallpaper" },
-	{ name = "Notifications", glyph = "bell", file = "popups" },
-	{ name = "Launcher", glyph = "panels", file = "launcher" },
-	{ name = "Widgets", glyph = "puzzle", file = "widgets" },
-	{ name = "Lock and power", glyph = "lock", file = "power" },
-	{ name = "Icons", glyph = "star", file = "icons" }
-]
-
 # Type and spacing
 [shell]
 workspaceSpacing = 6  # 0..24
@@ -23,7 +6,7 @@ figureLobes = 9
 figureScallop = 0.16
 fontFamily = "GoogleSansCode Nerd Font"
 fontSize = 14  # 8..24
-valueSample = "0123456789.%G"  # hidden
+valueSample = "0123456789.%G"
 iconSize = 13  # 6..24
 spacing = 12  # 0..32
 scrollbarWidth = 2

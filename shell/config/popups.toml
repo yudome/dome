@@ -13,10 +13,10 @@ notifyAppFontSize = 14  # Math.round(11 * notifyScale)
 notifyVisibleRows = 5  # 1..12
 notifyHistory = 50
 notifyGoneOpacity = 0.55
-notifyEmpty = "Nothing yet"  # hidden
+notifyEmpty = "Nothing yet"
 notifyTimeout = 6000  # 1000..20000
-notifyDismissKey = "d"  # hidden
-notifyClearKey = "x"  # hidden
+notifyDismissKey = "d"
+notifyClearKey = "x"
 
 # Popups
 [popup]
