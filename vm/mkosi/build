@@ -66,10 +66,26 @@ if [ -e /dev/nvidiactl ]; then
 	[ -s "$conduit" ] || { curl -fsSL -o "$conduit.part" "$CONDUIT" && mv "$conduit.part" "$conduit"; }
 fi
 
+pinned_dir=$WORK/hostpkgs
+rm -rf "$pinned_dir"
+mkdir -p "$pinned_dir"
+if [ -z "$SNAPSHOT" ]; then
+	for pkg in $extra_packages "${WATCH[@]}"; do
+		ver=$(pacman -Q "$pkg" 2>/dev/null | cut -d' ' -f2) || continue
+		file=$(compgen -G "/var/cache/pacman/pkg/$pkg-$ver-*.pkg.tar.zst" | head -1 || true)
+		if [ -n "$file" ]; then
+			cp --reflink=auto "$file" "$pinned_dir/"
+		else
+			echo "warning: $pkg $ver is not in the pacman cache, the guest takes the repo version" >&2
+		fi
+	done
+fi
+
 key=guest
 digest=$({
 	cat "$DIR"/mkosi.conf "$DIR"/mkosi.conf.d/*.conf "$DIR"/mkosi.profiles/*.conf
 	printf '%s\n' "$pkgbase" "$SNAPSHOT" "${profiles[*]}"
+	ls "$pinned_dir"
 	cat "$GEN/sandbox/etc/pacman.conf"
 	[ -n "$SNAPSHOT" ] || cat /var/lib/pacman/sync/*.db
 } | sha256sum | cut -d' ' -f1)
@@ -96,6 +112,7 @@ ManifestFormat=json
 [Content]
 Packages=$extra_packages
 ExtraTrees=$GEN/extra
+PackageDirectories=$pinned_dir
 $([ ${#profiles[@]} -eq 0 ] || echo "PackageDirectories=$MKOSI/conduit")
 
 [Build]
