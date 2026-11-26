@@ -1,7 +1,7 @@
 {
   "context": {
     "cores": 2,
-    "mem": 2048,
+    "mem": 3072,
     "gl": true
   },
   "steps": [
@@ -12,158 +12,47 @@
     },
     {
       "do": "exec",
-      "cmd": "sudo pacman -S --noconfirm --needed greetd cage quickshell >/dev/null && echo user:vmpass | sudo chpasswd && rm -rf /tmp/dotfiles && mkdir -p /tmp/dotfiles && tar -C ~/dotfiles --exclude=.git --exclude=.zig-cache --exclude=.zig-cache-headless --exclude=zig-out --exclude=cache --exclude=runs -cf - . | tar -C /tmp/dotfiles -xf - && sudo xmake install --root -P /tmp/dotfiles -y greeter && sudo loginctl enable-linger user && sudo systemctl disable --now yudae-desktop && rm -rf /run/user/1000/hypr/* && sudo systemctl start greetd",
-      "code": 0
+      "cmd": "echo user:vmpass | sudo chpasswd && ffmpeg -v error -y -f lavfi -i 'mandelbrot=s=1280x720:rate=30:end_scale=0.02:maxiter=200' -t 6 -c:v libx264 -pix_fmt yuv420p -preset veryfast /tmp/lock-test.mp4 && rm -rf /tmp/cfg && cp -r ~/dotfiles/shell/config /tmp/cfg && sed -i 's|^lockWallpaper = .*|lockWallpaper = \"/tmp/lock-test.mp4\"|' /tmp/cfg/power.toml && sudo mount --bind /tmp/cfg ~/dotfiles/shell/config && sudo systemd-run --no-block systemctl restart yudaemond",
+      "code": 0,
+      "timeout": 300000
     },
     {
       "do": "wait",
-      "until": "exec:pgrep -f [g]reeterShell >/dev/null",
+      "until": "exec:grep -q '\"video\":true' /var/tmp/yudae-lockscreen/$(cat /etc/machine-id)/profile.json",
+      "timeout": 60000
+    },
+    {
+      "do": "wait",
+      "until": "exec:pgrep -x quickshell >/dev/null",
       "timeout": 30000
     },
     {
       "do": "sleep",
-      "ms": 1500
+      "ms": 2000
     },
     {
       "do": "exec",
-      "cmd": "g=$(id -u greeter); d=$(sudo ls /run/user/$g | grep -m1 '^wayland-[0-9]$'); sudo -u greeter env XDG_RUNTIME_DIR=/run/user/$g WAYLAND_DISPLAY=$d grim /tmp/shot.png && sudo chmod 644 /tmp/shot.png",
+      "cmd": "~/dotfiles/daemon/zig-out/bin/yudaemond lock",
       "code": 0
     },
     {
-      "do": "pull",
-      "path": "/tmp/shot.png",
-      "to": "vm/runs/shots/greeter-lock/01-greeter.png"
-    },
-    {
-      "do": "type",
-      "text": "abc"
-    },
-    {
-      "do": "type",
-      "text": "abcdefgh"
-    },
-    {
-      "do": "pull",
-      "path": "/tmp/shot.png",
-      "to": "vm/runs/shots/greeter-lock/01b-greeter-dots.png"
-    },
-    {
-      "do": "key",
-      "keys": [
-        "backspace"
-      ]
-    },
-    {
-      "do": "key",
-      "keys": [
-        "backspace"
-      ]
-    },
-    {
-      "do": "key",
-      "keys": [
-        "backspace"
-      ]
-    },
-    {
-      "do": "key",
-      "keys": [
-        "backspace"
-      ]
-    },
-    {
-      "do": "key",
-      "keys": [
-        "backspace"
-      ]
-    },
-    {
-      "do": "key",
-      "keys": [
-        "backspace"
-      ]
-    },
-    {
-      "do": "key",
-      "keys": [
-        "backspace"
-      ]
-    },
-    {
-      "do": "key",
-      "keys": [
-        "backspace"
-      ]
-    },
-    {
-      "do": "key",
-      "keys": [
-        "tab"
-      ]
+      "do": "wait",
+      "until": "exec:ls /run/user/1000/yudae-locked-* >/dev/null 2>&1",
+      "timeout": 10000
     },
     {
       "do": "sleep",
-      "ms": 300
+      "ms": 700
     },
     {
-      "do": "key",
-      "keys": [
-        "tab"
-      ]
+      "do": "screenshot"
     },
     {
       "do": "sleep",
-      "ms": 300
+      "ms": 6500
     },
     {
-      "do": "key",
-      "keys": [
-        "tab"
-      ]
-    },
-    {
-      "do": "sleep",
-      "ms": 300
-    },
-    {
-      "do": "key",
-      "keys": [
-        "tab"
-      ]
-    },
-    {
-      "do": "sleep",
-      "ms": 300
-    },
-    {
-      "do": "key",
-      "keys": [
-        "ret"
-      ]
-    },
-    {
-      "do": "sleep",
-      "ms": 800
-    },
-    {
-      "do": "exec",
-      "cmd": "g=$(id -u greeter); d=$(sudo ls /run/user/$g | grep -m1 '^wayland-[0-9]$'); sudo -u greeter env XDG_RUNTIME_DIR=/run/user/$g WAYLAND_DISPLAY=$d grim /tmp/shot.png && sudo chmod 644 /tmp/shot.png",
-      "code": 0
-    },
-    {
-      "do": "pull",
-      "path": "/tmp/shot.png",
-      "to": "vm/runs/shots/greeter-lock/03-switch-popup.png"
-    },
-    {
-      "do": "key",
-      "keys": [
-        "esc"
-      ]
-    },
-    {
-      "do": "sleep",
-      "ms": 500
+      "do": "screenshot"
     },
     {
       "do": "type",
@@ -177,103 +66,42 @@
     },
     {
       "do": "sleep",
-      "ms": 4000
-    },
-    {
-      "do": "exec",
-      "cmd": "g=$(id -u greeter); d=$(sudo ls /run/user/$g | grep -m1 '^wayland-[0-9]$'); sudo -u greeter env XDG_RUNTIME_DIR=/run/user/$g WAYLAND_DISPLAY=$d grim /tmp/shot.png && sudo chmod 644 /tmp/shot.png",
-      "code": 0
-    },
-    {
-      "do": "pull",
-      "path": "/tmp/shot.png",
-      "to": "vm/runs/shots/greeter-lock/02-greeter-wrong.png"
-    },
-    {
-      "do": "sleep",
-      "ms": 3000
-    },
-    {
-      "do": "type",
-      "text": "vmpass"
-    },
-    {
-      "do": "key",
-      "keys": [
-        "ret"
-      ]
-    },
-    {
-      "do": "wait",
-      "until": "exec:! pgrep -f [g]reeterShell >/dev/null && pgrep -x quickshell >/dev/null",
-      "timeout": 60000
-    },
-    {
-      "do": "exec",
-      "cmd": "loginctl list-sessions --no-legend | grep -q user && ! pgrep -f [g]reeterShell",
-      "code": 0
-    },
-    {
-      "do": "exec",
-      "cmd": "test -s /home/user/.local/state/session.log && grep -q . /home/user/.local/state/session.log",
-      "code": 0
-    },
-    {
-      "do": "exec",
-      "cmd": "! pgrep -f \"[h]yprland-.*-screen\" >/dev/null",
-      "code": 0
-    },
-    {
-      "do": "sleep",
-      "ms": 3000
-    },
-    {
-      "do": "screenshot"
-    },
-    {
-      "do": "key",
-      "keys": [
-        "meta_l",
-        "l"
-      ]
-    },
-    {
-      "do": "wait",
-      "until": "exec:pgrep -f 'quickshell -p .*lockShel[l]' >/dev/null",
-      "timeout": 20000
-    },
-    {
-      "do": "sleep",
       "ms": 1500
     },
     {
       "do": "screenshot"
     },
     {
-      "do": "type",
-      "text": "wrongpw"
-    },
-    {
-      "do": "key",
-      "keys": [
-        "ret"
-      ]
-    },
-    {
       "do": "sleep",
-      "ms": 3500
+      "ms": 16000
     },
     {
       "do": "screenshot"
     },
     {
-      "do": "exec",
-      "cmd": "pgrep -f 'quickshell -p .*lockShel[l]' >/dev/null",
-      "code": 0
+      "do": "move",
+      "x": 400,
+      "y": 400
     },
     {
       "do": "sleep",
-      "ms": 3000
+      "ms": 200
+    },
+    {
+      "do": "move",
+      "x": 470,
+      "y": 450
+    },
+    {
+      "do": "sleep",
+      "ms": 800
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "sleep",
+      "ms": 2500
     },
     {
       "do": "type",
@@ -287,73 +115,30 @@
     },
     {
       "do": "wait",
-      "until": "exec:! pgrep -f 'quickshell -p .*lockShel[l]' >/dev/null",
-      "timeout": 20000
+      "until": "exec:! ls /run/user/1000/yudae-locked-* >/dev/null 2>&1",
+      "timeout": 10000
+    },
+    {
+      "do": "sleep",
+      "ms": 800
     },
     {
       "do": "screenshot"
-    },
-    {
-      "do": "key",
-      "keys": [
-        "meta_l",
-        "l"
-      ]
-    },
-    {
-      "do": "wait",
-      "until": "exec:pgrep -f 'quickshell -p .*lockShel[l]' >/dev/null",
-      "timeout": 20000
-    },
-    {
-      "do": "sleep",
-      "ms": 1000
-    },
-    {
-      "do": "key",
-      "keys": [
-        "tab"
-      ]
-    },
-    {
-      "do": "key",
-      "keys": [
-        "tab"
-      ]
-    },
-    {
-      "do": "sleep",
-      "ms": 500
-    },
-    {
-      "do": "screenshot"
-    },
-    {
-      "do": "key",
-      "keys": [
-        "ret"
-      ]
-    },
-    {
-      "do": "sleep",
-      "ms": 15000
-    },
-    {
-      "do": "start"
-    },
-    {
-      "do": "wait",
-      "until": "guest",
-      "timeout": 60000
     },
     {
       "do": "exec",
-      "cmd": "journalctl -b -1 --no-pager | grep -q 'System is powering down'",
-      "code": 0
+      "cmd": "sudo pacman -S --noconfirm --needed greetd >/dev/null && rm -rf /tmp/dotfiles && mkdir -p /tmp/dotfiles && tar -C ~/dotfiles --exclude=.git --exclude=.zig-cache --exclude=.zig-cache-headless --exclude=zig-out --exclude=cache --exclude=runs -cf - . | tar -C /tmp/dotfiles -xf - && sudo xmake install --root -P /tmp/dotfiles -y greeter >/dev/null && grep -q initial_session /etc/greetd/config.toml && sudo loginctl enable-linger user && sudo systemctl disable --now yudae-desktop && rm -rf /run/user/1000/hypr/* /run/user/1000/yudae-* && sudo systemctl start greetd",
+      "code": 0,
+      "timeout": 300000
     },
     {
       "do": "wait",
-      "until": "exec:pgrep -f [g]reeterShell >/dev/null",
+      "until": "exec:pgrep -f '[s]hell-guest.qml' >/dev/null",
+      "timeout": 60000
+    },
+    {
+      "do": "wait",
+      "until": "exec:ls /run/user/1000/yudae-locked-* >/dev/null 2>&1",
       "timeout": 30000
     },
     {
@@ -361,37 +146,310 @@
       "ms": 1500
     },
     {
+      "do": "screenshot"
+    },
+    {
+      "do": "type",
+      "text": "vmpass"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "ret"
+      ]
+    },
+    {
+      "do": "wait",
+      "until": "exec:! ls /run/user/1000/yudae-locked-* >/dev/null 2>&1",
+      "timeout": 10000
+    },
+    {
+      "do": "sleep",
+      "ms": 800
+    },
+    {
+      "do": "screenshot"
+    },
+    {
       "do": "exec",
-      "cmd": "g=$(id -u greeter); d=$(sudo ls /run/user/$g | grep -m1 '^wayland-[0-9]$'); sudo -u greeter env XDG_RUNTIME_DIR=/run/user/$g WAYLAND_DISPLAY=$d grim /tmp/shot.png && sudo chmod 644 /tmp/shot.png",
+      "cmd": "ls /run/user/1000/yudae-started-* >/dev/null",
+      "code": 0
+    },
+    {
+      "do": "exec",
+      "cmd": "export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr | head -1); pkill -x quickshell; sleep 1; hyprctl dispatch \"hl.dsp.exec_cmd(\\\"sh -c 'QSG_RENDER_LOOP=threaded QML_IMPORT_PATH=$HOME/.local/lib/yudae/qml:$HOME/dotfiles/shell/native/qml exec quickshell -p $HOME/dotfiles/shell/shell-guest.qml'\\\")\" >/dev/null",
+      "code": 0
+    },
+    {
+      "do": "wait",
+      "until": "exec:pgrep -x quickshell >/dev/null",
+      "timeout": 20000
+    },
+    {
+      "do": "sleep",
+      "ms": 3000
+    },
+    {
+      "do": "exec",
+      "cmd": "! ls /run/user/1000/yudae-locked-* >/dev/null 2>&1",
+      "code": 0
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "exec",
+      "cmd": "export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr | head -1); hyprctl dispatch 'hl.dsp.exit()' >/dev/null",
+      "code": 0
+    },
+    {
+      "do": "wait",
+      "until": "exec:pgrep -f '[s]hell/greeter.qml' >/dev/null",
+      "timeout": 60000
+    },
+    {
+      "do": "sleep",
+      "ms": 1500
+    },
+    {
+      "do": "exec",
+      "cmd": "g=$(id -u greeter); d=$(sudo ls /run/user/$g | grep -m1 '^wayland-[0-9]$'); sudo -u greeter env XDG_RUNTIME_DIR=/run/user/$g WAYLAND_DISPLAY=$d grim /tmp/01-greeter-after-logout.png && sudo chmod 644 /tmp/01-greeter-after-logout.png",
       "code": 0
     },
     {
       "do": "pull",
-      "path": "/tmp/shot.png",
-      "to": "vm/runs/shots/greeter-lock/09-greeter-after-poweroff.png"
+      "path": "/tmp/01-greeter-after-logout.png",
+      "to": "vm/runs/shots/greeter-lock/01-greeter-after-logout.png"
     },
     {
-      "do": "click",
-      "x": 767,
-      "y": 819
+      "do": "type",
+      "text": "nope"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "ret"
+      ]
     },
     {
       "do": "sleep",
-      "ms": 15000
-    },
-    {
-      "do": "start"
-    },
-    {
-      "do": "wait",
-      "until": "guest",
-      "timeout": 60000
+      "ms": 2500
     },
     {
       "do": "exec",
-      "cmd": "journalctl -b -1 --no-pager | grep -q 'System is rebooting'",
+      "cmd": "g=$(id -u greeter); d=$(sudo ls /run/user/$g | grep -m1 '^wayland-[0-9]$'); sudo -u greeter env XDG_RUNTIME_DIR=/run/user/$g WAYLAND_DISPLAY=$d grim /tmp/02-greeter-wrong.png && sudo chmod 644 /tmp/02-greeter-wrong.png",
       "code": 0
+    },
+    {
+      "do": "pull",
+      "path": "/tmp/02-greeter-wrong.png",
+      "to": "vm/runs/shots/greeter-lock/02-greeter-wrong.png"
+    },
+    {
+      "do": "sleep",
+      "ms": 2000
+    },
+    {
+      "do": "type",
+      "text": "vmpass"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "ret"
+      ]
+    },
+    {
+      "do": "wait",
+      "until": "exec:pgrep -f '[s]hell-guest.qml' >/dev/null",
+      "timeout": 60000
+    },
+    {
+      "do": "sleep",
+      "ms": 3000
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "exec",
+      "cmd": "! ls /run/user/1000/yudae-locked-* >/dev/null 2>&1",
+      "code": 0
+    },
+    {
+      "do": "key",
+      "keys": [
+        "meta_l",
+        "f4"
+      ]
+    },
+    {
+      "do": "sleep",
+      "ms": 1000
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "click",
+      "x": 864,
+      "y": 422
+    },
+    {
+      "do": "wait",
+      "until": "exec:ls /run/user/1000/yudae-locked-* >/dev/null 2>&1",
+      "timeout": 10000
+    },
+    {
+      "do": "sleep",
+      "ms": 1200
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "type",
+      "text": "vmpass"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "ret"
+      ]
+    },
+    {
+      "do": "wait",
+      "until": "exec:! ls /run/user/1000/yudae-locked-* >/dev/null 2>&1",
+      "timeout": 10000
+    },
+    {
+      "do": "sleep",
+      "ms": 800
+    },
+    {
+      "do": "exec",
+      "cmd": "sudo loginctl lock-sessions",
+      "code": 0
+    },
+    {
+      "do": "wait",
+      "until": "exec:ls /run/user/1000/yudae-locked-* >/dev/null 2>&1",
+      "timeout": 10000
+    },
+    {
+      "do": "sleep",
+      "ms": 1200
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "exec",
+      "cmd": "export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr | head -1); pkill -x quickshell; sleep 1; hyprctl dispatch \"hl.dsp.exec_cmd(\\\"sh -c 'QSG_RENDER_LOOP=threaded QML_IMPORT_PATH=$HOME/.local/lib/yudae/qml:$HOME/dotfiles/shell/native/qml exec quickshell -p $HOME/dotfiles/shell/shell-guest.qml'\\\")\" >/dev/null",
+      "code": 0
+    },
+    {
+      "do": "wait",
+      "until": "exec:pgrep -x quickshell >/dev/null",
+      "timeout": 20000
+    },
+    {
+      "do": "sleep",
+      "ms": 3000
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "exec",
+      "cmd": "ls /run/user/1000/yudae-locked-* >/dev/null",
+      "code": 0
+    },
+    {
+      "do": "type",
+      "text": "vmpass"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "ret"
+      ]
+    },
+    {
+      "do": "wait",
+      "until": "exec:! ls /run/user/1000/yudae-locked-* >/dev/null 2>&1",
+      "timeout": 10000
+    },
+    {
+      "do": "sleep",
+      "ms": 800
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "exec",
+      "cmd": "sed -i 's|^lockAfterMinutes = .*|lockAfterMinutes = 0.3|' /tmp/cfg/power.toml",
+      "code": 0
+    },
+    {
+      "do": "sleep",
+      "ms": 2000
+    },
+    {
+      "do": "wait",
+      "until": "exec:ls /run/user/1000/yudae-locked-* >/dev/null 2>&1",
+      "timeout": 40000
+    },
+    {
+      "do": "sleep",
+      "ms": 1000
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "move",
+      "x": 500,
+      "y": 500
+    },
+    {
+      "do": "sleep",
+      "ms": 200
+    },
+    {
+      "do": "move",
+      "x": 560,
+      "y": 540
+    },
+    {
+      "do": "sleep",
+      "ms": 800
+    },
+    {
+      "do": "screenshot"
+    },
+    {
+      "do": "type",
+      "text": "vmpass"
+    },
+    {
+      "do": "key",
+      "keys": [
+        "ret"
+      ]
+    },
+    {
+      "do": "wait",
+      "until": "exec:! ls /run/user/1000/yudae-locked-* >/dev/null 2>&1",
+      "timeout": 10000
+    },
+    {
+      "do": "sleep",
+      "ms": 800
+    },
+    {
+      "do": "screenshot"
     }
-  ],
-  "proof": "boot to the greeter, wrong password, log in, lock, wrong password, unlock, shut down from the lock, reboot from the greeter"
+  ]
 }
