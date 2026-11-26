@@ -1,0 +1,12 @@
+[Unit]
+Description=yudae host shares
+RequiresMountsFor=/home/user/dotfiles
+Before=yudaemond.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/home/user/dotfiles/vm/guest/yudae-shares
+
+[Install]
+WantedBy=multi-user.target

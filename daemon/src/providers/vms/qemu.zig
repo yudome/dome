@@ -17,6 +17,9 @@ pub const Config = struct {
 	gl: bool,
 	audio: Audio = .none,
 	audio_index: u8 = 0,
+	pkg: bool = false,
+	kernel: []const u8 = "",
+	cmdline: []const u8 = "",
 };
 
 pub fn binary() []const u8 {
@@ -70,6 +73,10 @@ pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
 		try addPair(allocator, &list, "-chardev", try std.fmt.allocPrint(allocator, "socket,id=state0,path={s}/state.sock", .{config.dir}));
 		try addPair(allocator, &list, "-device", "vhost-user-fs-pci,chardev=state0,tag=yudae-state");
 	}
+	if (config.pkg) {
+		try addPair(allocator, &list, "-chardev", try std.fmt.allocPrint(allocator, "socket,id=pkg0,path={s}/hostpkg.sock", .{config.dir}));
+		try addPair(allocator, &list, "-device", "vhost-user-fs-pci,chardev=pkg0,tag=hostpkg");
+	}
 	try addPair(allocator, &list, "-vga", "none");
 	try addPair(allocator, &list, "-device", "virtio-rng-pci");
 	try addPair(allocator, &list, "-device", "virtio-tablet-pci");
@@ -81,6 +88,10 @@ pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
 	try addPair(allocator, &list, "-serial", try std.fmt.allocPrint(allocator, "file:{s}", .{serial}));
 	try addPair(allocator, &list, "-monitor", "none");
 	try addPair(allocator, &list, "-display", if (config.gl) "dbus,p2p=yes,gl=on" else "dbus,p2p=yes");
+	if (config.kernel.len > 0) {
+		try addPair(allocator, &list, "-kernel", config.kernel);
+		try addPair(allocator, &list, "-append", config.cmdline);
+	}
 	try list.append(allocator, "-no-reboot");
 
 	return list.toOwnedSlice(allocator);

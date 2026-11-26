@@ -1,0 +1,13 @@
+#!/bin/bash
+grep -qsx 0x106d /sys/bus/pci/devices/*/device || exit 0
+card=
+for _ in $(seq 1 150); do
+	mountpoint -q /mnt/nvidia || mount /mnt/nvidia 2>/dev/null
+	card=$(readlink -f /dev/dri/by-path/*pci-0010*-card 2>/dev/null | head -1)
+	[ -e "$card" ] && [ -d /mnt/nvidia/lib/gbm ] && break
+	sleep 0.2
+done
+echo "yudae-gpu-wait: card=${card:-none} share=$([ -d /mnt/nvidia/lib/gbm ] && echo yes || echo no)"
+[ -d /mnt/nvidia/lib/gbm ] || exit 0
+mkdir -p /usr/lib/gbm
+ln -sf /mnt/nvidia/lib/gbm/nvidia-drm_gbm.so /usr/lib/gbm/nvidia-drm_gbm.so

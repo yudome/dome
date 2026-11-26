@@ -39,11 +39,10 @@ pub fn available(io: Io, allocator: Allocator) bool {
 	if (!proc.exists(io, p.qemu) or !proc.exists(io, p.backend)) return false;
 	if (!proc.exists(io, p.userspace)) return false;
 	if (!proc.exists(io, "/dev/nvidia0") or !proc.exists(io, "/dev/nvidiactl")) return false;
-	const repo = proc.repo(io, allocator);
-	const manifest = std.fmt.allocPrint(allocator, "{s}/vm/packages.txt", .{repo}) catch return false;
-	if (!proc.exists(io, manifest)) return false;
+	const cache = std.fs.path.dirname(std.fs.path.dirname(p.share) orelse return false) orelse return false;
+	const manifest = std.fmt.allocPrint(allocator, "{s}/dotfiles/vm/images/current/manifest.json", .{cache}) catch return false;
 	const body = proc.readFile(io, allocator, manifest) catch return false;
-	return std.mem.indexOf(u8, body, "conduit-guest") != null;
+	return std.mem.indexOf(u8, body, "\"conduit-guest\"") != null;
 }
 
 pub fn ensureShare(io: Io, allocator: Allocator) ![]const u8 {
@@ -90,6 +89,9 @@ pub const Config = struct {
 	state: bool = false,
 	audio: Audio = .none,
 	audio_index: u8 = 0,
+	pkg: bool = false,
+	kernel: []const u8 = "",
+	cmdline: []const u8 = "",
 };
 
 pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
@@ -132,6 +134,10 @@ pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
 		try addPair(allocator, &list, "-chardev", try std.fmt.allocPrint(allocator, "socket,id=state0,path={s}/state.sock", .{config.dir}));
 		try addPair(allocator, &list, "-device", "vhost-user-fs-pci,chardev=state0,tag=yudae-state");
 	}
+	if (config.pkg) {
+		try addPair(allocator, &list, "-chardev", try std.fmt.allocPrint(allocator, "socket,id=pkg0,path={s}/hostpkg.sock", .{config.dir}));
+		try addPair(allocator, &list, "-device", "vhost-user-fs-pci,chardev=pkg0,tag=hostpkg");
+	}
 	try addPair(allocator, &list, "-chardev", try std.fmt.allocPrint(allocator, "socket,id=nvgpu,path={s}", .{nvgpu}));
 	try addPair(allocator, &list, "-device", "vhost-user-test-device-pci,chardev=nvgpu,virtio-id=45,num_vqs=3,vq_size=256,config_size=4036,class=0x380");
 	try addPair(allocator, &list, "-vga", "std");
@@ -144,6 +150,10 @@ pub fn args(allocator: Allocator, config: Config) ![]const []const u8 {
 	try addPair(allocator, &list, "-serial", try std.fmt.allocPrint(allocator, "file:{s}", .{serial}));
 	try addPair(allocator, &list, "-monitor", "none");
 	try addPair(allocator, &list, "-display", "none");
+	if (config.kernel.len > 0) {
+		try addPair(allocator, &list, "-kernel", config.kernel);
+		try addPair(allocator, &list, "-append", config.cmdline);
+	}
 	try list.append(allocator, "-no-reboot");
 
 	return list.toOwnedSlice(allocator);

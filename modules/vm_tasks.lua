@@ -6,52 +6,33 @@ function vm(dir, root)
 		os.execv(path.join(dir, "images"), args, { curdir = root })
 	end
 	local function bench_images(tag)
-		tag = tag or "local"
-		tag = tag:gsub('"', "")
+		tag = (tag or "local"):gsub('"', "")
 		local bench = os.getenv("DOTFILES_VM_BENCH") or path.join(os.getenv("HOME"), ".cache", "yudae-vm-bench")
 		local cache_home = os.getenv("DOTFILES_VM_BENCH_CACHE") or path.join(bench, "cache")
-		local runs = os.getenv("DOTFILES_VM_RUNS") or path.join(bench, "runs")
-		local cache = path.join(cache_home, "dotfiles", "vm")
 		local logs = path.join(bench, "logs")
-		os.mkdir(cache)
 		os.mkdir(logs)
 		os.mkdir(path.join(root, "bench"))
 		local envs = os.getenvs()
 		envs.XDG_CACHE_HOME = cache_home
-		envs.DOTFILES_VM_RUNS = runs
-		local function phase(name, args)
-			local started = os.mclock()
-			local log = path.join(logs, name .. ".log")
-			local command = string.format("'%s' %s >'%s' 2>&1", path.join(dir, "images"), table.concat(args, " "), log)
-			local code = os.execv("sh", { "-c", command }, { curdir = root, envs = envs, try = true })
-			if code ~= 0 then
-				raise("bench failed, see " .. logs)
-			end
-			return os.mclock() - started
+		envs.DOTFILES_VM_RUNS = os.getenv("DOTFILES_VM_RUNS") or path.join(bench, "runs")
+		local started = os.mclock()
+		local log = path.join(logs, "build.log")
+		local code = os.execv("sh", { "-c", string.format("'%s' build --force >'%s' 2>&1", path.join(dir, "images"), log) }, { curdir = root, envs = envs, try = true })
+		if code ~= 0 then
+			raise("bench failed, see " .. log)
 		end
-		local fetch_ms = phase("fetch", { "fetch" })
-		local packages_ms = phase("packages", { "packages", "--force" })
-		local golden_ms = phase("golden", { "golden", "--force" })
-		local total = fetch_ms + packages_ms + golden_ms
-		local packages_mb = capture(string.format("du -sm '%s' '%s' 2>/dev/null | awk '{ s += $1 } END { print s + 0 }'",
-			path.join(cache, "packages.qcow2"), path.join(cache, "packages.raw")))
-		local golden_mb = capture(string.format("du -sm '%s' 2>/dev/null | cut -f1", path.join(cache, "golden.qcow2")))
-		local line = string.format('{"at":%d,"tag":"%s","fetchMs":%d,"packagesMs":%d,"goldenMs":%d,"totalMs":%d,"packagesMb":%s,"goldenMb":%s}',
-			os.time(), tag, fetch_ms, packages_ms, golden_ms, total, packages_mb ~= "" and packages_mb or "0", golden_mb ~= "" and golden_mb or "0")
+		local build_ms = os.mclock() - started
+		local image_mb = capture(string.format("du -sm \"$(readlink -f '%s')\" | cut -f1", path.join(cache_home, "dotfiles", "vm", "images", "current")))
+		local line = string.format('{"at":%d,"tag":"%s","buildMs":%d,"imageMb":%s}', os.time(), tag, build_ms, image_mb ~= "" and image_mb or "0")
 		local logfile = path.join(root, "bench", "images.jsonl")
 		io.writefile(logfile, (io.readfile(logfile) or "") .. line .. "\n")
 		print(line)
-		local function show(ms)
-			return string.format("%dm%02ds", math.floor(ms / 60000), math.floor(ms / 1000) % 60)
-		end
-		print(string.format("fetch %s  packages %s  golden %s  total %s  packages %sMB  golden %sMB",
-			show(fetch_ms), show(packages_ms), show(golden_ms), show(total),
-			packages_mb ~= "" and packages_mb or "0", golden_mb ~= "" and golden_mb or "0"))
+		print(string.format("build %dm%02ds  image %sMB", math.floor(build_ms / 60000), math.floor(build_ms / 1000) % 60, image_mb))
 	end
 	import("core.base.option")
 	local args = table.wrap(option.get("args") or {})
 	if #args == 0 then
-		print("usage: xmake vm fetch|packages|golden|ensure|overlay|snapshot|restore|list|bench [tag] (running VMs: yudae vm)")
+		print("usage: xmake vm images|ensure|overlay|snapshot|restore|backup|list|bench [tag] (running VMs: yudae vm)")
 		raise("missing vm verb")
 	end
 	if args[1] == "bench" then
@@ -76,7 +57,7 @@ function doctor(dir, root)
 			print((ok and "ok   " or "miss ") .. label)
 			if not ok then missing = 1 end
 		end
-		for _, tool in ipairs({ "zig", "xmake", "make", "qemu-system-x86_64", "qemu-img" }) do
+		for _, tool in ipairs({ "zig", "xmake", "make", "qemu-system-x86_64", "qemu-img", "mkosi", "pasta", "nft", "unshare" }) do
 			mark(capture("command -v " .. tool) ~= "", tool)
 		end
 		for _, path_ in ipairs({ "/usr/lib/virtiofsd", "/usr/bin/passt", "/dev/kvm", "/dev/vhost-vsock", "/dev/dri/renderD128" }) do
@@ -105,7 +86,7 @@ function doctor(dir, root)
 	local viewer = path.join(prefix, "bin", "conduit-viewer")
 	local userspace = path.join(prefix, "bin", "conduit-userspace")
 	local supported = path.join(prefix, "share", "conduit", "supported-drivers.txt")
-	local golden = path.join(os.getenv("XDG_CACHE_HOME") or path.join(os.getenv("HOME"), ".cache"), "dotfiles", "vm", "golden.qcow2")
+	local golden = path.join(os.getenv("XDG_CACHE_HOME") or path.join(os.getenv("HOME"), ".cache"), "dotfiles", "vm", "images", "current", "golden.qcow2")
 	if gpu ~= "" then
 		row("gpu", "ok", gpu, "")
 	else
@@ -160,14 +141,14 @@ function doctor(dir, root)
 		expectPath("host." .. path_, path_, "fail", "enable KVM/render node or install virtiofsd and passt")
 	end
 	if os.exists(golden) then
-		local listed = os.execv("grep", { "-qx", "conduit-guest", path.join(root, "vm", "packages.txt") }, { try = true, stdout = "/dev/null", stderr = "/dev/null" })
+		local listed = os.execv("grep", { "-q", '"conduit-guest"', path.join(path.directory(golden), "manifest.json") }, { try = true, stdout = "/dev/null", stderr = "/dev/null" })
 		if listed == 0 then
 			row("golden", "ok", golden, "")
 		else
-			row("golden", "fail", "golden manifest has no conduit-guest", "add conduit-guest to vm/packages.txt and rebuild the golden image")
+			row("golden", "fail", "golden manifest has no conduit-guest", "rebuild with xmake vm images on a host with /dev/nvidiactl (vm/mkosi/mkosi.profiles/nvidia.conf)")
 		end
 	else
-		row("golden", "fail", "no golden image", "run xmake vm golden")
+		row("golden", "fail", "no golden image", "run xmake vm images")
 	end
 	local verdict = fail == 0 and "nvidia" or "gl"
 	local function escape(text)

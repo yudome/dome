@@ -1,0 +1,25 @@
+[Unit]
+Description=Hyprland desktop
+After=yudaemond.service systemd-user-sessions.service
+RequiresMountsFor=/home/user/dotfiles
+Conflicts=getty@tty1.service
+
+[Service]
+User=user
+PAMName=login
+TTYPath=/dev/tty1
+StandardInput=tty
+StandardOutput=journal+console
+Environment=HOME=/home/user
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=XDG_CONFIG_HOME=/home/user/.config
+Environment=XDG_SESSION_TYPE=wayland
+Environment=XDG_CURRENT_DESKTOP=Hyprland
+Environment=XDG_SESSION_DESKTOP=Hyprland
+ExecStartPre=+/home/user/dotfiles/vm/guest/yudae-gpu-wait
+ExecStart=/home/user/dotfiles/vm/guest/yudae-session
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical.target

@@ -1,0 +1,20 @@
+[Unit]
+Description=yudaemond guest
+After=local-fs.target user-runtime-dir@1000.service
+Requires=user-runtime-dir@1000.service
+RequiresMountsFor=/home/user/dotfiles
+
+[Service]
+User=user
+Group=user
+Environment=HOME=/home/user
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+ExecStartPre=+/bin/sh -c "echo yudaemond-start > /dev/ttyS0"
+ExecStart=/home/user/dotfiles/daemon/zig-out/bin/yudaemond run
+StandardOutput=journal+console
+StandardError=journal+console
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

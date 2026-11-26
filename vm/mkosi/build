@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DIR=$(cd "$(dirname "$0")" && pwd)
+ROOT=$(cd "$DIR/../.." && pwd)
+CACHE=${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles/vm
+MKOSI=${DOTFILES_VM_MKOSI:-$CACHE/mkosi}
+IMAGES=$CACHE/images
+RUNS=${DOTFILES_VM_RUNS:-$ROOT/vm/runs}
+SNAPSHOT=""
+FORCE=0
+WATCH=(hyprland aquamarine quickshell qt6-base)
+CONDUIT=https://github.com/olealgoritme/conduit/releases/download/v0.1.21/conduit-guest-0.1.21-1-any.pkg.tar.zst
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--snapshot) SNAPSHOT=${2:?}; shift ;;
+		--force) FORCE=1 ;;
+		*) echo "usage: vm/mkosi/build [--snapshot YYYY/MM/DD] [--force]" >&2; exit 2 ;;
+	esac
+	shift
+done
+
+slug=${SNAPSHOT//\//-}
+WORK=$MKOSI/${slug:-host}
+GEN=$WORK/gen
+mkdir -p "$WORK" "$IMAGES"
+exec 9>"$MKOSI/lock"
+flock 9
+
+for unit in systemd-nsresourced.socket systemd-mountfsd.socket; do systemctl is-active -q "$unit" || systemctl enable --now "$unit" || {
+		echo "mkosi needs $unit for a full uid range: sudo systemctl enable --now $unit" >&2
+		exit 1
+	}
+done
+
+pkgbase=$(cat "/usr/lib/modules/$(uname -r)/pkgbase")
+
+host_tree() {
+	local dst=$1 conf=/etc/pacman.conf inc
+	mkdir -p "$dst/etc/pacman.d"
+	while read -r inc; do
+		[ -f "$inc" ] && cp --parents "$inc" "$dst"
+	done < <(sed -n 's/^[[:space:]]*Include[[:space:]]*=[[:space:]]*//p' "$conf" | sort -u)
+	if [ -n "$SNAPSHOT" ]; then
+		awk -v snap="$SNAPSHOT" '
+			/^\[/ { section = $0; gsub(/[][[:space:]]/, "", section) }
+			/^[[:space:]]*Include/ && section ~ /^(core|extra|multilib)$/ { print "Server = https://archive.archlinux.org/repos/" snap "/$repo/os/$arch"; next }
+			{ print }' "$conf" > "$dst/etc/pacman.conf"
+	else
+		cp "$conf" "$dst/etc/pacman.conf"
+	fi
+}
+
+rm -rf "$GEN"
+host_tree "$GEN/sandbox"
+awk '!done && /^\[/ && !/^\[options\]/ { print "Include = /etc/mkosi-local.conf"; done = 1 } { print }' "$GEN/sandbox/etc/pacman.conf" > "$GEN/pacman.conf"
+mv "$GEN/pacman.conf" "$GEN/sandbox/etc/pacman.conf"
+host_tree "$GEN/extra"
+sed -i '/^\[options\]/a CacheDir = /mnt/hostpkg/\nCacheDir = /var/cache/pacman/pkg/' "$GEN/extra/etc/pacman.conf"
+mkdir -p "$GEN/extra/etc/pacman.d/gnupg"
+find /etc/pacman.d/gnupg -maxdepth 1 -type f -readable -exec cp {} "$GEN/extra/etc/pacman.d/gnupg/" \;
+
+profiles=()
+extra_packages=$pkgbase
+if [ -e /dev/nvidiactl ]; then
+	profiles=(--profile nvidia)
+	extra_packages="$pkgbase $pkgbase-headers"
+	mkdir -p "$MKOSI/conduit"
+	conduit=$MKOSI/conduit/$(basename "$CONDUIT")
+	[ -s "$conduit" ] || { curl -fsSL -o "$conduit.part" "$CONDUIT" && mv "$conduit.part" "$conduit"; }
+fi
+
+key=guest
+digest=$({
+	cat "$DIR"/mkosi.conf "$DIR"/mkosi.conf.d/*.conf "$DIR"/mkosi.profiles/*.conf
+	printf '%s\n' "$pkgbase" "$SNAPSHOT" "${profiles[*]}"
+	cat "$GEN/sandbox/etc/pacman.conf"
+	[ -n "$SNAPSHOT" ] || cat /var/lib/pacman/sync/*.db
+} | sha256sum | cut -d' ' -f1)
+[ "$(cat "$WORK/base.sha" 2>/dev/null)" = "$digest" ] || FORCE=1
+
+mkdir -p "$WORK/cache" "$MKOSI/pkgs/cache/pacman/pkg"
+keyring=$WORK/cache/$key.keyring.cache
+[ -d "$keyring" ] || cp -r "$GEN/extra/etc/pacman.d/gnupg" "$keyring"
+cacheonly=auto
+if [ -z "$SNAPSHOT" ]; then
+	cacheonly=metadata
+	mkdir -p "$WORK/cache/$key.metadata.cache/lib/pacman/sync" "$WORK/cache/$key.metadata.cache/cache/pacman"
+	cp -u /var/lib/pacman/sync/*.db /var/lib/pacman/sync/*.db.sig "$WORK/cache/$key.metadata.cache/lib/pacman/sync/" 2>/dev/null || true
+	mkdir -p "$GEN/extra/var/lib/pacman/sync"
+	cp /var/lib/pacman/sync/*.db "$GEN/extra/var/lib/pacman/sync/"
+fi
+cp -n --reflink=auto /var/cache/pacman/pkg/*.pkg.tar.zst "$MKOSI/pkgs/cache/pacman/pkg/" 2>/dev/null || true
+
+cat > "$GEN/host.conf" <<EOF
+[Output]
+OutputDirectory=$WORK/out
+ManifestFormat=json
+SplitArtifacts=kernel
+
+[Content]
+Packages=$extra_packages
+ExtraTrees=$GEN/extra
+$([ ${#profiles[@]} -eq 0 ] || echo "PackageDirectories=$MKOSI/conduit")
+
+[Build]
+CacheDirectory=$WORK/cache
+CacheKey=$key
+PackageCacheDirectory=$MKOSI/pkgs
+SandboxTrees=$GEN/sandbox
+CacheOnly=$cacheonly
+EOF
+
+started=$(date +%s)
+force=(-f)
+[ "$FORCE" -eq 0 ] || force=(-ff)
+if ! mkosi -C "$DIR" --include "$GEN/host.conf" "${profiles[@]}" "${force[@]}" build; then
+	[ "$cacheonly" = metadata ] || exit 1
+	echo "host package state is not on the mirrors any more, retrying with fresh repo metadata" >&2
+	mkosi -C "$DIR" --include "$GEN/host.conf" "${profiles[@]}" --cache-only=auto -ff build
+fi
+printf '%s\n' "$digest" > "$WORK/base.sha"
+echo "mkosi $(($(date +%s) - started))s"
+
+manifest=$WORK/out/guest.manifest
+version_of() {
+	python3 -c 'import json,sys
+for p in json.load(open(sys.argv[1]))["packages"]:
+    if p["name"] == sys.argv[2]: print(p["version"])' "$manifest" "$1"
+}
+pinned() { grep -qE "^[[:space:]]*$1[=<>]" "$DIR/mkosi.conf.d/pins.conf"; }
+mismatch=0
+for pkg in "$pkgbase" "${WATCH[@]}"; do
+	host=$(pacman -Q "$pkg" 2>/dev/null | cut -d' ' -f2)
+	guest=$(version_of "$pkg")
+	state=ok
+	if [ "$host" != "$guest" ]; then
+		if pinned "$pkg"; then state=pinned; else state=MISMATCH; mismatch=1; fi
+	fi
+	printf '%-16s host %-14s guest %-14s %s\n' "$pkg" "${host:-none}" "${guest:-none}" "$state"
+done
+[ "$mismatch" -eq 0 ] || [ -n "$SNAPSHOT" ] || { echo "guest versions differ from the host" >&2; exit 1; }
+
+builtin=/usr/lib/modules/$(uname -r)/modules.builtin
+grep -q '/virtio_blk.ko$' "$builtin" && grep -q '/btrfs.ko$' "$builtin" || { echo "host kernel lacks built-in virtio_blk and btrfs" >&2; exit 1; }
+
+id=$(date +%Y%m%d-%H%M%S)
+dst=$IMAGES/$id
+mkdir -p "$dst.tmp"
+qemu-img convert -c -O qcow2 -o compression_type=zstd -m 16 -W "$WORK/out/guest.raw" "$dst.tmp/packages.qcow2"
+cp "$WORK/out/guest.vmlinuz" "$dst.tmp/vmlinuz"
+cp "$manifest" "$dst.tmp/manifest.json"
+printf 'root=/dev/vda1 rootfstype=btrfs rootwait rw console=tty0 console=ttyS0,115200 net.ifnames=0 systemd.gpt_auto=0\n' > "$dst.tmp/cmdline"
+mv "$dst.tmp" "$dst"
+qemu-img create -q -f qcow2 -o lazy_refcounts=on -F qcow2 -b "$dst/packages.qcow2" "$dst/golden.qcow2" 32G
+rm -f "$WORK/out/guest.raw"
+if [ -n "$slug" ]; then
+	ln -sfn "images/$id/golden.qcow2" "$CACHE/golden-$slug.qcow2"
+else
+	ln -sfn "$id" "$IMAGES/current.tmp"
+	mv -T "$IMAGES/current.tmp" "$IMAGES/current"
+fi
+
+used=$({
+	for disk in "$RUNS"/*/disk.qcow2; do [ -f "$disk" ] && qemu-img info -U --backing-chain "$disk" 2>/dev/null | sed -n 's/^backing file: //p'; done
+	readlink -f "$IMAGES/current" "$CACHE"/golden-*.qcow2 2>/dev/null
+})
+for old in "$IMAGES"/*/; do
+	old=${old%/}
+	[ "$old" = "$dst" ] || [ -L "$old" ] && continue
+	grep -qF "$old" <<<"$used" || rm -rf "$old"
+done
+echo "image $dst ($(du -sm "$dst" | cut -f1)MB) in $(($(date +%s) - started))s"

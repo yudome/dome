@@ -1,0 +1,3 @@
+dotfiles /home/user/dotfiles virtiofs ro,nofail,defaults 0 0
+nvidia /mnt/nvidia virtiofs ro,noauto,nofail 0 0
+hostpkg /mnt/hostpkg virtiofs ro,nofail 0 0

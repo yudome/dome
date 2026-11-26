@@ -1,0 +1,5 @@
+enable systemd-networkd.service
+enable systemd-resolved.service
+enable yudaemond.service
+enable yudae-desktop.service
+enable yudae-shares.service

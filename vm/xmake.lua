@@ -6,8 +6,8 @@ local root = path.directory(dir)
 task("vm")
 	set_category("action")
 	set_menu {
-		usage = "xmake vm fetch|packages|golden|ensure|overlay|snapshot|restore|list|bench [tag]",
-		description = "build and bench vm images",
+		usage = "xmake vm images|ensure|overlay|snapshot|restore|backup|list|bench [tag]",
+		description = "build vm images with mkosi and bench them",
 		options = {
 			{ nil, "args", "vs", nil, "vm arguments" },
 			{ nil, "force", "k", nil, "force the vm image step" },
