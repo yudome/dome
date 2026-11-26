@@ -6,8 +6,10 @@ jobs:
   check:
     runs-on: ubuntu-latest
     container: archlinux:latest
+    env:
+      XMAKE_ROOT: y
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: pacman -Syu --noconfirm base-devel zig xmake git pkgconf libsystemd polkit glib2 qt6-base qt6-declarative qt6-wayland mesa
       - run: xmake
       - run: xmake test
