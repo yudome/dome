@@ -41,7 +41,7 @@ dotfiles/
 - The greeter is `shell/greeter.qml`, run by greetd inside a minimal Hyprland (`lockscreen/hypr/greeter.lua`) and installed with `sudo xmake install greeter` from the repo it should run from. It draws the same `lockscreen/Surface.qml` as the lock plus a user cell next to the power cells; it swaps the card for a menu with a back arrow, the user row and the session row. Tab steps the session, Up and Down the user, Escape closes the menu. Users (`/etc/passwd`) and sessions (`/usr/share/wayland-sessions`) come from the profile the daemon writes; the chosen one starts through `lockscreen/session`, which sends its output to `~/.local/state/session.log`.
 - Lock and greeter play their wallpaper on every show: a video plays and settles on its still frame through `Yudae.Native.WallVideo`, which shares the daemon's decoder and settle curve (`daemon/src/c/video.c`, `settle.c`). `lockWallpaper` and `greeterWallpaper` pick `desktop`, `lock` or a path. The daemon writes the choice, the still pick, preview frames and a greeter-readable copy of the media to `shell/cache/lockscreen/<machine-id>/profile.json`, or `/var/tmp/yudae-lockscreen/<machine-id>/` when the repo is read-only (a VM).
 - After `lockIdleSeconds` without input only the wallpaper shows; moving the mouse or a key brings the controls back. An idle lock starts that way.
-- `xmake lockscreen` opens the preview app (`shell/app-lockscreen.qml`): lock or greeter, mock auth, wrong password, idle. `xmake lockscreen shots` renders those states to `vm/runs/shots/lockscreen/`. `yudae vm scenario <vm> greeter-lock` runs the real lock and greeter in a VM.
+- `xmake lockscreen` opens the preview app (`shell/app-lockscreen.qml`): lock or greeter, mock auth, wrong password, idle. `yudae vm scenario <vm> greeter-lock` runs the real lock and greeter in a VM.
 
 ## UI layers
 
@@ -61,7 +61,7 @@ xmake orchestrates, it does not replace the real builders.
 | `xmake plugin` | rebuild every `plugins/*/Makefile` into `~/.local/state/yudae/build/<id>`; hypr plugins keep `make` |
 | `xmake link` | symlink `config/*`, `hypr/`, the user units and the icons into `$HOME` |
 | `xmake lint` | qmllint on `shell/` and `lockscreen/`, plus the color, kit, slider and face checks |
-| `xmake lockscreen` | the lock screen preview app; `xmake lockscreen shots` renders its states |
+| `xmake lockscreen` | the lock screen preview app |
 | `xmake test` | daemon parsers/protocol tests, plugin conformance, QML lint, the kit and face checks, and every app plus the shell loaded in a headless cage |
 | `xmake bench` | headless daemon cold build, size, start, idle RSS and spawns, then `yudaemond bench` against `bench/baseline.json` |
 | `xmake vm ...` | VM images and the image build bench; running VMs are `yudae vm` |
