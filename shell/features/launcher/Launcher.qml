@@ -136,7 +136,10 @@ PanelWindow {
 	property var live: ({})
 	property string ghostName: ""
 
-	readonly property string mode: root.windows ? "windows" : (root.shown ? (root.live.mode || "apps") : (root.heldMode || root.live.mode || "apps"))
+	readonly property string mode: root.windows ? "windows"
+		: root.forced !== "" ? root.forced
+		: root.shown ? (root.live.mode || "apps")
+		: (root.heldMode || root.live.mode || "apps")
 	readonly property string prompt: root.windows ? "" : (root.live.prompt || "")
 	readonly property bool isClipboard: root.mode === "clipboard"
 	readonly property string empty: root.windows ? Yudae.windowsEmpty : (root.live.empty || "")
