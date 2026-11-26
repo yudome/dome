@@ -5,7 +5,10 @@ local state = { name = "4" }
 hl = {
     get_active_workspace = function () return { name = state.name } end,
     dispatch = function (dispatcher) dispatched[#dispatched + 1] = dispatcher.workspace end,
-    dsp = { focus = function (selector) return selector end },
+    dsp = {
+        focus = function (selector) return selector end,
+        window = { move = function (selector) return selector end },
+    },
     on = function (event, callback) events[event] = callback end,
 }
 
@@ -62,6 +65,39 @@ local count = #dispatched
 versions.jump(5)
 versions.step(1)
 assert(#dispatched == count, "a workspace of its own has no versions")
+
+state.name = "4"
+local before = #dispatched
+versions.focusSlot(4)
+assert(#dispatched == before, "focusing the slot already shown does nothing")
+
+state.name = "4"
+versions.focusSlot(7)
+assert(last() == 7, "focusing another slot lands on it")
+
+state.name = "3"
+before = #dispatched
+versions.shiftSlot(-1)
+assert(#dispatched == before + 1 and last() == 2, "shifting down lands on the previous slot")
+
+state.name = "1"
+before = #dispatched
+versions.shiftSlot(-1)
+assert(#dispatched == before, "shifting before the first slot does nothing")
+
+state.name = "10"
+before = #dispatched
+versions.shiftSlot(1)
+assert(#dispatched == before, "shifting past the last slot does nothing")
+
+state.name = "v5.2"
+versions.moveWindow(3)
+assert(last() == "name:v5.3", "moving a window sends it to that version of the slot")
+
+state.name = "special:magic"
+before = #dispatched
+versions.moveWindow(3)
+assert(#dispatched == before, "moving a window from an unrelated workspace does nothing")
 
 state.name = "v6.3"
 local calls = #dispatched

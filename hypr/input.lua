@@ -16,4 +16,8 @@ hl.config({
     cursor = {
         no_warps = true,
     },
+
+    binds = {
+        scroll_event_delay = 0,
+    },
 })

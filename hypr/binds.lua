@@ -1,250 +1,107 @@
 local programs = require("programs")
 local actions = require("actions")
+local focus = require("focus")
 local versions = require("versions")
-local repo = require("repo")
 local mainMod = "SUPER"
 
-hl.config({ binds = { scroll_event_delay = 0 } })
+hl.bind(mainMod .. " + 1", function() versions.focusSlot(1) end)
+hl.bind(mainMod .. " + SHIFT + 1", hl.dsp.window.move({ workspace = 1, follow = false }))
+hl.bind("CTRL + ALT + 1", function() versions.moveWindow(1) end)
+hl.bind("ALT + SHIFT + 1", function() versions.jump(1) end)
 
-local function switcherOpen()
-    for _, layer in ipairs(hl.get_layers({ namespace = "launcher" })) do
-        if layer.keyboard_interactivity == 1 then return true end
-    end
+hl.bind(mainMod .. " + 2", function() versions.focusSlot(2) end)
+hl.bind(mainMod .. " + SHIFT + 2", hl.dsp.window.move({ workspace = 2, follow = false }))
+hl.bind("CTRL + ALT + 2", function() versions.moveWindow(2) end)
+hl.bind("ALT + SHIFT + 2", function() versions.jump(2) end)
 
-    return false
-end
+hl.bind(mainMod .. " + 3", function() versions.focusSlot(3) end)
+hl.bind(mainMod .. " + SHIFT + 3", hl.dsp.window.move({ workspace = 3, follow = false }))
+hl.bind("CTRL + ALT + 3", function() versions.moveWindow(3) end)
+hl.bind("ALT + SHIFT + 3", function() versions.jump(3) end)
 
-local function wakeLauncher(action)
-    return function()
-        hl.dispatch(hl.dsp.global("quickshell:" .. action))
-    end
-end
+hl.bind(mainMod .. " + 4", function() versions.focusSlot(4) end)
+hl.bind(mainMod .. " + SHIFT + 4", hl.dsp.window.move({ workspace = 4, follow = false }))
+hl.bind("CTRL + ALT + 4", function() versions.moveWindow(4) end)
+hl.bind("ALT + SHIFT + 4", function() versions.jump(4) end)
 
-local function gotoWorkspace(workspace)
-    return function()
-        local active = hl.get_active_workspace()
-        if versions.slotOf(active and active.name) == workspace then return end
+hl.bind(mainMod .. " + 5", function() versions.focusSlot(5) end)
+hl.bind(mainMod .. " + SHIFT + 5", hl.dsp.window.move({ workspace = 5, follow = false }))
+hl.bind("CTRL + ALT + 5", function() versions.moveWindow(5) end)
+hl.bind("ALT + SHIFT + 5", function() versions.jump(5) end)
 
-        hl.dispatch(hl.dsp.focus({ workspace = workspace }))
-    end
-end
+hl.bind(mainMod .. " + 6", function() versions.focusSlot(6) end)
+hl.bind(mainMod .. " + SHIFT + 6", hl.dsp.window.move({ workspace = 6, follow = false }))
+hl.bind("CTRL + ALT + 6", function() versions.moveWindow(6) end)
+hl.bind("ALT + SHIFT + 6", function() versions.jump(6) end)
 
-local function focusTarget(direction)
-    local current = hl.get_active_window()
-    if not current then return nil end
+hl.bind(mainMod .. " + 7", function() versions.focusSlot(7) end)
+hl.bind(mainMod .. " + SHIFT + 7", hl.dsp.window.move({ workspace = 7, follow = false }))
+hl.bind("CTRL + ALT + 7", function() versions.moveWindow(7) end)
+hl.bind("ALT + SHIFT + 7", function() versions.jump(7) end)
 
-    local cx = current.at.x + current.size.x / 2
-    local cy = current.at.y + current.size.y / 2
-    local wsid = current.workspace.id
-    local best, bestScore = nil, nil
+hl.bind(mainMod .. " + 8", function() versions.focusSlot(8) end)
+hl.bind(mainMod .. " + SHIFT + 8", hl.dsp.window.move({ workspace = 8, follow = false }))
+hl.bind("CTRL + ALT + 8", function() versions.moveWindow(8) end)
+hl.bind("ALT + SHIFT + 8", function() versions.jump(8) end)
 
-    for _, w in ipairs(hl.get_windows()) do
-        if w.address ~= current.address and w.mapped and not w.hidden and w.workspace.id == wsid then
-            local dx = w.at.x + w.size.x / 2 - cx
-            local dy = w.at.y + w.size.y / 2 - cy
-            local along, across
+hl.bind(mainMod .. " + 9", function() versions.focusSlot(9) end)
+hl.bind(mainMod .. " + SHIFT + 9", hl.dsp.window.move({ workspace = 9, follow = false }))
+hl.bind("CTRL + ALT + 9", function() versions.moveWindow(9) end)
+hl.bind("ALT + SHIFT + 9", function() versions.jump(9) end)
 
-            if direction == "left" then
-                along, across = -dx, math.abs(dy)
-            elseif direction == "right" then
-                along, across = dx, math.abs(dy)
-            elseif direction == "up" then
-                along, across = -dy, math.abs(dx)
-            else
-                along, across = dy, math.abs(dx)
-            end
-
-            if along > 0 then
-                local score = along * along + 4 * across * across
-
-                if not bestScore or score < bestScore then
-                    best, bestScore = w, score
-                end
-            end
-        end
-    end
-
-    return best
-end
-
-local function focusOrSwitch(direction)
-    return function()
-        if switcherOpen() then
-            hl.exec_cmd("qs ipc call shell windowsStep " .. direction)
-            return
-        end
-
-        local target = focusTarget(direction)
-
-        if target then
-            hl.dispatch(hl.dsp.focus({ window = target }))
-            return
-        end
-
-        hl.dispatch(hl.dsp.focus({ direction = direction }))
-    end
-end
-
--- ponytail: with exactly two windows side by side there is no window "above"
--- to swap with, so the move does nothing. Toggling the split first makes them
--- stack, and the move then lands the window in the pressed direction.
--- Ceiling: only the two-window case is special-cased; three or more windows
--- keep the plain directional move.
-local function moveOrSplit(direction)
-    return function()
-        local win = hl.get_active_window()
-        if not win or win.floating then
-            hl.dispatch(hl.dsp.window.move({ direction = direction }))
-            return
-        end
-
-        local vertical = direction == "up" or direction == "down"
-        local count, neighbor = 0, nil
-
-        for _, w in ipairs(hl.get_windows()) do
-            if w.address ~= win.address and w.mapped and not w.hidden
-               and not w.floating and w.workspace.id == win.workspace.id then
-                count = count + 1
-                neighbor = w
-            end
-        end
-
-        if count == 1 and neighbor and not focusTarget(direction) then
-            local overlapY = math.min(win.at.y + win.size.y, neighbor.at.y + neighbor.size.y)
-                - math.max(win.at.y, neighbor.at.y)
-            local overlapX = math.min(win.at.x + win.size.x, neighbor.at.x + neighbor.size.x)
-                - math.max(win.at.x, neighbor.at.x)
-            local sameRow = vertical and overlapY > 0
-            local sameCol = not vertical and overlapX > 0
-
-            if sameRow or sameCol then
-                hl.dispatch(hl.dsp.layout("togglesplit"))
-
-                -- togglesplit lands the focused window on either side; moving
-                -- from the top of a fresh stack re-splits back, so only move
-                -- when it ended up on the wrong one
-                local moved = hl.get_active_window()
-                local other = hl.get_window("address:" .. neighbor.address) or neighbor
-
-                if moved and other then
-                    local wrong = vertical
-                        and ((direction == "up" and moved.at.y > other.at.y)
-                            or (direction == "down" and moved.at.y < other.at.y))
-
-                    if wrong then
-                        hl.dispatch(hl.dsp.window.move({ direction = direction }))
-                    end
-                end
-
-                return
-            end
-        end
-
-        hl.dispatch(hl.dsp.window.move({ direction = direction }))
-    end
-end
-
-for i = 1, 10 do
-    local key = i % 10
-    hl.bind(mainMod .. " + " .. key,         function()
-        gotoWorkspace(i)()
-    end)
-    hl.bind(mainMod .. " + SHIFT + " .. key, hl.dsp.window.move({ workspace = i, follow = false }))
-    hl.bind("CTRL + ALT + " .. key,         function()
-        local ws = hl.get_active_workspace()
-        local slot = ws and ws.name and versions.slotOf(ws.name)
-        if slot then
-            hl.dispatch(hl.dsp.window.move({ workspace = versions.target(slot, i), follow = false }))
-        end
-    end)
-    hl.bind("ALT + SHIFT + " .. key,         function() versions.jump(i) end)
-end
+hl.bind(mainMod .. " + 0", function() versions.focusSlot(10) end)
+hl.bind(mainMod .. " + SHIFT + 0", hl.dsp.window.move({ workspace = 10, follow = false }))
+hl.bind("CTRL + ALT + 0", function() versions.moveWindow(10) end)
+hl.bind("ALT + SHIFT + 0", function() versions.jump(10) end)
 
 hl.bind("ALT + SHIFT + mouse_down", function() versions.step(1) end)
 hl.bind("ALT + SHIFT + mouse_up",   function() versions.step(-1) end)
 hl.bind("ALT + mouse_down",         function() versions.step(1) end)
 hl.bind("ALT + mouse_up",           function() versions.step(-1) end)
 
-hl.bind(mainMod .. " + RETURN", function()
-    hl.dispatch(hl.dsp.exec_cmd(programs.terminal))
-end)
-hl.bind(mainMod .. " + W", function()
-    hl.dispatch(hl.dsp.window.close())
-end, { repeating = true, dont_inhibit = true })
-hl.bind("F11", hl.dsp.window.fullscreen())
-hl.bind("SUPER + ALT + ESCAPE", function()
-    for _, win in ipairs(hl.get_windows()) do
-        if win.class ~= "qemu" and win.mapped then
-            hl.dispatch(hl.dsp.focus({ window = win }))
-            return
-        end
-    end
-
-    hl.dispatch(hl.dsp.focus({ workspace = 1 }))
-end, { dont_inhibit = true })
-hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(programs.browser))
+hl.bind(mainMod .. " + RETURN", hl.dsp.exec_cmd(programs.terminal))
+hl.bind(mainMod .. " + W",      hl.dsp.window.close(), { repeating = true, dont_inhibit = true })
+hl.bind("F11",                  hl.dsp.window.fullscreen())
+hl.bind("SUPER + ALT + ESCAPE", actions.focusFirst, { dont_inhibit = true })
+hl.bind(mainMod .. " + E",         hl.dsp.exec_cmd(programs.browser))
 hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exec_cmd(programs.fileManager))
-hl.bind(mainMod .. " + SPACE", function()
-    actions.floatToggle()
-end)
-hl.bind("ALT + SPACE", function()
-    hl.dispatch(hl.dsp.global("quickshell:launcher"))
-end)
-hl.bind(mainMod .. " + B", function()
-    hl.dispatch(hl.dsp.global("quickshell:clipboard"))
-end)
-hl.bind(mainMod .. " + TAB", function()
-    hl.dispatch(hl.dsp.global("quickshell:windows"))
-end, { repeating = true })
-hl.bind(mainMod .. " + D", hl.dsp.layout("togglesplit"))
+hl.bind(mainMod .. " + SPACE", actions.floatToggle)
+hl.bind("ALT + SPACE",         hl.dsp.global("quickshell:launcher"))
+hl.bind(mainMod .. " + B",     hl.dsp.global("quickshell:clipboard"))
+hl.bind(mainMod .. " + TAB",   hl.dsp.global("quickshell:windows"), { repeating = true })
+hl.bind(mainMod .. " + D",     hl.dsp.layout("togglesplit"))
 
-local resizeStep = 40
+hl.bind(mainMod .. " + CTRL + ALT + right", hl.dsp.window.resize({ x = 40, y = 0, relative = true }),  { repeating = true })
+hl.bind(mainMod .. " + CTRL + ALT + left",  hl.dsp.window.resize({ x = -40, y = 0, relative = true }), { repeating = true })
+hl.bind(mainMod .. " + CTRL + ALT + up",    hl.dsp.window.resize({ x = 0, y = 40, relative = true }),  { repeating = true })
+hl.bind(mainMod .. " + CTRL + ALT + down",  hl.dsp.window.resize({ x = 0, y = -40, relative = true }), { repeating = true })
 
-hl.bind(mainMod .. " + CTRL + ALT + right", hl.dsp.window.resize({ x = resizeStep, y = 0, relative = true }),  { repeating = true })
-hl.bind(mainMod .. " + CTRL + ALT + left",  hl.dsp.window.resize({ x = -resizeStep, y = 0, relative = true }), { repeating = true })
-hl.bind(mainMod .. " + CTRL + ALT + up",    hl.dsp.window.resize({ x = 0, y = resizeStep, relative = true }),  { repeating = true })
-hl.bind(mainMod .. " + CTRL + ALT + down",  hl.dsp.window.resize({ x = 0, y = -resizeStep, relative = true }), { repeating = true })
-
-hl.bind(mainMod .. " + Z", hl.dsp.global("quickshell:cpu"))
-hl.bind(mainMod .. " + X", hl.dsp.global("quickshell:memory"))
-hl.bind(mainMod .. " + C", hl.dsp.global("quickshell:volume"))
-hl.bind(mainMod .. " + A", hl.dsp.global("quickshell:calendar"))
-hl.bind(mainMod .. " + H", hl.dsp.global("quickshell:weather"))
-hl.bind(mainMod .. " + O", hl.dsp.global("quickshell:notifications"))
-hl.bind(mainMod .. " + F", hl.dsp.global("quickshell:power"))
-hl.bind(mainMod .. " + F4", wakeLauncher("powerMenu"))
-hl.bind(mainMod .. " + G", hl.dsp.global("quickshell:contributions"))
-hl.bind(mainMod .. " + T", hl.dsp.global("quickshell:tray"))
-hl.bind(mainMod .. " + V", hl.dsp.global("quickshell:network"))
+hl.bind(mainMod .. " + Z",       hl.dsp.global("quickshell:cpu"))
+hl.bind(mainMod .. " + X",       hl.dsp.global("quickshell:memory"))
+hl.bind(mainMod .. " + C",       hl.dsp.global("quickshell:volume"))
+hl.bind(mainMod .. " + A",       hl.dsp.global("quickshell:calendar"))
+hl.bind(mainMod .. " + H",       hl.dsp.global("quickshell:weather"))
+hl.bind(mainMod .. " + O",       hl.dsp.global("quickshell:notifications"))
+hl.bind(mainMod .. " + F",       hl.dsp.global("quickshell:power"))
+hl.bind(mainMod .. " + F4",      hl.dsp.global("quickshell:powerMenu"))
+hl.bind(mainMod .. " + G",       hl.dsp.global("quickshell:contributions"))
+hl.bind(mainMod .. " + T",       hl.dsp.global("quickshell:tray"))
+hl.bind(mainMod .. " + V",       hl.dsp.global("quickshell:network"))
 hl.bind(mainMod .. " + SHIFT + H", hl.dsp.global("quickshell:bareBar"))
 
-hl.bind(mainMod .. " + left",  focusOrSwitch("left"))
-hl.bind(mainMod .. " + right", focusOrSwitch("right"))
-hl.bind(mainMod .. " + up",    focusOrSwitch("up"))
-hl.bind(mainMod .. " + down",  focusOrSwitch("down"))
+hl.bind(mainMod .. " + left",  focus.step("left"))
+hl.bind(mainMod .. " + right", focus.step("right"))
+hl.bind(mainMod .. " + up",    focus.step("up"))
+hl.bind(mainMod .. " + down",  focus.step("down"))
 
 hl.bind(mainMod .. " + ALT + left",  hl.dsp.window.move({ direction = "left" }))
 hl.bind(mainMod .. " + ALT + right", hl.dsp.window.move({ direction = "right" }))
-hl.bind(mainMod .. " + ALT + up",    moveOrSplit("up"))
-hl.bind(mainMod .. " + ALT + down",  moveOrSplit("down"))
+hl.bind(mainMod .. " + ALT + up",    focus.move("up"))
+hl.bind(mainMod .. " + ALT + down",  focus.move("down"))
 
-hl.bind(mainMod .. " + mouse_down", function()
-    local ws = hl.get_active_workspace()
-    local slot = ws and ws.name and versions.slotOf(ws.name)
-    if slot and slot < 10 then
-        gotoWorkspace(slot + 1)()
-    end
-end)
-hl.bind(mainMod .. " + mouse_up", function()
-    local ws = hl.get_active_workspace()
-    local slot = ws and ws.name and versions.slotOf(ws.name)
-    if slot and slot > 1 then
-        gotoWorkspace(slot - 1)()
-    end
-end)
-
-local windowDrag = hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
-hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
+hl.bind(mainMod .. " + mouse_down", function() versions.shiftSlot(1) end)
+hl.bind(mainMod .. " + mouse_up",   function() versions.shiftSlot(-1) end)
+hl.bind(mainMod .. " + mouse:273",  hl.dsp.window.resize(), { mouse = true })
 
 hl.bind("PRINT",         hl.dsp.exec_cmd("~/.local/bin/snap"))
 hl.bind("SHIFT + PRINT", hl.dsp.exec_cmd("env SNAP_SCREENSHOT_DIR=/tmp ~/.local/bin/snap --save"))
@@ -257,9 +114,3 @@ hl.bind("XF86AudioNext",  hl.dsp.global("quickshell:mediaNext"),      { locked =
 hl.bind("XF86AudioPause", hl.dsp.global("quickshell:mediaPlayPause"), { locked = true })
 hl.bind("XF86AudioPlay",  hl.dsp.global("quickshell:mediaPlayPause"), { locked = true })
 hl.bind("XF86AudioPrev",  hl.dsp.global("quickshell:mediaPrevious"),  { locked = true })
-
-return {
-    launcherDrag = function (open)
-        windowDrag:set_enabled(not open)
-    end,
-}

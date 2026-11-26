@@ -66,6 +66,40 @@ local function jump(version)
 	hl.dispatch(hl.dsp.focus({ workspace = target(slot, version) }))
 end
 
+local function focusSlot(slot)
+	local shown = current()
+
+	if not slot or shown == slot then
+		return
+	end
+
+	hl.dispatch(hl.dsp.focus({ workspace = slot }))
+end
+
+local function shiftSlot(delta)
+	local slot = current()
+
+	if not slot then
+		return
+	end
+
+	local nextSlot = slot + delta
+
+	if nextSlot < 1 or nextSlot > versions then
+		return
+	end
+
+	focusSlot(nextSlot)
+end
+
+local function moveWindow(version)
+	local slot = current()
+
+	if slot then
+		hl.dispatch(hl.dsp.window.move({ workspace = target(slot, version), follow = false }))
+	end
+end
+
 local function step(delta)
 	local slot, version = current()
 
@@ -135,6 +169,9 @@ return {
 	wrap = wrap,
 	jump = jump,
 	step = step,
+	focusSlot = focusSlot,
+	shiftSlot = shiftSlot,
+	moveWindow = moveWindow,
 	landing = landing,
 	visit = visit
 }

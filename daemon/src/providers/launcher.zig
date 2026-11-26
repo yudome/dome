@@ -851,7 +851,7 @@ pub const Launcher = struct {
 	}
 
 	fn dragThread(self: *Launcher, open: bool) void {
-		const script = if (open) "require('binds').launcherDrag(true)" else "require('binds').launcherDrag(false)";
+		const script = if (open) "require('actions').launcherDrag(true)" else "require('actions').launcherDrag(false)";
 		const result = hypr.ctl(self.io, self.allocator, &.{ "eval", script }) catch return;
 		result.deinit(self.allocator);
 	}
