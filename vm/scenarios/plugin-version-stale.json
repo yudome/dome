@@ -4,7 +4,7 @@
     { "do": "wait", "until": "guest", "timeout": 60000 },
     { "do": "wait", "until": "exec:pgrep -x yudaemond", "timeout": 60000 },
     { "do": "wait", "until": "exec:pgrep -x quickshell", "timeout": 60000 },
-    { "do": "exec", "cmd": "mkdir -p /home/user/.local/state/yudae && printf 'load = [\"_template-hypr\"]\\n' > /home/user/.local/state/yudae/plugins.toml", "code": 0 },
+    { "do": "exec", "cmd": "mkdir -p /home/user/.local/share/yudae/plugins && cp -r /home/user/dotfiles/templates/_template-hypr /home/user/.local/share/yudae/plugins/ && mkdir -p /home/user/.local/state/yudae && printf 'load = [\"_template-hypr\"]\\n' > /home/user/.local/state/yudae/plugins.toml", "code": 0 },
     { "do": "exec", "cmd": "/home/user/dotfiles/daemon/zig-out/bin/yudaemond plugin reload", "code": 0 },
     { "do": "wait", "until": "exec:test -f /home/user/.local/state/yudae/build/_template-hypr/stamp", "timeout": 30000 },
     { "do": "exec", "cmd": "printf '0.0.0\\nfake\\n' > /home/user/.local/state/yudae/build/_template-hypr/stamp", "code": 0 },
