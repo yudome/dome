@@ -1350,6 +1350,8 @@ pub const Launcher = struct {
 
 		std.mem.sort(Row, rows.items, {}, struct {
 			fn less(_: void, a: Row, b: Row) bool {
+				if (a.memory != b.memory) return a.memory > b.memory;
+
 				return a.value > b.value;
 			}
 		}.less);
@@ -2523,7 +2525,7 @@ test "clipboard previews know images from text" {
 	try std.testing.expectEqualStrings("", sourceOf("1622 Alacritty\n", "9"));
 }
 
-test "process rows keep every process, hottest first" {
+test "process rows keep every process, heaviest first" {
 	var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
 	defer arena.deinit();
 
@@ -2535,18 +2537,20 @@ test "process rows keep every process, hottest first" {
 	const self = try Launcher.create(allocator, io, &hub);
 	self.system = system;
 
-	try system.all.append(allocator, .{ .pid = 7, .cpu = 0 });
-	try system.all.append(allocator, .{ .pid = 8, .cpu = 9 });
-	try system.all.append(allocator, .{ .pid = 9, .cpu = 3 });
+	try system.all.append(allocator, .{ .pid = 7, .cpu = 0, .rss_kb = 100 });
+	try system.all.append(allocator, .{ .pid = 8, .cpu = 9, .rss_kb = 400 });
+	try system.all.append(allocator, .{ .pid = 9, .cpu = 3, .rss_kb = 200 });
+	try system.all.append(allocator, .{ .pid = 10, .cpu = 6, .rss_kb = 200 });
 
 	var rows: std.ArrayListUnmanaged(Row) = .empty;
 
 	try self.buildProcs(allocator, "", &rows);
 
-	try std.testing.expectEqual(3, rows.items.len);
+	try std.testing.expectEqual(4, rows.items.len);
 	try std.testing.expectEqual(@as(i32, 8), rows.items[0].pid);
-	try std.testing.expectEqual(@as(i32, 9), rows.items[1].pid);
-	try std.testing.expectEqual(@as(i32, 7), rows.items[2].pid);
+	try std.testing.expectEqual(@as(i32, 10), rows.items[1].pid);
+	try std.testing.expectEqual(@as(i32, 9), rows.items[2].pid);
+	try std.testing.expectEqual(@as(i32, 7), rows.items[3].pid);
 }
 
 test "process detail shows cpu and ram" {
