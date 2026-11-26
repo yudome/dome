@@ -8,14 +8,13 @@ import qs.ui
 import qs.services
 import "bar"
 import "features/launcher"
-import "features/lock"
+import "lockscreen"
 import "features/wallpaper"
 
 ShellRoot {
 	id: shellRoot
 
 	property double hyprBootAt: Date.now()
-	readonly property string lockScript: Quickshell.shellDir + "/scripts/lock"
 
 	function launcher() {
 		const wasOpen = launcherWindow.shown;
@@ -103,14 +102,14 @@ ShellRoot {
 		Handoff.run(shellRoot.closeLauncherUnderWidget);
 	}
 
-	function lock() {
+	function lock(idle) {
 		shellRoot.closeWidgets();
 
 		if (powerMenuWindow.shown)
 			powerMenuWindow.close();
 
 		Handoff.run(shellRoot.closeLauncherUnderWidget);
-		Quickshell.execDetached([shellRoot.lockScript]);
+		lockscreen.lock(idle === true);
 	}
 
 	function trayGroup() {
@@ -366,12 +365,14 @@ ShellRoot {
 		id: powerMenuWindow
 	}
 
-	IdleMonitor {
-		enabled: Config.lockAfterMinutes > 0 && !Yudae.awakeWanted
-		timeout: Math.max(1, Config.lockAfterMinutes * 60)
+	Idle {
+		armed: !Yudae.awakeWanted
+		seconds: Config.lockAfterMinutes * 60
+		onIdle: shellRoot.lock(true)
+	}
 
-		onIsIdleChanged: if (isIdle)
-			shellRoot.lock()
+	Lock {
+		id: lockscreen
 	}
 
 }

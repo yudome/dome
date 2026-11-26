@@ -257,6 +257,8 @@ QtObject {
 	property var launcherPart: null
 	readonly property var launcher: root.launcherPart || root.snapshot.launcher || ({})
 	readonly property var ink: root.snapshot.ink || ({})
+	readonly property var lockscreen: root.snapshot.lockscreen || ({})
+	readonly property bool locked: root.lockscreen.locked === true
 	readonly property var windows: root.snapshot.windows ? (root.snapshot.windows.list || []) : []
 	readonly property string windowsEmpty: root.snapshot.windows ? (root.snapshot.windows.empty || "") : ""
 

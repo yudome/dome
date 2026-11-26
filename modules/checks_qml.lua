@@ -9,7 +9,8 @@ function run(root, dir)
 		print("qmllint missing, skipping")
 		return true
 	end
-	for _, file in ipairs(os.files(path.join(dir, "**", "*.qml"))) do
+	local files = table.join(os.files(path.join(dir, "**", "*.qml")), os.files(path.join(dir, "lockscreen", "*.qml")))
+	for _, file in ipairs(files) do
 		if not file:find("/cache/", 1, true) then
 			local command = string.format("'%s' -I '%s' '%s' >/dev/null 2>&1; echo $?", lint, imports, file)
 			local out = os.iorunv("sh", { "-c", command })

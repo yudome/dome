@@ -68,6 +68,7 @@ templates/         copyable plugin templates, one per kind
 hypr/              hyprland conf + plugins; the one non-config symlinked into ~/.config
 shell/             quickshell; run with `quickshell -p shell/shell.qml`, never symlinked
 daemon/            yudaemond (Zig); providers pair with shell/features/<name>
+lockscreen/        lock screen + greeter, one Surface; shell/lockscreen links here
 systemd/ vm/ docs/ .agents/skills/
 xmake.lua          the single entry point: build install plugin link lint test bench vm doctor
 modules/           shared xmake Lua primitives: checks, tasks, util

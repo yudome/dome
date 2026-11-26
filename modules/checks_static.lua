@@ -1,4 +1,5 @@
 function run(root, dir)
+	local qml_files = table.join(os.files(path.join(root, "shell", "**", "*.qml")), os.files(path.join(root, "shell", "lockscreen", "*.qml")))
 	local failures = {}
 	local function relative(file)
 		return path.relative(file, root)
@@ -14,7 +15,7 @@ function run(root, dir)
 	-- colors come from Config.qml
 	local config = path.join(root, "shell", "services", "Config.qml")
 	local color_keys = { color = true, barColor = true, textColor = true, fillColor = true }
-	for _, file in ipairs(os.files(path.join(root, "shell", "**", "*.qml"))) do
+	for _, file in ipairs(qml_files) do
 		if file ~= config and not file:find("/cache/", 1, true) then
 			each_line(file, function (line, number)
 				local key, value = line:match("([%a_][%w_]*)%s*:%s*\"([^\"]*)\"")
@@ -108,7 +109,7 @@ function run(root, dir)
 		local name = prop:match("^text:%s*Config%.(%w+)")
 		return name ~= nil and name:match("^%w+Icon%w*$") ~= nil
 	end
-	for _, file in ipairs(os.files(path.join(root, "shell", "**", "*.qml"))) do
+	for _, file in ipairs(qml_files) do
 		if not file:find("/cache/", 1, true) then
 			local body = io.readfile(file) or ""
 			local lines = {}

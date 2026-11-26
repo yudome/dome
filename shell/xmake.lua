@@ -60,6 +60,32 @@ task("lint")
 		print("lint clean")
 	end)
 
+task("lockscreen")
+	set_category("action")
+	set_menu {
+		usage = "xmake lockscreen [shots]",
+		description = "open the lock screen and greeter preview; shots renders its states to vm/runs/shots/lockscreen",
+		options = {
+			{ nil, "mode", "v", "preview", "preview or shots" },
+		},
+	}
+	on_run(function ()
+		import("core.base.option")
+		local envs = {
+			QML_IMPORT_PATH = path.join(os.getenv("HOME"), ".local", "lib", "yudae", "qml") .. ":" .. path.join(dir, "native", "qml"),
+		}
+		if option.get("mode") == "shots" then
+			local shots = path.join(root, "vm", "runs", "shots", "lockscreen")
+			os.tryrm(shots)
+			os.mkdir(shots)
+			envs.QS_LOCK_SHOTS = shots
+			os.execv("quickshell", { "-p", path.join(dir, "app-lockscreen.qml") }, { envs = envs, stdout = os.nuldev(), stderr = os.nuldev() })
+			print("shots in " .. shots)
+			return
+		end
+		os.execv("quickshell", { "-p", path.join(dir, "app-lockscreen.qml") }, { envs = envs })
+	end)
+
 target("greeter")
 	set_kind("phony")
 	set_default(false)

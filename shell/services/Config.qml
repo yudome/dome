@@ -352,7 +352,7 @@ QtObject {
 		{ name: "Shut down", command: "systemctl poweroff", glyph: "\uf011" },
 		{ name: "Reboot", command: "systemctl reboot", glyph: "\uead2" },
 		{ name: "Suspend", command: "systemctl suspend", glyph: "\udb81\udcb2" },
-		{ name: "Lock", command: "\"$HOME/dotfiles/shell/scripts/lock\"", glyph: "\uf023" },
+		{ name: "Lock", command: "\"$HOME/dotfiles/daemon/zig-out/bin/yudaemond\" lock", glyph: "\uf023" },
 		{ name: "Log out", command: "\"$HOME/dotfiles/daemon/zig-out/bin/yudaemond\" logout", glyph: "\uea6e" }
 	]
 	readonly property var powerCellSize: settings.powerCellSize !== undefined ? settings.powerCellSize : 96
@@ -384,29 +384,27 @@ QtObject {
 	// lock screen
 	readonly property var lockAfterMinutes: settings.lockAfterMinutes !== undefined ? settings.lockAfterMinutes : 10
 	readonly property var lockSleepAfterMinutes: settings.lockSleepAfterMinutes !== undefined ? settings.lockSleepAfterMinutes : 30
-	readonly property var lockFontSize: settings.lockFontSize !== undefined ? settings.lockFontSize : 15
+	readonly property var lockWallpaper: settings.lockWallpaper !== undefined ? settings.lockWallpaper : "desktop"
+	readonly property var greeterWallpaper: settings.greeterWallpaper !== undefined ? settings.greeterWallpaper : "lock"
+	readonly property var lockIdleSeconds: settings.lockIdleSeconds !== undefined ? settings.lockIdleSeconds : 15
 	readonly property var lockClockFormat: settings.lockClockFormat !== undefined ? settings.lockClockFormat : "h:mm AP"
-	readonly property var lockDigits: settings.lockDigits !== undefined ? settings.lockDigits : [
-		["0", "###", "# #", "# #", "# #", "###"],
-		["1", "  #", "  #", "  #", "  #", "  #"],
-		["2", "###", "  #", "###", "#  ", "###"],
-		["3", "###", "  #", "###", "  #", "###"],
-		["4", "# #", "# #", "###", "  #", "  #"],
-		["5", "###", "#  ", "###", "  #", "###"],
-		["6", "###", "#  ", "###", "# #", "###"],
-		["7", "###", "  #", "  #", "  #", "  #"],
-		["8", "###", "# #", "###", "# #", "###"],
-		["9", "###", "# #", "###", "  #", "###"],
-		[":", " ", "#", " ", "#", " "],
-		[" ", " ", " ", " ", " ", " "],
-		["A", "###", "# #", "###", "# #", "# #"],
-		["P", "###", "# #", "###", "#  ", "#  "],
-		["M", "#   #", "## ##", "# # #", "#   #", "#   #"]
-	]
+	readonly property var lockDateFormat: settings.lockDateFormat !== undefined ? settings.lockDateFormat : "dddd, MMMM d"
+	readonly property var lockClockSize: settings.lockClockSize !== undefined ? settings.lockClockSize : 56
+	readonly property var lockDateSize: settings.lockDateSize !== undefined ? settings.lockDateSize : 20
+	readonly property var lockCardWidth: settings.lockCardWidth !== undefined ? settings.lockCardWidth : 420
+	readonly property var lockFieldHeight: settings.lockFieldHeight !== undefined ? settings.lockFieldHeight : 40
+	readonly property var lockCellSize: settings.lockCellSize !== undefined ? settings.lockCellSize : 72
+	readonly property var lockMenuRowHeight: settings.lockMenuRowHeight !== undefined ? settings.lockMenuRowHeight : 56
+	readonly property var lockMenuTextSize: settings.lockMenuTextSize !== undefined ? settings.lockMenuTextSize : 22
+	readonly property var lockFadeMs: settings.lockFadeMs !== undefined ? settings.lockFadeMs : 450
+	readonly property var lockCardGrow: settings.lockCardGrow !== undefined ? settings.lockCardGrow : 64
+	readonly property var lockFoldMs: settings.lockFoldMs !== undefined ? settings.lockFoldMs : 1600
 	readonly property var lockCooldownMs: settings.lockCooldownMs !== undefined ? settings.lockCooldownMs : 3000
 	readonly property var lockPamService: settings.lockPamService !== undefined ? settings.lockPamService : "quickshell"
 	readonly property var lockWrongText: settings.lockWrongText !== undefined ? settings.lockWrongText : "Wrong password"
 	readonly property var lockPamError: settings.lockPamError !== undefined ? settings.lockPamError : "Authentication unavailable"
+	readonly property var lockUnlockHint: settings.lockUnlockHint !== undefined ? settings.lockUnlockHint : "↵ unlock"
+	readonly property var lockCheckingText: settings.lockCheckingText !== undefined ? settings.lockCheckingText : "checking"
 
 	// calendar, meters and the life dial
 	readonly property var calendarCellWidth: settings.calendarCellWidth !== undefined ? settings.calendarCellWidth : 60

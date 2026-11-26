@@ -33,17 +33,17 @@ function greeter()
 		raise("no login user found")
 	end
 	local home = trim(os.iorunv("sh", { "-c", "getent passwd '" .. target .. "' | cut -d: -f6" }))
-	local repo = path.join(home, "dotfiles")
-	local start = path.join(repo, "shell", "features", "greeter", "start")
-	for _, tool in ipairs({ "cage", "quickshell" }) do
+	local repo = os.projectdir()
+	local config = path.join(repo, "lockscreen", "hypr", "greeter.lua")
+	for _, tool in ipairs({ "start-hyprland", "quickshell" }) do
 		if os.execv("sh", { "-c", "command -v " .. tool }, { try = true }) ~= 0 then
 			raise("missing " .. tool)
 		end
 	end
 	os.execv("chmod", { "o+x", home })
-	if os.execv("runuser", { "-u", "greeter", "--", "test", "-x", start }, { try = true }) ~= 0
-		or os.execv("runuser", { "-u", "greeter", "--", "test", "-r", path.join(repo, "shell", "greeterShell.qml") }, { try = true }) ~= 0 then
-		raise("greeter cannot run " .. start)
+	if os.execv("runuser", { "-u", "greeter", "--", "test", "-r", config }, { try = true }) ~= 0
+		or os.execv("runuser", { "-u", "greeter", "--", "test", "-r", path.join(repo, "shell", "greeter.qml") }, { try = true }) ~= 0 then
+		raise("greeter cannot read " .. config)
 	end
 	os.execv("rm", { "-rf", "/etc/greetd/quickshell", "/var/lib/quickshell/greeter" })
 	os.execv("rmdir", { "/var/lib/quickshell" }, { try = true })
@@ -86,13 +86,16 @@ polkit.addRule(function (action, subject) {
 vt = 1
 switch = false
 [default_session]
-command = "%s %s"
+command = "sh -c 'printf \"\\033[2J\\033[H\\033[?25l\"; exec env HOME=/var/lib/greetd DOTFILES_REPO=%s QS_GREETER_USER=%s start-hyprland -- --config %s >/var/lib/greetd/hyprland.log 2>&1'"
 user = "greeter"
-	]], start, target))
+[initial_session]
+command = "env YUDAE_LOCK_AT_START=1 %s %s/.local/state/session.log /usr/bin/start-hyprland"
+user = "%s"
+	]], repo, target, config, path.join(repo, "lockscreen", "session"), home, target))
 	os.execv("faillock", { "--user", target, "--reset" }, { try = true, stdout = "/dev/null", stderr = "/dev/null" })
 	os.execv("systemctl", { "disable", "sddm" }, { try = true, stdout = "/dev/null", stderr = "/dev/null" })
 	os.execv("systemctl", { "enable", "greetd" }, { try = true, stdout = "/dev/null" })
-	print("greeter installed for " .. target)
+	print("greeter installed for " .. target .. "; boot logs straight in and starts locked")
 	print("your current session is untouched; reboot to test.")
 	print("rollback: sudo xmake uninstall greeter")
 end

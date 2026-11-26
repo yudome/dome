@@ -1,5 +1,0 @@
-{
-  "name": "lock",
-  "daemon": "system",
-  "surface": "Stage"
-}

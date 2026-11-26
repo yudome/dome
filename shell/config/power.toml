@@ -2,29 +2,27 @@
 [lock]
 lockAfterMinutes = 10  # idle before the shell locks, 0 disables
 lockSleepAfterMinutes = 30  # idle while locked before suspend, 0 disables
-lockFontSize = 15  # 8..32
-lockClockFormat = "h:mm AP"  # Qt time format like clockFormat; HH H hh h mm ss AP, glyphs from lockDigits
-lockDigits = [  # block clock font: glyph, then 5 rows; each # is two cells
-	["0", "###", "# #", "# #", "# #", "###"],
-	["1", "  #", "  #", "  #", "  #", "  #"],
-	["2", "###", "  #", "###", "#  ", "###"],
-	["3", "###", "  #", "###", "  #", "###"],
-	["4", "# #", "# #", "###", "  #", "  #"],
-	["5", "###", "#  ", "###", "  #", "###"],
-	["6", "###", "#  ", "###", "# #", "###"],
-	["7", "###", "  #", "  #", "  #", "  #"],
-	["8", "###", "# #", "###", "# #", "###"],
-	["9", "###", "# #", "###", "  #", "###"],
-	[":", " ", "#", " ", "#", " "],
-	[" ", " ", " ", " ", " ", " "],
-	["A", "###", "# #", "###", "# #", "# #"],
-	["P", "###", "# #", "###", "#  ", "#  "],
-	["M", "#   #", "## ##", "# # #", "#   #", "#   #"]
-]
+lockWallpaper = "desktop"  # desktop, or a path to an image or video
+greeterWallpaper = "lock"  # lock, desktop, or a path to an image or video
+lockIdleSeconds = 15  # no input this long hides all but the wallpaper, 0 never
+lockClockFormat = "h:mm AP"  # Qt time format like clockFormat
+lockDateFormat = "dddd, MMMM d"  # Qt date format
+lockClockSize = 56
+lockDateSize = 20
+lockCardWidth = 420
+lockFieldHeight = 40
+lockCellSize = 72
+lockMenuRowHeight = 56
+lockMenuTextSize = 22
+lockFadeMs = 450
+lockCardGrow = 64  # extra card height above the input, the clock moves up
+lockFoldMs = 1600  # unlock: the card folds, rises and fills the bar
 lockCooldownMs = 3000
 lockPamService = "quickshell"  # hidden
 lockWrongText = "Wrong password"  # hidden
 lockPamError = "Authentication unavailable"  # hidden
+lockUnlockHint = "↵ unlock"  # hidden
+lockCheckingText = "checking"  # hidden
 
 # Power
 [power]
@@ -32,7 +30,7 @@ powerActions = [
 	{ name = "Shut down", command = "systemctl poweroff", glyph = "\uF011" },
 	{ name = "Reboot", command = "systemctl reboot", glyph = "\uEAD2" },
 	{ name = "Suspend", command = "systemctl suspend", glyph = "\U000F04B2" },
-	{ name = "Lock", command = "\"$HOME/dotfiles/shell/scripts/lock\"", glyph = "\uF023" },
+	{ name = "Lock", command = "\"$HOME/dotfiles/daemon/zig-out/bin/yudaemond\" lock", glyph = "\uF023" },
 	{ name = "Log out", command = "\"$HOME/dotfiles/daemon/zig-out/bin/yudaemond\" logout", glyph = "\uEA6E" }
 ]
 powerCellSize = 96

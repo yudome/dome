@@ -15,9 +15,10 @@ dotfiles/
     appkit/          app chrome: AppWindow, AppScaffold, AppHeader, AppSidebar, AppPage, Metrics, Motion
     panelkit/        widget popup chrome: PanelPage, PanelHeader, PanelRow, PanelFooter, ProcessPanel
     app-<name>.qml   one entry per app (settings, vms, disk, gallery); `yudae app open <name>` runs it
-    native/          Yudae.Native C++ QML module (VmDisplay) + yudae-pump
-    lib/ lock/ launcher/ greeter/
+    native/          Yudae.Native C++ QML module (VmDisplay, WallVideo) + yudae-pump
+    lockscreen ->    symlink to ../lockscreen so its QML resolves `qs`
     config/          one TOML per settings category; icons.toml holds every glyph
+  lockscreen/        the lock screen and the greeter: one Surface, PAM or greetd auth, video backdrop, greeter Hyprland config
   daemon/            yudaemond (Zig); src/providers/<name>.zig pairs with features/<name>
   systemd/           user units and the root fsd helper units
   vm/                mkosi/ guest image, images (overlays), net (per-VM netns), scenarios; xmake vm, bench and doctor
@@ -35,9 +36,12 @@ dotfiles/
 - `AGENTS.md` is an index. Procedure goes in `.agents/skills/`, reference in `docs/`.
 - Only `xmake link` writes into `~/.config`. It refuses to overwrite a real file and prints what it would replace.
 - The shell and greeter run from the repo path, never from `~/.config`.
-- The greeter is `shell/greeterShell.qml`, run by greetd as `cage -- quickshell` through `shell/features/greeter/start`. It and the lock draw the same `features/lock/Stage.qml`: font, `lockFontSize`, `lockDigits`, `lockClockFormat` and colors come from `shell/config/`.
-- The greeter starts the chosen session through `shell/features/greeter/session`, which sends its output to `~/.local/state/session.log`, so nothing is printed on the VT between the greeter and the desktop.
-- The greeter's third button opens the switch menu: one row for the session name and one for the user, arrows to change each, and that choice is used for the login. Sessions come from `/usr/share/wayland-sessions`.
+- The lock lives in the main shell process: `lockscreen/Lock.qml` holds a fresh `WlSessionLock` per lock. It locks on idle (`lockAfterMinutes`), on the power menu's Lock (`yudaemond lock`), on logind `Lock` and before sleep, and again after a shell or daemon crash in the same Hyprland session (Hyprland's `allow_session_lock_restore`). The daemon's `lockscreen` provider owns the state: it publishes `locked` and the profile, keeps the `yudae-locked-<instance>` flag in `$XDG_RUNTIME_DIR`, and takes `lock`, `unlock` and `power` (`suspend`, `reboot`, `poweroff` only) commands. There is no lock script and no lock shortcut.
+- Boot logs straight in: greetd's `initial_session` starts Hyprland as the user with `YUDAE_LOCK_AT_START=1`, and the shell locks once on its first start in that Hyprland, before it even reaches the daemon (a `yudae-started-<instance>` marker in `$XDG_RUNTIME_DIR` keeps reloads from locking again). Unlocking is the login, so there is no second compositor and no black screen. The greeter only shows after a logout.
+- The greeter is `shell/greeter.qml`, run by greetd inside a minimal Hyprland (`lockscreen/hypr/greeter.lua`) and installed with `sudo xmake install greeter` from the repo it should run from. It draws the same `lockscreen/Surface.qml` as the lock plus a user cell next to the power cells; it swaps the card for a menu with a back arrow, the user row and the session row. Tab steps the session, Up and Down the user, Escape closes the menu. Users (`/etc/passwd`) and sessions (`/usr/share/wayland-sessions`) come from the profile the daemon writes; the chosen one starts through `lockscreen/session`, which sends its output to `~/.local/state/session.log`.
+- Lock and greeter play their wallpaper on every show: a video plays and settles on its still frame through `Yudae.Native.WallVideo`, which shares the daemon's decoder and settle curve (`daemon/src/c/video.c`, `settle.c`). `lockWallpaper` and `greeterWallpaper` pick `desktop`, `lock` or a path. The daemon writes the choice, the still pick, preview frames and a greeter-readable copy of the media to `shell/cache/lockscreen/<machine-id>/profile.json`, or `/var/tmp/yudae-lockscreen/<machine-id>/` when the repo is read-only (a VM).
+- After `lockIdleSeconds` without input only the wallpaper shows; moving the mouse or a key brings the controls back. An idle lock starts that way.
+- `xmake lockscreen` opens the preview app (`shell/app-lockscreen.qml`): lock or greeter, mock auth, wrong password, idle. `xmake lockscreen shots` renders those states to `vm/runs/shots/lockscreen/`. `yudae vm scenario <vm> greeter-lock` runs the real lock and greeter in a VM.
 
 ## UI layers
 
@@ -56,7 +60,8 @@ xmake orchestrates, it does not replace the real builders.
 | `xmake install` | daemon into `~/.local/bin`, the `yudae` link, and the native pieces, then `yudae restart`; `xmake install fsd` and `xmake install greeter` ask for root first |
 | `xmake plugin` | rebuild every `plugins/*/Makefile` into `~/.local/state/yudae/build/<id>`; hypr plugins keep `make` |
 | `xmake link` | symlink `config/*`, `hypr/`, the user units and the icons into `$HOME` |
-| `xmake lint` | qmllint on `shell/`, plus the color, kit, slider and face checks |
+| `xmake lint` | qmllint on `shell/` and `lockscreen/`, plus the color, kit, slider and face checks |
+| `xmake lockscreen` | the lock screen preview app; `xmake lockscreen shots` renders its states |
 | `xmake test` | daemon parsers/protocol tests, plugin conformance, QML lint, the kit and face checks, and every app plus the shell loaded in a headless cage |
 | `xmake bench` | headless daemon cold build, size, start, idle RSS and spawns, then `yudaemond bench` against `bench/baseline.json` |
 | `xmake vm ...` | VM images and the image build bench; running VMs are `yudae vm` |
