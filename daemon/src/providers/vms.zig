@@ -1693,7 +1693,9 @@ pub const Vms = struct {
 		const name = json.textAt(args, "name");
 		const cid = self.cidOf(name) orelse return error.NotFound;
 		const path = json.textAt(args, "path");
-		const to = json.textAt(args, "to");
+		const raw_to = json.textAt(args, "to");
+		if (std.mem.indexOf(u8, raw_to, "..") != null) return error.BadPath;
+		const to = if (raw_to.len > 0 and raw_to[0] != '/') try std.fs.path.join(allocator, &.{ proc.repo(self.io, self.allocator), raw_to }) else raw_to;
 
 		if (!safePath(path) or !safePath(to)) return error.BadPath;
 
@@ -1766,9 +1768,10 @@ pub const Vms = struct {
 		try writer.print("{d}", .{json.integer(json.field(context, "mem"))});
 		try writer.writeAll(",\"gl\":");
 		try writer.writeAll(if (json.flag(context, "gl")) "true" else "false");
-		if (json.textAt(context, "from").len > 0) {
+		const from = if (json.textAt(args, "from").len > 0) json.textAt(args, "from") else json.textAt(context, "from");
+		if (from.len > 0) {
 			try writer.writeAll(",\"from\":");
-			try std.json.Stringify.encodeJsonString(json.textAt(context, "from"), .{}, writer);
+			try std.json.Stringify.encodeJsonString(from, .{}, writer);
 		}
 		try writer.writeAll("}");
 
