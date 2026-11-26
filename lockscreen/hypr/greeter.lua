@@ -1,6 +1,7 @@
 local repo = os.getenv("DOTFILES_REPO") or ((os.getenv("HOME") or "") .. "/dotfiles")
 package.path = repo .. "/hypr/?.lua;" .. package.path
 
+require("display")
 require("monitors")
 require("envs")
 require("input")
