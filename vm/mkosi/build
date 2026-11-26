@@ -124,8 +124,15 @@ CacheOnly=$cacheonly
 EOF
 
 started=$(date +%s)
+trash=$MKOSI/trash/$$
+mkdir -p "$trash"
+[ -e "$WORK/out" ] && chmod u+w "$WORK/out" "$WORK"/out/* 2>/dev/null; [ -e "$WORK/out" ] && mv "$WORK/out" "$trash/out"
+if [ "$FORCE" -ne 0 ]; then
+	for entry in "$WORK/cache/$key.cache" "$WORK/cache/$key.manifest"; do
+		[ -e "$entry" ] && chmod u+w "$entry" && mv "$entry" "$trash/"
+	done
+fi
 force=(-f)
-[ "$FORCE" -eq 0 ] || force=(-ff)
 if ! mkosi -C "$DIR" --include "$GEN/host.conf" "${profiles[@]}" "${force[@]}" build; then
 	[ "$cacheonly" = metadata ] || exit 1
 	echo "host package state is not on the mirrors any more, retrying with fresh repo metadata" >&2
@@ -184,3 +191,4 @@ for old in "$IMAGES"/*/; do
 	grep -qF "$old" <<<"$used" || rm -rf "$old"
 done
 echo "image $dst ($(du -sm "$dst" | cut -f1)MB) in $(($(date +%s) - started))s"
+setsid sh -c 'chmod -R u+w "$1" 2>/dev/null; rm -rf "$1"' _ "$MKOSI/trash" >/dev/null 2>&1 &
