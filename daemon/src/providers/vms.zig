@@ -2487,7 +2487,7 @@ pub const Vms = struct {
 
 	fn coresOf(self: *Vms, args: json.Value) u32 {
 		const value = json.integer(json.field(args, "cores"));
-		if (value <= 0) return 1;
+		if (value <= 0) return @min(self.limit.cores, 2);
 		return @intCast(@min(@as(i64, self.limit.cores), value));
 	}
 
