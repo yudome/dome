@@ -14,6 +14,7 @@ Item {
 	property var iconComponent: null
 	property real iconWidth: 0
 	property real iconMinWidth: 0
+	property real slotWidth: 0
 	property real iconHeight: 0
 	property var bar: null
 	readonly property bool onScreen: root.bar !== null && root.bar.visible && !root.bar.fullscreen
@@ -78,7 +79,7 @@ Item {
 	// bar taller.
 	readonly property real iconInkCentre: root.iconBaseline - root.iconsInkAbove + root.iconInkHeight / 2
 
-	implicitWidth: Math.ceil(root.iconBreadth)
+	implicitWidth: Math.ceil(Math.max(root.iconBreadth, root.slotWidth))
 	implicitHeight: Math.round(root.inkAbove + root.inkBelow)
 
 	Tooltip {
@@ -124,7 +125,7 @@ Item {
 		id: labelIcon
 
 		visible: root.iconComponent === null
-		x: 0
+		x: (root.width - iconMetrics.advanceWidth) / 2
 		y: root.iconInkCentre - height / 2 - root.iconLift
 		width: iconMetrics.advanceWidth
 		height: root.iconSize
@@ -147,7 +148,7 @@ Item {
 		readonly property real drawnWidth: root.iconHeight > 0 ? root.iconWidth : 0
 
 		visible: root.iconComponent !== null
-		x: 0
+		x: (root.width - width) / 2
 		y: root.iconInkCentre - iconSlot.drawnSize / 2 - root.iconLift
 		width: iconSlot.drawnWidth > 0 ? iconSlot.drawnWidth : iconSlot.drawnSize
 		height: iconSlot.drawnSize

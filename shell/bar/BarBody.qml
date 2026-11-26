@@ -32,6 +32,18 @@ Item {
 
 	readonly property real inset: border.inset
 	readonly property real contentHeight: Math.max(leftRow.implicitHeight, centerRow.implicitHeight, rightRow.implicitHeight)
+	readonly property real iconSlot: {
+		let slot = 0;
+
+		Object.keys(body.widgets).forEach(function (key) {
+			const item = body.widgets[key];
+
+			if (item && item.iconBreadth !== undefined)
+				slot = Math.max(slot, item.iconBreadth);
+		});
+
+		return Math.ceil(slot);
+	}
 	readonly property var centerItem: body.widgets[body.layout.centerAnchor]
 	readonly property var centerSlot: body.centerItem && body.centerItem.parent && body.centerItem.parent.parent === centerRow ? body.centerItem.parent : null
 
@@ -118,6 +130,10 @@ Item {
 					item.mode = modelData.mode;
 				if (item.bar !== undefined)
 					item.bar = body.host;
+				if (item.slotWidth !== undefined)
+					item.slotWidth = Qt.binding(function () {
+						return body.iconSlot;
+					});
 				if (item.frozen !== undefined)
 					item.frozen = body.sample;
 				if (item.sampleOnly !== undefined)
