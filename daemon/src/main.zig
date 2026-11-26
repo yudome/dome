@@ -418,7 +418,7 @@ fn callThunk(ctx: *anyopaque, target: []const u8, method: []const u8, args: json
 	if (std.mem.eql(u8, target, "plugins")) return context.plugins.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "bar")) return context.bar.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "settings")) return context.config.call(method, args, alloc);
-	if (std.mem.eql(u8, target, "wallpaper") and (std.mem.eql(u8, method, "filmstrip") or std.mem.eql(u8, method, "preview") or std.mem.eql(u8, method, "stats"))) return context.ink.call(method, args, alloc);
+	if (std.mem.eql(u8, target, "wallpaper") and (std.mem.eql(u8, method, "filmstrip") or std.mem.eql(u8, method, "preview") or std.mem.eql(u8, method, "frame") or std.mem.eql(u8, method, "stats"))) return context.ink.call(method, args, alloc);
 	if (std.mem.eql(u8, target, "state")) return context.hub.syncSnapshot(allocator);
 	if (std.mem.eql(u8, target, "ui")) return context.hub.syncSnapshot(allocator);
 
@@ -485,6 +485,7 @@ pub fn main() !void {
 
 	if (std.mem.eql(u8, command, "logout")) return cli.logout(io);
 	if (std.mem.eql(u8, command, "lock")) return cli.lock(io);
+	if (std.mem.eql(u8, command, "still")) return cli.still(io, args);
 	if (std.mem.eql(u8, command, "files")) return cli.files(io, args);
 	if (std.mem.eql(u8, command, "doctor")) return cli.doctor(io);
 	if (std.mem.eql(u8, command, "bench")) return cli.bench(io, args);
@@ -495,7 +496,7 @@ pub fn main() !void {
 	if (std.mem.eql(u8, command, "transition")) return cli.transition(io, args);
 
 	if (!std.mem.eql(u8, command, "run")) {
-		std.debug.print("usage: yudae [--json] [run|restart|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|settings|bar|ui|spawn-check|logout|lock|files rebuild|transition check <file>]\n", .{});
+		std.debug.print("usage: yudae [--json] [run|restart|state|doctor|bench [widgets]|parity|mcp|call|plugin|vm|open|app|disk|settings|bar|ui|spawn-check|logout|lock|still [path]|files rebuild|transition check <file>]\n", .{});
 		return;
 	}
 

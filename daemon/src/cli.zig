@@ -90,6 +90,13 @@ pub fn logout(io: Io) !void {
 	try send(io, "{\"cmd\":{\"system\":{\"logout\":true}}}");
 }
 
+pub fn still(io: Io, args: []const []const u8) !void {
+	const script = try std.fmt.allocPrint(std.heap.smp_allocator, "{s}/daemon/still.py", .{proc.repo(io, std.heap.smp_allocator)});
+	const err = std.process.replace(io, .{ .argv = if (args.len > 2) &.{ "python3", script, args[2] } else &.{ "python3", script } });
+	std.debug.print("yudae still: {t}\n", .{err});
+	std.process.exit(1);
+}
+
 pub fn lock(io: Io) !void {
 	try send(io, "{\"cmd\":{\"lockscreen\":{\"lock\":true}}}");
 }

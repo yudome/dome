@@ -191,7 +191,7 @@ pub const Ink = struct {
 	}
 
 	/// `filmstrip {path}` writes keyframe thumbnails once per file version; `preview {path, t}`
-	/// writes the exact frame at `t`. Both answer with file paths the settings page shows.
+	/// writes the exact frame at `t`; `frame {path, t}` saves the still frame.
 	pub fn call(self: *Ink, method: []const u8, args: json.Value, alloc: Allocator) ![]u8 {
 		var arena = std.heap.ArenaAllocator.init(self.allocator);
 		defer arena.deinit();
@@ -240,6 +240,13 @@ pub const Ink = struct {
 			try json.write(&out.writer, dest);
 			try out.writer.print(",\"t\":{d}}}", .{t});
 			return out.toOwnedSlice();
+		}
+
+		if (std.mem.eql(u8, method, "frame")) {
+			const t = json.numberAt(args, "t");
+			if (t < 0) return error.BadTime;
+			self.saveStill(path, t);
+			return std.fmt.allocPrint(alloc, "{{\"t\":{d}}}", .{t});
 		}
 
 		return error.UnknownMethod;
