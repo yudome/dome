@@ -20,6 +20,7 @@ function run(root, dir)
 		envs.WLR_LIBINPUT_NO_DEVICES = "1"
 		envs.WLR_RENDERER = "pixman"
 		envs.YUDAE_VM = nil
+		envs.QML_IMPORT_PATH = path.join(os.getenv("HOME"), ".local", "lib", "yudae", "qml") .. ":" .. path.join(root, "shell", "native", "qml")
 		local runtime
 		if item.isolated then
 			envs.HYPRLAND_INSTANCE_SIGNATURE = nil
